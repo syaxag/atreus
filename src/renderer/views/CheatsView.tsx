@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Zap, ShieldOff, Plug, Unplug, Play, TriangleAlert, Crosshair } from 'lucide-react';
-import type { CheatDef, CheatState, TrainerSession } from '@shared/types';
+import {
+  Zap, ShieldOff, Plug, Unplug, Play, TriangleAlert, Crosshair,
+  Download, Globe, ExternalLink,
+} from 'lucide-react';
+import type { CheatDef, CheatState, RemoteMod, TrainerSession } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { Badge, Button, Card, Empty, Input, Slider, Toggle, ViewHeader } from '@/components/ui';
+import { Badge, Button, Card, Empty, Input, Skeleton, Slider, Toggle, ViewHeader } from '@/components/ui';
 
 export function CheatsView() {
   const game = useStore((s) => s.selected());
@@ -22,6 +25,12 @@ export function CheatsView() {
   const [session, setSession] = useState<TrainerSession | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Cheats que vienen de los catálogos públicos. En muchos juegos son la única
+  // forma de cheat que existe: menús de mods, no trainers de memoria.
+  const [catalogo, setCatalogo] = useState<RemoteMod[] | null>(null);
+  const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
+  const [instalando, setInstalando] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!gameId) return;
     setSession(null);
@@ -34,6 +43,31 @@ export function CheatsView() {
   }, [gameId, pushToast]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Se consulta el catálogo siempre: aunque el juego tenga cheats de memoria,
+  // puede haber menús de mods que valgan más.
+  useEffect(() => {
+    let vivo = true;
+    if (!gameId) return;
+    setCatalogo(null);
+    setCargandoCatalogo(true);
+    void api.mods.discover(gameId).then((res) => {
+      if (!vivo) return;
+      setCargandoCatalogo(false);
+      // Sin catálogo no es un error aquí: solo significa que no hay.
+      setCatalogo(res.ok ? res.data.filter((m) => m.kind === 'cheat') : []);
+    });
+    return () => { vivo = false; };
+  }, [gameId]);
+
+  async function instalarDelCatalogo(mod: RemoteMod) {
+    if (!gameId) return;
+    setInstalando(mod.id);
+    const res = await api.mods.installRemote(gameId, mod);
+    setInstalando(null);
+    if (!res.ok) return pushToast('error', res.error);
+    pushToast('success', `${res.data.name} instalado. Actívalo en Mods y despliega.`);
+  }
 
   // El backend puede cambiar la sesión por su cuenta (el juego se cierra, por ejemplo).
   useEffect(() => {
@@ -144,20 +178,13 @@ export function CheatsView() {
             }
           />
         ) : defs.length === 0 ? (
-          <Empty
-            icon={<Zap size={40} strokeWidth={1.25} />}
-            title={`Todavía no hay cheats para ${game.name}`}
-            hint={
-              'Un cheat necesita la dirección de memoria donde el juego guarda el ' +
-              'valor, y esa solo se encuentra con el juego abierto. El Buscador hace ' +
-              'justo eso: buscas un número que veas en pantalla, lo cambias en el ' +
-              'juego, filtras, y cuando queda una dirección la guardas como cheat.'
-            }
-            action={
-              <Button variant="primary" onClick={() => go('scanner')}>
-                <Crosshair size={14} /> Abrir el Buscador
-              </Button>
-            }
+          <CatalogoDeCheats
+            juego={game.name}
+            cheats={catalogo}
+            cargando={cargandoCatalogo}
+            instalando={instalando}
+            onInstalar={instalarDelCatalogo}
+            onBuscador={() => go('scanner')}
           />
         ) : (
           <div className="flex flex-col gap-6">
@@ -281,5 +308,110 @@ function CheatRow({
         </p>
       )}
     </Card>
+  );
+}
+
+/**
+ * Cheats que vienen de los catálogos públicos.
+ *
+ * En muchos juegos no existe ningún trainer de memoria, pero sí menús de mods
+ * que hacen lo mismo: Geometry Dash tiene QOLMod y Eclipse con millones de
+ * descargas, publicados junto a las texturas. Aquí se sacan a la superficie.
+ */
+function CatalogoDeCheats({
+  juego, cheats, cargando, instalando, onInstalar, onBuscador,
+}: {
+  juego: string;
+  cheats: RemoteMod[] | null;
+  cargando: boolean;
+  instalando: string | null;
+  onInstalar: (mod: RemoteMod) => void;
+  onBuscador: () => void;
+}) {
+  if (cargando) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-16 rounded-md" />)}
+      </div>
+    );
+  }
+
+  if (!cheats || cheats.length === 0) {
+    return (
+      <Empty
+        icon={<Zap size={40} strokeWidth={1.25} />}
+        title={`Todavía no hay cheats para ${juego}`}
+        hint={
+          'Ni en los catálogos públicos ni guardados aquí. Puedes encontrarlos tú: ' +
+          'el Buscador localiza la dirección de memoria con el juego abierto, y la ' +
+          'guarda como cheat reutilizable.'
+        }
+        action={
+          <Button variant="primary" onClick={onBuscador}>
+            <Crosshair size={14} /> Abrir el Buscador
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-3 rounded-md border border-line bg-surface px-4 py-3">
+        <Globe size={16} className="mt-0.5 shrink-0 text-accent" />
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium">
+            {cheats.length === 1
+              ? '1 cheat disponible en los catálogos'
+              : `${cheats.length} cheats disponibles en los catálogos`}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-snug text-muted">
+            En este juego los cheats se publican como mods: menús, modos debug y
+            trainers. Se instalan como cualquier mod y se activan desde dentro del
+            juego. Si prefieres uno de memoria con hotkey,{' '}
+            <button onClick={onBuscador} className="text-accent-hover underline">
+              búscalo con el Buscador
+            </button>.
+          </p>
+        </div>
+      </div>
+
+      {cheats.map((mod) => (
+        <Card key={mod.id} className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-[13px] font-medium">{mod.name}</p>
+                {mod.version ? <Badge mono>v{mod.version}</Badge> : null}
+                <Badge tone="accent">cheat</Badge>
+              </div>
+              <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">{mod.description}</p>
+              <p className="mt-1 text-[11px] text-faint">
+                {mod.author} · {mod.downloads.toLocaleString('es-ES')} {mod.metric} · {mod.source}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="sm"
+                onClick={() => void api.settings.openPath(mod.pageUrl)}
+                aria-label="Abrir la página"
+              >
+                <ExternalLink size={12} />
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => onInstalar(mod)}
+                disabled={instalando !== null}
+              >
+                <Download size={12} />
+                {instalando === mod.id ? 'Instalando…' : 'Instalar'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }

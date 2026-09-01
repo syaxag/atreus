@@ -155,6 +155,8 @@ export const MOCK_REMOTE: RemoteMod[] = [
   ['Talisman', 'MathIsFun0', '2.1.0', 'Soporte para puntuaciones enormes', 15308, 921600],
   ['JokerDisplay', 'nh6574', '1.8.4', 'Muestra el valor de cada comodín en tiempo real', 12044, 430080],
   ['Bunco', 'Firch', '0.6.1', 'Mazos, comodines y mejoras cosméticas', 9877, 5242880],
+  ['DebugPlus', 'WilsontheWolf', '1.7.0', 'Better Debug Tools for Balatro: consola, dinero infinito y unlock all', 778, 210000],
+  ['MoreSpeed', 'Steamopollys', '0.8.2', 'Speed hack para acelerar las animaciones del juego', 51126, 90000],
 ].map(([name, author, version, description, downloads, sizeBytes]) => ({
   id: `${author as string}/${name as string}`,
   name: name as string,
@@ -171,5 +173,6 @@ export const MOCK_REMOTE: RemoteMod[] = [
   dependencies: 0,
   source: 'Thunderstore',
   metric: 'descargas',
+  kind: (/debug|cheat|hack|menu/i.test(name as string) ? 'cheat' : 'mod') as 'mod' | 'cheat',
   deferred: false,
 }));

@@ -211,13 +211,41 @@ Instalar desde el catálogo baja el archivo a un temporal y lo pasa por el mismo
 `install` de siempre, así que hereda la protección contra zip slip, la lectura
 del manifiesto y la decisión de extraer o dejar el paquete entero.
 
-### Esto cubre mods, no cheats
+### En muchos juegos, los cheats SON mods
 
-Un cheat es un patrón de memoria de una **compilación concreta**. No existe
-ningún catálogo público legible por máquina que los publique, y las apps
-comerciales no los generan solas: los escriben personas, uno a uno. Para eso
-está el buscador de memoria, y el catálogo de definiciones para compartirlos
-una vez encontrados.
+El hallazgo que cambió el planteamiento: no hace falta un catálogo de cheats que
+no existe, hace falta **reconocerlos entre los mods** que ya se descargan.
+
+Geometry Dash no tiene trainers de memoria; tiene menús de mods —QOLMod con 8,4
+millones de descargas, Eclipse con 7,2— publicados junto a las texturas. PEAK
+tiene diez menús de tipo "all-in-one". Balatro tiene DebugPlus.
+
+`mods/classify.ts` los separa por señales en el nombre, la descripción y las
+categorías: una señal fuerte (`mod menu`, `trainer`, `god mode`) basta; dos
+medias también; y cualquier desmentido (`texture`, `skin`, `anti-cheat`) lo
+tumba, porque prefiero dejar un cheat entre los mods que anunciar un paquete de
+texturas como cheat.
+
+Cobertura medida:
+
+| Juego | Cheats encontrados |
+|---|---|
+| Geometry Dash | 8 · QOLMod, Eclipse, Prism Menu, GDH, OpenHack |
+| PEAK | 10 · PEAK AIO, Everything, Admin Menu, So Fly |
+| Balatro | 2 · ZokersModMenu, DebugPlus |
+| Resident Evil 4 | 0 · sus mods de GameBanana son todos skins |
+
+### Lo que sigue sin poder venir de un catálogo
+
+Los cheats **de memoria**, con hotkey y congelado. Un patrón AoB es de una
+compilación concreta y no hay catálogo público legible por máquina que los
+publique: se comprobó Thunderstore, Geode, GameBanana, la API de GitHub y los
+repositorios de tablas de Cheat Engine. Las tablas existen (918 en un solo
+repositorio) pero sus nombres no permiten mapearlas a un juego y su contenido es
+ensamblador inyectado, que este modelo no representa.
+
+Para esos está el buscador de memoria, y el catálogo de definiciones para
+compartirlos una vez encontrados.
 
 ### Mods
 

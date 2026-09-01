@@ -2,6 +2,7 @@ import { net } from 'electron';
 import type { GameId, RemoteMod } from '@shared/types';
 import { log } from '../../logger';
 import { getDefinition } from '../catalog/definitions';
+import { classify } from './classify';
 
 const logger = log('mods:providers');
 
@@ -93,6 +94,7 @@ async function listThunderstore(community: string): Promise<RemoteMod[]> {
         dependencies: latest.dependencies.length,
         source: 'Thunderstore',
         metric: 'descargas',
+        kind: 'mod' as const,
         deferred: false,
       };
     })
@@ -150,6 +152,7 @@ async function listGeode(): Promise<RemoteMod[]> {
         dependencies: 0,
         source: 'Geode',
         metric: 'descargas',
+        kind: 'mod' as const,
         deferred: false,
       });
     }
@@ -228,6 +231,7 @@ async function listGameBanana(gameId: number): Promise<RemoteMod[]> {
         dependencies: 0,
         source: 'GameBanana',
         metric: 'me gusta',
+        kind: 'mod' as const,
         deferred: true,
       });
     }
@@ -284,6 +288,11 @@ function listOne(provider: ModProvider): Promise<RemoteMod[]> {
   }
 }
 
+/** Etiqueta cada resultado como mod o cheat. Ver classify.ts. */
+function clasificar(mods: RemoteMod[]): RemoteMod[] {
+  return mods.map((m) => ({ ...m, kind: classify(m) }));
+}
+
 /**
  * Lista lo que hay disponible, sumando todos los catálogos del juego.
  *
@@ -314,11 +323,14 @@ export async function discover(gameId: GameId): Promise<RemoteMod[]> {
   }
   for (const f of fallos) logger.warn(`${gameId}: catálogo caído — ${f}`);
 
+  const clasificados = clasificar(mods);
+  const cheats = clasificados.filter((m) => m.kind === 'cheat').length;
   const resumen = providers.map((p) => p.kind).join(' + ');
   logger.info(
-    `${gameId}: ${mods.length} mods disponibles en ${resumen} (${Date.now() - started} ms)`,
+    `${gameId}: ${clasificados.length} disponibles en ${resumen} ` +
+    `(${cheats} de tipo cheat) — ${Date.now() - started} ms`,
   );
-  return mods;
+  return clasificados;
 }
 
 /**

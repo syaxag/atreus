@@ -264,6 +264,12 @@ export interface RemoteMod {
    */
   metric: string;
   /**
+   * "cheat" si el catálogo lo publica como mod pero funciona como cheat:
+   * menús de mods, trainers, modos debug. En muchos juegos es la única forma
+   * de cheat que existe, porque nadie escribe trainers de memoria para ellos.
+   */
+  kind: 'mod' | 'cheat';
+  /**
    * true si la URL de descarga aún no se conoce y hay que pedirla al instalar.
    *
    * GameBanana no la da en el listado; pedirla para los 148 mods de un juego
