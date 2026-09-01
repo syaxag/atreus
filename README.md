@@ -56,6 +56,12 @@ Comprobar que el contrato sigue en pie:
 npm run typecheck
 ```
 
+## Qué se actualiza sin reinstalar
+
+Juegos, cheats y mods se añaden dejando un JSON o desde el catálogo, **sin
+reempaquetar ni reiniciar**. Solo el código de la app necesita un instalador
+nuevo. Los tres caminos, con su estado real, en [docs/UPDATING.md](docs/UPDATING.md).
+
 ## Estructura
 
 ```

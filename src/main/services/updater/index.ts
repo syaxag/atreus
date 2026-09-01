@@ -1,4 +1,6 @@
 import { app } from 'electron';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 
@@ -11,8 +13,9 @@ import { emit } from '../../ipc/emit';
  * la capa de usuario y `catalog.sync`. Ver docs/ARCHITECTURE.md.
  *
  * Sin `publish` configurado en electron-builder no hay servidor al que
- * preguntar, así que el comprobador informa de que no está configurado en vez
- * de fallar con un error de red poco claro.
+ * preguntar. Se detecta por la ausencia de `app-update.yml` y se dice
+ * claramente, en vez de dejar que electron-updater lance un error interno que
+ * no le sirve a nadie.
  */
 
 const logger = log('updater');
@@ -64,10 +67,30 @@ export interface UpdateCheck {
   version: string | null;
 }
 
+/**
+ * ¿Hay servidor de actualizaciones?
+ *
+ * electron-builder solo genera `app-update.yml` cuando `package.json` trae un
+ * bloque `publish`. Sin ese archivo no hay a quién preguntar.
+ */
+export function isConfigured(): boolean {
+  if (!app.isPackaged) return false;
+  return existsSync(join(process.resourcesPath, 'app-update.yml'));
+}
+
 export async function checkForUpdates(): Promise<UpdateCheck> {
   if (!app.isPackaged) {
     // En desarrollo no hay instalación que sustituir.
     return { available: false, version: null };
+  }
+
+  if (!isConfigured()) {
+    throw new Error(
+      'No hay servidor de actualizaciones configurado, así que la app no puede ' +
+      'buscarse a sí misma. Se actualiza reinstalando desde el .exe. ' +
+      'Los juegos, cheats y mods sí se actualizan solos: van por la carpeta de ' +
+      'definiciones y por Ajustes → Catálogo, sin tocar la instalación.',
+    );
   }
 
   const updater = getUpdater();

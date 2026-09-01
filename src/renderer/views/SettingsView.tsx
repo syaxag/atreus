@@ -187,7 +187,14 @@ export function SettingsView() {
                 <ScrollText size={14} /> Abrir carpeta
               </Button>
             </Row>
-            <Row label="Buscar actualizaciones" hint={`Versión instalada: ${version}`}>
+            <Row
+              label="Buscar actualizaciones de la app"
+              hint={
+                `Versión instalada: ${version}. Esto solo busca versiones nuevas del ` +
+                'programa. Los juegos, cheats y mods se actualizan por separado, arriba, ' +
+                'sin reinstalar nada.'
+              }
+            >
               <Button
                 variant="outline"
                 onClick={async () => {

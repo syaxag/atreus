@@ -126,6 +126,8 @@ Es **el** punto de extensión. Ver `data/games/_schema.json` y el ejemplo
 
 ## Contenido en dos capas — añadir sin reempaquetar
 
+> Resumen práctico de qué se actualiza por dónde: [UPDATING.md](UPDATING.md).
+
 Los juegos, cheats y listas viven **fuera** del código, en dos capas:
 
 | Capa | Dónde | Quién la toca |
