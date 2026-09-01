@@ -1,4 +1,4 @@
-import { LibraryBig, Trophy, Zap, Package, Settings2 } from 'lucide-react';
+import { LibraryBig, Trophy, Zap, Crosshair, Package, Settings2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useStore, type Section } from '@/store';
@@ -7,6 +7,7 @@ const ITEMS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: 'library', label: 'Biblioteca', icon: LibraryBig },
   { id: 'achievements', label: 'Logros', icon: Trophy },
   { id: 'cheats', label: 'Cheats', icon: Zap },
+  { id: 'scanner', label: 'Buscador', icon: Crosshair },
   { id: 'mods', label: 'Mods', icon: Package },
 ];
 

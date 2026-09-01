@@ -150,6 +150,64 @@ export interface TrainerSession {
   error: string | null;
 }
 
+// ─────────────────────── Buscador de memoria ───────────────────────
+
+/** Cómo se filtra una búsqueda de refinamiento. */
+export type ScanMode =
+  | 'eq'          // igual a un valor concreto
+  | 'changed'     // distinto de la lectura anterior
+  | 'unchanged'   // igual que la lectura anterior
+  | 'increased'
+  | 'decreased';
+
+export interface ScanCandidate {
+  /** Dirección en hexadecimal, p. ej. "0x7FF6A2C10000". */
+  address: string;
+  /** Valor leído ahora. */
+  value: number;
+  /** Valor de la pasada anterior, para ver qué se movió. */
+  previous: number;
+  /** Módulo que la contiene, si cae dentro de uno. */
+  module: string | null;
+}
+
+export interface ScanSummary {
+  /** Cuántas direcciones quedan tras el último filtro. */
+  count: number;
+  /** true si se llegó al tope y la lista está recortada. */
+  truncated: boolean;
+  elapsedMs: number;
+  /** Número de pasada: 1 es la primera búsqueda. */
+  pass: number;
+}
+
+export type ScanState = 'idle' | 'attached' | 'scanning' | 'blocked' | 'error';
+
+export interface ScanSession {
+  gameId: GameId;
+  state: ScanState;
+  pid: number | null;
+  type: MemType;
+  summary: ScanSummary | null;
+  error: string | null;
+}
+
+export interface ScanProgressEvent {
+  gameId: GameId;
+  /** Bytes ya examinados y bytes totales estimados. */
+  scanned: number;
+  total: number;
+  found: number;
+}
+
+/** Una forma estable de volver a esa dirección en la próxima partida. */
+export interface DerivedResolve {
+  resolve: CheatResolve;
+  /** Cómo de fiable es: "static" aguanta siempre; "pointer" casi siempre. */
+  kind: 'static' | 'pointer';
+  explanation: string;
+}
+
 // ──────────────────────────── Mods ────────────────────────────
 
 export type ModStatus = 'staged' | 'deployed' | 'error';

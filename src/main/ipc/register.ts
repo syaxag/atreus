@@ -1,10 +1,11 @@
 import { app, dialog, ipcMain, shell, BrowserWindow } from 'electron';
-import type { Result, Settings } from '@shared/types';
+import type { MemType, Result, ScanMode, Settings } from '@shared/types';
 import { IPC_CHANNELS, ok, err, type IpcChannel } from '@shared/ipc';
 import { getSettings, setSettings } from '../services/settings';
 import * as catalog from '../services/catalog';
 import * as steam from '../services/steam/session';
 import * as trainer from '../services/trainer';
+import * as scanner from '../services/trainer/scan-session';
 import * as mods from '../services/mods';
 import * as catalogSync from '../services/catalog/sync';
 import { paths, OPENABLE, type OpenableKey } from '../paths';
@@ -161,6 +162,23 @@ export function registerIpc(): void {
     return ok(undefined);
   });
   handle('trainer.states', (gameId: string) => ok(trainer.states(gameId)));
+
+  // ── Buscador de memoria ────────────────────────────────────
+  handle('scanner.attach', (gameId: string) => ok(scanner.attach(gameId)));
+  handle('scanner.detach', (gameId: string) => { scanner.detach(gameId); return ok(undefined); });
+  handle('scanner.session', (gameId: string) => ok(scanner.session(gameId)));
+  handle('scanner.first', (gameId: string, type: MemType, value: number) =>
+    ok(scanner.first(gameId, type, value)));
+  handle('scanner.next', (gameId: string, mode: ScanMode, value?: number) =>
+    ok(scanner.next(gameId, mode, value)));
+  handle('scanner.list', (gameId: string, limit?: number) => ok(scanner.list(gameId, limit)));
+  handle('scanner.poke', (gameId: string, address: string, value: number) => {
+    scanner.poke(gameId, address, value);
+    return ok(undefined);
+  });
+  handle('scanner.derive', (gameId: string, address: string) =>
+    ok(scanner.derive(gameId, address)));
+  handle('scanner.reset', (gameId: string) => { scanner.reset(gameId); return ok(undefined); });
 
   // ── Gestor de mods ─────────────────────────────────────────
   handle('mods.list', (gameId: string) => ok(mods.list(gameId)));

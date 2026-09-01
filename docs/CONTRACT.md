@@ -5,6 +5,18 @@ El contrato son dos archivos, y están **congelados**:
 - `src/shared/types.ts` — tipos de dominio (`Game`, `Achievement`, `CheatDef`, …).
 - `src/shared/ipc.ts` — `AtreusApi`, `AtreusEvents`, `IPC_CHANNELS`, `ok()`, `err()`.
 
+## Historial de cambios del contrato
+
+Estaba congelado desde la FASE 0. Se ha ampliado una vez:
+
+| Cuándo | Qué | Por qué |
+|---|---|---|
+| Buscador de memoria | `+scanner.*` (9 canales), `+scanner:progress`, `+scanner:session` | Los patrones AoB no se pueden inventar: hay que sacarlos del proceso en marcha, y eso necesitaba superficie nueva |
+
+Ampliar es seguro; **cambiar o quitar** lo existente no. Al añadir `scanner`,
+`npm run typecheck` señaló al momento que el mock no lo implementaba — que es
+exactamente para lo que sirve tener el contrato tipado.
+
 ## Reglas
 
 1. **Nadie edita `src/shared/` sin acuerdo previo.** Si una sesión necesita un campo

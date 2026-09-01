@@ -9,8 +9,9 @@
  */
 
 import type {
-  Achievement, AchievementPatch, CheatDef, CheatState, Game, GameId,
-  GameStat, Mod, ModProfile, Result, ScanProgress, Settings,
+  Achievement, AchievementPatch, CheatDef, CheatState, DerivedResolve, Game, GameId,
+  GameStat, MemType, Mod, ModProfile, Result, ScanCandidate, ScanMode, ScanProgress,
+  ScanProgressEvent, ScanSession, ScanSummary, Settings,
   StatPatch, SteamSession, TrainerSession,
 } from './types';
 
@@ -56,6 +57,30 @@ export interface AtreusApi {
     /** Dispara un cheat de tipo `button`. */
     trigger(gameId: GameId, cheatId: string): Promise<Result<void>>;
     states(gameId: GameId): Promise<Result<CheatState[]>>;
+  };
+
+  /**
+   * Buscador de memoria — el taller donde se sacan los cheats.
+   *
+   * Flujo: `attach` → `first` con un valor conocido → cambiarlo en el juego →
+   * `next` para filtrar → repetir hasta que queden pocas → `derive` para
+   * convertir la dirección en algo reutilizable entre partidas.
+   */
+  scanner: {
+    attach(gameId: GameId): Promise<Result<ScanSession>>;
+    detach(gameId: GameId): Promise<Result<void>>;
+    session(gameId: GameId): Promise<Result<ScanSession | null>>;
+    /** Primera pasada: busca un valor exacto por toda la memoria legible. */
+    first(gameId: GameId, type: MemType, value: number): Promise<Result<ScanSummary>>;
+    /** Refina lo que ya hay. `value` solo hace falta en modo 'eq'. */
+    next(gameId: GameId, mode: ScanMode, value?: number): Promise<Result<ScanSummary>>;
+    /** Relee los candidatos actuales. */
+    list(gameId: GameId, limit?: number): Promise<Result<ScanCandidate[]>>;
+    /** Escribe en una dirección concreta, para confirmar que es la buena. */
+    poke(gameId: GameId, address: string, value: number): Promise<Result<void>>;
+    /** Convierte una dirección en un `resolve` que sobreviva a reiniciar. */
+    derive(gameId: GameId, address: string): Promise<Result<DerivedResolve[]>>;
+    reset(gameId: GameId): Promise<Result<void>>;
   };
 
   mods: {
@@ -114,6 +139,8 @@ export interface AtreusEvents {
   'steam:session': SteamSession;
   'trainer:session': TrainerSession;
   'trainer:state': { gameId: GameId; state: CheatState };
+  'scanner:progress': ScanProgressEvent;
+  'scanner:session': ScanSession;
   'mods:updated': { gameId: GameId; mods: Mod[] };
   'game:started': { gameId: GameId; pid: number };
   'game:stopped': { gameId: GameId };
@@ -135,6 +162,9 @@ export const IPC_CHANNELS = [
   'trainer.definitions', 'trainer.attach', 'trainer.detach', 'trainer.session',
   'trainer.toggle', 'trainer.setValue', 'trainer.trigger', 'trainer.states',
 
+  'scanner.attach', 'scanner.detach', 'scanner.session', 'scanner.first',
+  'scanner.next', 'scanner.list', 'scanner.poke', 'scanner.derive', 'scanner.reset',
+
   'mods.list', 'mods.install', 'mods.uninstall', 'mods.setEnabled',
   'mods.reorder', 'mods.deploy', 'mods.purge', 'mods.profiles',
   'mods.saveProfile', 'mods.activateProfile', 'mods.deleteProfile',
@@ -151,7 +181,8 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 export const EVENT_CHANNELS = [
   'library:scan-progress', 'library:updated', 'steam:session',
-  'trainer:session', 'trainer:state', 'mods:updated',
+  'trainer:session', 'trainer:state', 'scanner:progress', 'scanner:session',
+  'mods:updated',
   'game:started', 'game:stopped', 'toast', 'update:available',
 ] as const;
 

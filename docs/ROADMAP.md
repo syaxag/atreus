@@ -258,6 +258,48 @@ de arrastre aparece.
 
 ---
 
+## Buscador de memoria ✅ HECHO
+
+El taller donde salen los cheats. Los patrones AoB no se pueden inventar: son
+direcciones de una compilación concreta y hay que encontrarlas en el proceso en
+marcha. Esto es lo que convierte "no hay datos" en "hay datos".
+
+### Flujo
+
+1. **Enganchar** el juego (mismas dos barreras que el motor de cheats).
+2. **Primera búsqueda** de un valor que se ve en pantalla: dinero, vida, munición.
+3. **Cambiarlo en el juego** y **filtrar**: igual a, cambió, no cambió, subió, bajó.
+4. Repetir hasta que queden pocas direcciones.
+5. **Probar**: escribir en una y ver si el juego reacciona.
+6. **Convertir**: traducir la dirección a un `resolve` que aguante reinicios.
+
+### Por qué la primera pasada es rápida
+
+Usa `Buffer.indexOf` sobre los bytes del valor, es decir, búsqueda de patrón
+nativa, en vez de comparar posición a posición desde JavaScript. Medido:
+**2 candidatos en 112 ms sobre 159 MB**. El precio es que la primera búsqueda
+tiene que ser de un valor exacto; los modos de comparación entran a partir de la
+segunda, cuando ya quedan pocas direcciones que releer.
+
+### Convertir una dirección en algo reutilizable
+
+Una dirección cruda no vale: cambia en cada ejecución. Hay dos salidas:
+
+- **estática** — la dirección cae dentro de un módulo, así que `módulo + offset`
+  es fijo. Verificado: una sonda en `AtreusTarget.exe+0x1008` devuelve
+  `{"kind":"static","module":"AtreusTarget.exe","offset":4104}`.
+- **puntero** — algún puntero *dentro de un módulo* apunta a ella, lo que da una
+  cadena de un nivel que `resolve.ts` ya sabe seguir.
+
+Si no hay ninguna de las dos, **lo dice** en vez de inventar una ruta: haría falta
+una cadena de más de un nivel, que este buscador todavía no hace.
+
+### Verificado contra un proceso real
+
+Con un ejecutable de destino propio, no contra un juego: enganche, primera pasada,
+filtro por valor exacto, filtro por comparación, escritura confirmada por el
+destino, y las dos ramas de conversión.
+
 ## FASE 6 — Actualización y pulido *(paralelo)*
 
 ### Lado A — backend

@@ -1,7 +1,8 @@
 import type { AtreusApi, AtreusEvents } from '@shared/ipc';
 import { ok, err } from '@shared/ipc';
 import type {
-  Achievement, CheatState, Game, GameStat, Mod, ModProfile, Settings, TrainerSession,
+  Achievement, CheatState, Game, GameStat, Mod, ModProfile, ScanCandidate, ScanSession,
+  Settings, TrainerSession,
 } from '@shared/types';
 import {
   MOCK_ACHIEVEMENTS, MOCK_CHEATS, MOCK_GAMES, MOCK_MODS, MOCK_PROFILES, MOCK_STATS,
@@ -24,6 +25,8 @@ let mods: Mod[] = structuredClone(MOCK_MODS);
 let profiles: ModProfile[] = structuredClone(MOCK_PROFILES);
 const cheatStates = new Map<string, CheatState>();
 const sessions = new Map<string, TrainerSession>();
+let scanSession: ScanSession | null = null;
+let scanCandidates: ScanCandidate[] = [];
 
 let settings: Settings = {
   theme: 'dark',
@@ -235,6 +238,108 @@ export const mockApi: AtreusApi = {
     async states(gameId) {
       await wait(40, 90);
       return ok(MOCK_CHEATS.map((c) => stateOf(gameId, c.id)));
+    },
+  },
+
+  scanner: {
+    async attach(gameId) {
+      await wait(300, 600);
+      const g = games.find((x) => x.id === gameId);
+      if (g?.multiplayer) {
+        const blocked = {
+          gameId, state: 'blocked' as const, pid: null, type: 'i32' as const,
+          summary: null,
+          error: 'Título multijugador: el buscador de memoria está bloqueado igual que los cheats.',
+        };
+        scanSession = blocked;
+        emit('scanner:session', blocked);
+        return ok(blocked);
+      }
+      scanSession = {
+        gameId, state: 'attached', pid: 1000 + Math.floor(Math.random() * 60000),
+        type: 'i32', summary: null, error: null,
+      };
+      scanCandidates = [];
+      emit('scanner:session', scanSession);
+      return ok(scanSession);
+    },
+
+    async detach(gameId) {
+      await wait(60, 120);
+      scanSession = { gameId, state: 'idle', pid: null, type: 'i32', summary: null, error: null };
+      scanCandidates = [];
+      emit('scanner:session', scanSession);
+      return ok(undefined);
+    },
+
+    async session() { await wait(30, 60); return ok(scanSession); },
+
+    async first(gameId, type, value) {
+      // Barrido simulado, para que la barra de progreso se vea de verdad.
+      const total = 2_400_000_000;
+      for (let i = 1; i <= 8; i++) {
+        await wait(80, 160);
+        emit('scanner:progress', {
+          gameId, scanned: Math.round((total * i) / 8), total, found: i * 1400,
+        });
+      }
+      scanCandidates = Array.from({ length: 11_237 }, (_, i) => ({
+        address: `0x${(0x7ff6a2c10000 + i * 0x48).toString(16).toUpperCase()}`,
+        value,
+        previous: value,
+        module: i % 400 === 0 ? 'Balatro.exe' : null,
+      }));
+      const summary = { count: scanCandidates.length, truncated: false, elapsedMs: 1840, pass: 1 };
+      if (scanSession) scanSession = { ...scanSession, type, summary };
+      return ok(summary);
+    },
+
+    async next(_gameId, mode, value) {
+      await wait(150, 350);
+      // Cada filtro se queda con una fracción, como pasaría de verdad.
+      const factor = mode === 'eq' ? 0.002 : 0.08;
+      const keep = Math.max(1, Math.round(scanCandidates.length * factor));
+      scanCandidates = scanCandidates.slice(0, keep).map((c) => ({
+        ...c,
+        previous: c.value,
+        value: value ?? c.value + (mode === 'increased' ? 5 : mode === 'decreased' ? -5 : 0),
+      }));
+      const pass = (scanSession?.summary?.pass ?? 1) + 1;
+      const summary = { count: keep, truncated: false, elapsedMs: 60, pass };
+      if (scanSession) scanSession = { ...scanSession, summary };
+      return ok(summary);
+    },
+
+    async list(_gameId, limit = 200) {
+      await wait(60, 120);
+      return ok(scanCandidates.slice(0, limit));
+    },
+
+    async poke(_gameId, address, value) {
+      await wait(60, 120);
+      scanCandidates = scanCandidates.map((c) => (c.address === address ? { ...c, value } : c));
+      emit('toast', { level: 'success', message: `Escrito ${value} en ${address}` });
+      return ok(undefined);
+    },
+
+    async derive(_gameId, address) {
+      await wait(500, 900);
+      return ok([
+        {
+          kind: 'pointer',
+          resolve: { kind: 'pointer', module: 'Balatro.exe', base: 0x2f4a10, offsets: [0] },
+          explanation:
+            `Un puntero en Balatro.exe+0x2f4a10 apunta a ${address}. ` +
+            'Funciona entre partidas siempre que el juego siga guardando el dato ahí.',
+        },
+      ]);
+    },
+
+    async reset() {
+      await wait(40, 80);
+      scanCandidates = [];
+      if (scanSession) scanSession = { ...scanSession, summary: null };
+      return ok(undefined);
     },
   },
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Game, GameId, ScanProgress, Settings } from '@shared/types';
 import { api } from '@/lib/api';
 
-export type Section = 'library' | 'achievements' | 'cheats' | 'mods' | 'settings';
+export type Section = 'library' | 'achievements' | 'cheats' | 'scanner' | 'mods' | 'settings';
 
 export interface Toast {
   id: number;

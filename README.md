@@ -24,7 +24,10 @@ estadísticas de Steam contra la cuenta real, y el motor de cheats (escaneo AoB,
 lectura y escritura de memoria, congelado, hotkeys) con su barrera de bloqueo,
 y el gestor de mods con despliegue reversible por enlace duro.
 
-Queda la FASE 6: empaquetado NSIS, auto-actualización y sincronización del catálogo.
+Incluye un **buscador de memoria** para sacar los patrones de los cheats del juego
+en marcha, porque no se pueden inventar.
+
+Queda la FASE 6: empaquetado NSIS y auto-actualización.
 La app compila, arranca y las cinco vistas navegan.
 El desarrollo sigue [docs/ROADMAP.md](docs/ROADMAP.md), pensado para dos sesiones
 de construcción trabajando en paralelo sin pisarse.

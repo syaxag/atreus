@@ -9,6 +9,7 @@ import { scan, rehydrateCovers, listGames, refreshDefinitions } from './services
 import { watchDefinitions, stopWatching } from './services/catalog/definitions';
 import { closeAll as closeSteamSessions } from './services/steam/session';
 import { detachAll as detachTrainers } from './services/trainer';
+import { detachAll as detachScanners } from './services/trainer/scan-session';
 import { emit } from './ipc/emit';
 
 const logger = log('main');
@@ -138,6 +139,7 @@ app.on('before-quit', () => {
   closeSteamSessions();
   // Y soltar los procesos enganchados, restaurando los parches que sigan puestos.
   detachTrainers();
+  detachScanners();
 });
 
 // En Windows, cerrar todas las ventanas no debe matar la app si vive en el tray.

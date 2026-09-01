@@ -42,6 +42,18 @@ const api: AtreusApi = {
     states: (gameId) => invoke('trainer.states', gameId),
   },
 
+  scanner: {
+    attach: (gameId) => invoke('scanner.attach', gameId),
+    detach: (gameId) => invoke('scanner.detach', gameId),
+    session: (gameId) => invoke('scanner.session', gameId),
+    first: (gameId, type, value) => invoke('scanner.first', gameId, type, value),
+    next: (gameId, mode, value) => invoke('scanner.next', gameId, mode, value),
+    list: (gameId, limit) => invoke('scanner.list', gameId, limit),
+    poke: (gameId, address, value) => invoke('scanner.poke', gameId, address, value),
+    derive: (gameId, address) => invoke('scanner.derive', gameId, address),
+    reset: (gameId) => invoke('scanner.reset', gameId),
+  },
+
   mods: {
     list: (gameId) => invoke('mods.list', gameId),
     install: (gameId, archivePath) => invoke('mods.install', gameId, archivePath),

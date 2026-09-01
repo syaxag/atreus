@@ -5,6 +5,7 @@ import { Toaster } from '@/components/Toaster';
 import { LibraryView } from '@/views/LibraryView';
 import { AchievementsView } from '@/views/AchievementsView';
 import { CheatsView } from '@/views/CheatsView';
+import { ScannerView } from '@/views/ScannerView';
 import { ModsView } from '@/views/ModsView';
 import { SettingsView } from '@/views/SettingsView';
 import { useStore, wireEvents } from '@/store';
@@ -30,6 +31,7 @@ export default function App() {
           {section === 'library' && <LibraryView />}
           {section === 'achievements' && <AchievementsView />}
           {section === 'cheats' && <CheatsView />}
+          {section === 'scanner' && <ScannerView />}
           {section === 'mods' && <ModsView />}
           {section === 'settings' && <SettingsView />}
         </main>
