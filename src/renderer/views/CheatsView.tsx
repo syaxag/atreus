@@ -210,7 +210,14 @@ function CheatRow({
   const value = state?.value ?? min;
 
   return (
-    <Card className={cn('px-4 py-3', !enabled && 'opacity-50')}>
+    <Card
+      className={cn(
+        'px-4 py-3',
+        // Antes el contenido completo quedaba al 50% y el estado "sin enganchar"
+        // parecía un error de renderizado. Conservamos la señal visual sin perder lectura.
+        !enabled && 'bg-inset opacity-75',
+      )}
+    >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -240,7 +247,7 @@ function CheatRow({
         )}
 
         {def.type === 'value' && (
-          <div className="flex w-64 shrink-0 items-center gap-3">
+          <div className="flex w-64 max-w-full shrink-0 items-center gap-3">
             <Slider value={value} min={min} max={max} step={step}
                     disabled={!enabled} onChange={onValue} />
             <Input

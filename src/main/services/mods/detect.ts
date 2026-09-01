@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { listFiles } from './archive';
+import { listFiles, readJsonFromZip } from './archive';
 
 /**
  * Deduce nombre, versión y autor de un mod recién extraído.
@@ -116,6 +116,44 @@ export function detectMeta(stagingDir: string, archivePath: string): ModMeta {
   }
 
   return fallback;
+}
+
+/**
+ * Metadatos de un mod que se despliega empaquetado (`.geode`, `.pak`…).
+ *
+ * No se extrae, así que el manifiesto se lee de dentro del zip cuando lo hay.
+ * Un `.pak` de Unreal no lleva manifiesto: ahí manda el nombre del archivo.
+ */
+export async function detectPackagedMeta(archivePath: string): Promise<ModMeta> {
+  const guessed = fromFileName(archivePath);
+  const fallback: ModMeta = {
+    name: guessed.name || basename(archivePath),
+    version: guessed.version,
+    author: null,
+    description: null,
+  };
+
+  // `.geode` es un zip con `mod.json` en la raíz.
+  const manifest = await readJsonFromZip(archivePath, ['mod.json', 'manifest.json']);
+  if (!manifest) return fallback;
+
+  const name = typeof manifest['name'] === 'string' ? manifest['name'] : null;
+  const version = typeof manifest['version'] === 'string' ? manifest['version'] : null;
+  const developer =
+    typeof manifest['developer'] === 'string' ? manifest['developer']
+    : Array.isArray(manifest['developers']) && typeof manifest['developers'][0] === 'string'
+      ? (manifest['developers'][0] as string)
+      : null;
+  const description =
+    typeof manifest['description'] === 'string' ? manifest['description'] : null;
+
+  return {
+    name: name ?? fallback.name,
+    // Geode escribe las versiones como "v1.2.3"; se normaliza.
+    version: version ? version.replace(/^v/i, '') : fallback.version,
+    author: developer,
+    description,
+  };
 }
 
 /** ¿El árbol extraído parece un mod, o el archivo venía vacío/roto? */

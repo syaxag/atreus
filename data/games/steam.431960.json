@@ -1,0 +1,9 @@
+{
+  "id": "steam:431960",
+  "name": "Wallpaper Engine",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "notes": "Se incluye solo por los logros; los fondos se gestionan desde el propio Wallpaper Engine. Sin campo \"exe\": no hace falta y no lo he verificado."
+}

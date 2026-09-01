@@ -25,7 +25,7 @@ export interface GameDefinition {
   multiplayer?: boolean;
   achievements?: { source?: 'steam' | 'none' };
   cheats?: CheatDef[];
-  mods?: { root?: string; loader?: string };
+  mods?: { root?: string; loader?: string; packaged?: string[] };
   notes?: string;
   /** Lo rellena el cargador: de qué capa viene. */
   origin?: 'builtin' | 'user';

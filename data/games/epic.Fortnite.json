@@ -1,0 +1,9 @@
+{
+  "id": "epic:Fortnite",
+  "name": "Fortnite",
+  "multiplayer": true,
+  "achievements": {
+    "source": "none"
+  },
+  "notes": "Multijugador competitivo con anti-cheat. Bloqueado en las dos barreras."
+}

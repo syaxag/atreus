@@ -222,13 +222,13 @@ export function AchievementsView() {
         />
       ) : tab === 'achievements' ? (
         <>
-          <div className="flex items-center gap-3 border-b border-line px-6 py-3">
-            <div className="relative w-72">
+          <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
+            <div className="relative w-full max-w-72">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)}
                      placeholder="Buscar logro…" className="w-full pl-8" />
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               <Button size="sm" variant="outline" onClick={() => setAll(true)}>Marcar todos</Button>
               <Button size="sm" variant="outline" onClick={() => setAll(false)}>Desmarcar</Button>
               <Button size="sm" variant="outline" onClick={invert}>Invertir</Button>

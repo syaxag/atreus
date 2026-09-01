@@ -1,0 +1,19 @@
+{
+  "id": "steam:824270",
+  "name": "KovaaK's",
+  "exe": "FPSAimTrainer-Win64-Shipping.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "mods": {
+    "root": "FPSAimTrainer\\Content\\Paks\\~mods",
+    "loader": "unreal-pak",
+    "packaged": [
+      ".pak",
+      ".ucas",
+      ".utoc"
+    ]
+  },
+  "notes": "Unreal Engine. El exe real está en FPSAimTrainer/Binaries/Win64, no en la raíz. Ruta de Paks verificada."
+}

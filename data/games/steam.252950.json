@@ -1,0 +1,10 @@
+{
+  "id": "steam:252950",
+  "name": "Rocket League",
+  "exe": "RocketLeague.exe",
+  "multiplayer": true,
+  "achievements": {
+    "source": "steam"
+  },
+  "notes": "Multijugador competitivo: el motor de cheats queda bloqueado. Solo logros. La instalación trae RocketLeague_EAC.exe y EasyAntiCheat_EOS_Setup.exe, así que la segunda barrera también lo cazaría. Ver docs/SCOPE.md."
+}

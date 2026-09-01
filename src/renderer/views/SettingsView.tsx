@@ -238,12 +238,12 @@ function Row({
   label, hint, children,
 }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-6 px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-6">
       <div className="min-w-0">
         <p className="text-[13px] font-medium">{label}</p>
         {hint && <p className="mt-0.5 text-[12px] leading-snug text-faint">{hint}</p>}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="max-w-full shrink-0">{children}</div>
     </div>
   );
 }

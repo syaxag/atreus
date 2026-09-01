@@ -101,6 +101,57 @@ function countFiles(dir: string): number {
 
 export const SUPPORTED = ['.zip', '.7z', '.rar'];
 
+/**
+ * Lee un JSON de dentro de un zip sin extraerlo.
+ *
+ * Los mods empaquetados (`.geode`) son zips que llevan su manifiesto dentro.
+ * Como se despliegan tal cual, sin extraer, esta es la única forma de sacarles
+ * el nombre y la versión de verdad en vez de deducirlos del nombre del archivo.
+ */
+export async function readJsonFromZip(
+  archivePath: string,
+  candidates: string[],
+): Promise<Record<string, unknown> | null> {
+  const wanted = new Set(candidates.map((c) => c.toLowerCase()));
+
+  const zip = await new Promise<yauzl.ZipFile | null>((resolve) => {
+    yauzl.open(archivePath, { lazyEntries: true, autoClose: true }, (err, file) => {
+      resolve(err || !file ? null : file);
+    });
+  });
+  if (!zip) return null;
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (value: Record<string, unknown> | null) => {
+      if (done) return;
+      done = true;
+      resolve(value);
+    };
+
+    zip.on('entry', (entry: yauzl.Entry) => {
+      if (!wanted.has(entry.fileName.toLowerCase())) { zip.readEntry(); return; }
+      zip.openReadStream(entry, (err, stream) => {
+        if (err || !stream) { zip.readEntry(); return; }
+        const chunks: Buffer[] = [];
+        stream.on('data', (c: Buffer) => chunks.push(c));
+        stream.on('end', () => {
+          try {
+            finish(JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>);
+          } catch {
+            finish(null);
+          }
+          zip.close();
+        });
+        stream.on('error', () => { zip.readEntry(); });
+      });
+    });
+    zip.on('end', () => finish(null));
+    zip.on('error', () => finish(null));
+    zip.readEntry();
+  });
+}
+
 /** Extrae el archivo a `destination`. Devuelve cuántos archivos escribió. */
 export async function extract(archivePath: string, destination: string): Promise<number> {
   const lower = archivePath.toLowerCase();

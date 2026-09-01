@@ -1,0 +1,10 @@
+{
+  "id": "steam:3527290",
+  "name": "PEAK",
+  "multiplayer": true,
+  "achievements": {
+    "source": "steam"
+  },
+  "notes": "Co-op online: el motor de cheats queda bloqueado. Solo logros.",
+  "exe": "PEAK.exe"
+}

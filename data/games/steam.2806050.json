@@ -1,0 +1,19 @@
+{
+  "id": "steam:2806050",
+  "name": "Halo: Campaign Evolved",
+  "exe": "HaloCampaignEvolved.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "mods": {
+    "root": "Meteorite\\Content\\Paks\\~mods",
+    "loader": "unreal-pak",
+    "packaged": [
+      ".pak",
+      ".ucas",
+      ".utoc"
+    ]
+  },
+  "notes": "Unreal Engine; el proyecto se llama Meteorite. Los mods son .pak (con sus .ucas/.utoc si los traen) y van en Content/Paks/~mods, que Unreal carga después del pak base. La carpeta ~mods la crea Atreus al desplegar. Ruta verificada: Meteorite/Content/Paks existe."
+}

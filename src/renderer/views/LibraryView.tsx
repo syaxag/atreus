@@ -99,8 +99,8 @@ export function LibraryView() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 border-b border-line px-6 py-3">
-        <div className="relative w-72">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
+        <div className="relative w-full max-w-72">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
           <Input
             value={query}
@@ -109,7 +109,7 @@ export function LibraryView() {
             className="w-full pl-8"
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {FILTERS.map((f) => (
             <Button
               key={f.id}

@@ -1,0 +1,10 @@
+{
+  "id": "steam:3017860",
+  "name": "DOOM: The Dark Ages",
+  "exe": "DOOMTheDarkAges.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "notes": "Exe verificado. SIN raíz de mods a propósito: no he confirmado dónde los carga idTech. Atreus dirá que no sabe dónde desplegar en vez de escribir en un sitio equivocado."
+}

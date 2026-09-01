@@ -1,0 +1,14 @@
+{
+  "id": "steam:2050650",
+  "name": "Resident Evil 4",
+  "exe": "re4.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "mods": {
+    "root": "",
+    "loader": "loose-files"
+  },
+  "notes": "RE Engine. Los mods de archivos sueltos (REFramework, natives/STM/...) van en la raíz del juego, así que root queda vacío para desplegar ahí. Exe verificado."
+}

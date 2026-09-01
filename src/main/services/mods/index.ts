@@ -1,12 +1,13 @@
 import { dialog } from 'electron';
-import { existsSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import type { GameId, Mod, ModProfile } from '@shared/types';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
 import { extract, flattenSingleRoot, listFiles, treeSize, SUPPORTED } from './archive';
-import { detectMeta, looksValid } from './detect';
+import { detectMeta, detectPackagedMeta, looksValid } from './detect';
 import { deploy as deployFiles, purge as purgeFiles, findConflicts, resolveRoot, isDeployed } from './deploy';
 import {
   listMods, saveMods, removeModFiles, modDir,
@@ -14,6 +15,23 @@ import {
 } from './store';
 
 const logger = log('mods');
+
+/**
+ * Extensiones que este juego despliega **sin extraer**.
+ *
+ * Algunos cargadores no quieren un árbol de archivos sino el paquete entero:
+ * Geode espera `.geode` en `geode/mods`, y Unreal espera `.pak` en `~mods`.
+ * Extraerlos rompería el mod.
+ */
+function packagedExtensions(gameId: GameId): string[] {
+  const list = getDefinition(gameId)?.mods?.packaged ?? [];
+  return list.map((e) => (e.startsWith('.') ? e : `.${e}`).toLowerCase());
+}
+
+function isPackaged(gameId: GameId, filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return packagedExtensions(gameId).some((ext) => lower.endsWith(ext));
+}
 
 /** Raíz de despliegue del juego, o un error explicando por qué no se puede. */
 function targetRoot(gameId: GameId): { root: string } | { error: string } {
@@ -61,39 +79,62 @@ export async function install(gameId: GameId, archivePath?: string): Promise<Mod
   let source = archivePath;
 
   if (!source) {
+    // El filtro incluye los formatos empaquetados del juego: sin esto, un
+    // `.geode` no aparecería en el diálogo aunque el juego los admita.
+    const extensions = [
+      ...SUPPORTED.map((e) => e.replace('.', '')),
+      ...packagedExtensions(gameId).map((e) => e.replace('.', '')),
+    ];
     const picked = await dialog.showOpenDialog({
       title: 'Elige el archivo del mod',
       properties: ['openFile'],
-      filters: [{ name: 'Archivos de mod', extensions: ['zip', '7z', 'rar'] }],
+      filters: [{ name: 'Archivos de mod', extensions }],
     });
     if (picked.canceled || !picked.filePaths[0]) throw new Error('Instalación cancelada');
     source = picked.filePaths[0];
   }
 
   if (!existsSync(source)) throw new Error(`No existe el archivo: ${source}`);
+
+  const packaged = isPackaged(gameId, source);
   const lower = source.toLowerCase();
-  if (!SUPPORTED.some((ext) => lower.endsWith(ext))) {
-    throw new Error(`Formato no soportado. Se admiten: ${SUPPORTED.join(', ')}`);
+  if (!packaged && !SUPPORTED.some((ext) => lower.endsWith(ext))) {
+    const extra = packagedExtensions(gameId);
+    throw new Error(
+      `Formato no soportado. Se admiten: ${[...SUPPORTED, ...extra].join(', ')}`,
+    );
   }
 
   const mods = listMods(gameId);
   const modId = `m${Date.now().toString(36)}`;
   const staging = modDir(gameId, modId);
 
-  try {
-    await extract(source, staging);
-    flattenSingleRoot(staging);
-  } catch (e) {
-    removeModFiles(gameId, modId);
-    throw new Error(`No se pudo extraer: ${e instanceof Error ? e.message : String(e)}`);
-  }
+  let meta;
+  if (packaged) {
+    // Se guarda el paquete tal cual: el cargador del juego lo quiere entero.
+    try {
+      mkdirSync(staging, { recursive: true });
+      copyFileSync(source, join(staging, basename(source)));
+    } catch (e) {
+      removeModFiles(gameId, modId);
+      throw new Error(`No se pudo copiar: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    meta = await detectPackagedMeta(source);
+  } else {
+    try {
+      await extract(source, staging);
+      flattenSingleRoot(staging);
+    } catch (e) {
+      removeModFiles(gameId, modId);
+      throw new Error(`No se pudo extraer: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
-  if (!looksValid(staging)) {
-    removeModFiles(gameId, modId);
-    throw new Error('El archivo no contiene ningún archivo utilizable');
+    if (!looksValid(staging)) {
+      removeModFiles(gameId, modId);
+      throw new Error('El archivo no contiene ningún archivo utilizable');
+    }
+    meta = detectMeta(staging, source);
   }
-
-  const meta = detectMeta(staging, source);
   const mod: Mod = {
     id: modId,
     gameId,

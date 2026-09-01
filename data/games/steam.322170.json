@@ -1,0 +1,17 @@
+{
+  "id": "steam:322170",
+  "name": "Geometry Dash",
+  "exe": "GeometryDash.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "mods": {
+    "root": "geode\\mods",
+    "loader": "geode",
+    "packaged": [
+      ".geode"
+    ]
+  },
+  "notes": "Geode ya está instalado en esta máquina (geode/, GeodeUpdater.exe). Sus mods son archivos .geode que se copian enteros en geode/mods, sin extraer: son zips que el cargador abre por su cuenta. Verificado contra la instalación real."
+}

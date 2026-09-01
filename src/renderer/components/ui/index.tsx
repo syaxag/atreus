@@ -30,7 +30,9 @@ export function Button({
       className={cn(
         'inline-flex items-center justify-center rounded-sm font-medium whitespace-nowrap',
         'transition-colors duration-[120ms] ease-atreus',
-        'disabled:opacity-40 disabled:pointer-events-none',
+        // 40% hacía que las acciones deshabilitadas prácticamente desaparecieran
+        // sobre el fondo oscuro. Se mantienen inactivas, pero siguen siendo legibles.
+        'disabled:opacity-55 disabled:pointer-events-none',
         VARIANTS[variant], SIZES[size], className,
       )}
       {...rest}
@@ -58,7 +60,7 @@ export function Toggle({
       onClick={() => onChange(!checked)}
       className={cn(
         'relative h-5 w-9 shrink-0 rounded-full transition-colors duration-[120ms] ease-atreus',
-        'disabled:opacity-40 disabled:pointer-events-none',
+        'disabled:opacity-55 disabled:pointer-events-none',
         checked ? 'bg-accent' : 'bg-line-strong',
       )}
     >
@@ -84,7 +86,7 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
         'placeholder:text-faint selectable',
         'transition-colors duration-[120ms] ease-atreus',
         'focus:border-accent focus:outline-none',
-        'disabled:opacity-40',
+        'disabled:opacity-55',
         className,
       )}
       {...rest}
@@ -179,7 +181,7 @@ export function ViewHeader({
         <h1 className="truncate text-[24px] font-semibold leading-tight">{title}</h1>
         {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
     </header>
   );
 }
