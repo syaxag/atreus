@@ -417,3 +417,11 @@ En cada punto de sincronía: parar los dos, `npm run dev`, verificar y seguir.
 Las fases 3 y 4 resultaron menos arriesgadas de lo previsto. Lo que queda del
 motor de cheats no es código sino **datos**: escribir los patrones AoB de cada
 juego en `data/games/<id>.json`, que hay que sacar del proceso en marcha.
+
+---
+
+## Fases 0 a 6: cerradas
+
+Lo que viene a partir de aquí está en **[NEXT.md](NEXT.md)**: cerrar lo que nunca
+se probó contra un juego real, conectar el buscador con las definiciones,
+resolver dependencias de mods, y el resto.

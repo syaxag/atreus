@@ -30,8 +30,9 @@ del juego en marcha, porque esos no se pueden inventar.
 
 **Instalable**: `npm run dist` genera `release/Atreus-0.1.0-setup.exe`.
 69 pruebas en verde; el empaquetado no se lanza si alguna falla.
-El desarrollo sigue [docs/ROADMAP.md](docs/ROADMAP.md), pensado para dos sesiones
-de construcción trabajando en paralelo sin pisarse.
+Lo hecho está en [docs/ROADMAP.md](docs/ROADMAP.md) (fases 0-6) y lo que viene en
+[docs/NEXT.md](docs/NEXT.md) (fases 7-12), pensados para dos sesiones de
+construcción trabajando en paralelo sin pisarse.
 
 ## Arrancar
 
