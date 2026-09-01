@@ -8,7 +8,11 @@
   },
   "mods": {
     "root": "%APPDATA%\\Balatro\\Mods",
-    "loader": "steamodded"
+    "loader": "steamodded",
+    "provider": {
+      "kind": "thunderstore",
+      "community": "balatro"
+    }
   },
-  "notes": "Steamodded/Lovely cargan desde %APPDATA%/Balatro/Mods. Esa carpeta aún no existe en esta máquina: se crea al desplegar el primer mod, y hace falta tener Lovely instalado para que el juego los lea. SIN cheats: los patrones AoB hay que sacarlos del proceso en marcha, no se pueden inventar."
+  "notes": "Steamodded/Lovely cargan desde %APPDATA%/Balatro/Mods. Esa carpeta aún no existe en esta máquina: se crea al desplegar el primer mod, y hace falta tener Lovely instalado para que el juego los lea. SIN cheats: los patrones AoB hay que sacarlos del proceso en marcha, no se pueden inventar. Thunderstore tiene comunidad de Balatro con 96 paquetes, incluidos Steamodded y Lovely."
 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Package, Plus, Trash2, ArrowUp, ArrowDown, HardDriveDownload, Eraser, TriangleAlert,
-  Layers, Check, X, Upload,
+  Layers, Check, X, Upload, Globe, Download, Search, ExternalLink,
 } from 'lucide-react';
-import type { Mod, ModProfile } from '@shared/types';
+import type { Mod, ModProfile, RemoteMod } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
@@ -27,6 +27,14 @@ export function ModsView() {
   /** true mientras se arrastra un archivo sobre la zona de mods. */
   const [dragging, setDragging] = useState(false);
 
+  // ── Catálogo público ──
+  const [tab, setTab] = useState<'installed' | 'discover'>('installed');
+  const [remote, setRemote] = useState<RemoteMod[] | null>(null);
+  const [remoteError, setRemoteError] = useState<string | null>(null);
+  const [loadingRemote, setLoadingRemote] = useState(false);
+  const [query, setQuery] = useState('');
+  const [installing, setInstalling] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     if (!gameId) return;
     setLoading(true);
@@ -37,7 +45,27 @@ export function ModsView() {
     setLoading(false);
   }, [gameId, pushToast]);
 
+  /** Consulta el catálogo público del juego. */
+  const discover = useCallback(async () => {
+    if (!gameId) return;
+    setLoadingRemote(true);
+    setRemoteError(null);
+    const res = await api.mods.discover(gameId);
+    setLoadingRemote(false);
+    if (!res.ok) { setRemoteError(res.error); setRemote(null); return; }
+    setRemote(res.data);
+  }, [gameId]);
+
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (tab === 'discover' && remote === null && !loadingRemote && !remoteError) {
+      void discover();
+    }
+  }, [tab, remote, loadingRemote, remoteError, discover]);
+
+  // Al cambiar de juego se descarta el catálogo del anterior.
+  useEffect(() => { setRemote(null); setRemoteError(null); setTab('installed'); }, [gameId]);
 
   useEffect(() => {
     const off = api.on('mods:updated', (payload) => {
@@ -103,6 +131,15 @@ export function ModsView() {
     if (!res.ok) return pushToast('error', res.error);
     pushToast('success', `Perfil "${res.data.name}" guardado`);
     await load();
+  }
+
+  async function installFromCatalog(mod: RemoteMod) {
+    if (!gameId) return;
+    setInstalling(mod.id);
+    const res = await api.mods.installRemote(gameId, mod);
+    setInstalling(null);
+    if (!res.ok) return pushToast('error', res.error);
+    pushToast('success', `${res.data.name} instalado desde ${mod.source}`);
   }
 
   async function deleteProfile(profile: ModProfile) {
@@ -182,6 +219,22 @@ export function ModsView() {
         }
         actions={
           <>
+            <div className="mr-1 flex gap-1 rounded-sm border border-line p-0.5">
+              <Button
+                size="sm"
+                variant={tab === 'installed' ? 'primary' : 'ghost'}
+                onClick={() => setTab('installed')}
+              >
+                Instalados
+              </Button>
+              <Button
+                size="sm"
+                variant={tab === 'discover' ? 'primary' : 'ghost'}
+                onClick={() => setTab('discover')}
+              >
+                <Globe size={12} /> Descubrir
+              </Button>
+            </div>
             <Button variant="outline" onClick={() => install()} disabled={busy}>
               <Plus size={14} /> Instalar
             </Button>
@@ -248,7 +301,19 @@ export function ModsView() {
           </div>
         )}
 
-        {loading ? (
+        {tab === 'discover' ? (
+          <DiscoverPanel
+            remote={remote}
+            loading={loadingRemote}
+            error={remoteError}
+            query={query}
+            onQuery={setQuery}
+            installing={installing}
+            installedNames={new Set(mods.map((m) => m.name.toLowerCase()))}
+            onRetry={discover}
+            onInstall={installFromCatalog}
+          />
+        ) : loading ? (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-16 rounded-md" />)}
           </div>
@@ -314,6 +379,122 @@ export function ModsView() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Catálogo público del juego: lo que hay disponible sin buscarlo a mano.
+ *
+ * Solo trae **mods**. Los cheats no salen de aquí: un patrón de memoria es de
+ * una compilación concreta y no hay catálogo público que los publique.
+ */
+function DiscoverPanel({
+  remote, loading, error, query, onQuery, installing, installedNames, onRetry, onInstall,
+}: {
+  remote: RemoteMod[] | null;
+  loading: boolean;
+  error: string | null;
+  query: string;
+  onQuery: (value: string) => void;
+  installing: string | null;
+  installedNames: Set<string>;
+  onRetry: () => void;
+  onInstall: (mod: RemoteMod) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-16 rounded-md" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Empty
+        icon={<Globe size={40} strokeWidth={1.25} />}
+        title="Sin catálogo para este juego"
+        hint={error}
+        action={<Button variant="outline" onClick={onRetry}>Reintentar</Button>}
+      />
+    );
+  }
+
+  if (!remote || remote.length === 0) {
+    return <Empty icon={<Globe size={40} strokeWidth={1.25} />} title="El catálogo vino vacío" />;
+  }
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? remote.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.author.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q),
+      )
+    : remote;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <div className="relative w-72">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+          <input
+            value={query}
+            onChange={(e) => onQuery(e.target.value)}
+            placeholder="Buscar en el catálogo…"
+            className="h-9 w-full rounded-sm border border-line bg-inset pl-8 pr-3 text-[13px] text-fg placeholder:text-faint focus:border-accent focus:outline-none"
+          />
+        </div>
+        <span className="text-[12px] text-faint">
+          {visible.length} de {remote.length} · {remote[0]!.source}
+        </span>
+      </div>
+
+      {visible.map((mod) => {
+        const already = installedNames.has(mod.name.toLowerCase());
+        return (
+          <Card key={mod.id} className="px-4 py-3">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-[13px] font-medium">{mod.name}</p>
+                  <Badge mono>v{mod.version}</Badge>
+                  {already && <Badge tone="success">instalado</Badge>}
+                  {mod.dependencies > 0 && (
+                    <Badge tone="warn">{mod.dependencies} dependencias</Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">{mod.description}</p>
+                <p className="mt-1 text-[11px] text-faint">
+                  {mod.author} · {mod.downloads.toLocaleString('es-ES')} descargas
+                  {mod.sizeBytes ? ` · ${bytes(mod.sizeBytes)}` : ''}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  size="sm"
+                  onClick={() => void api.settings.openPath(mod.pageUrl)}
+                  aria-label="Abrir la página del mod"
+                >
+                  <ExternalLink size={12} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant={already ? 'outline' : 'primary'}
+                  onClick={() => onInstall(mod)}
+                  disabled={installing !== null}
+                >
+                  <Download size={12} />
+                  {installing === mod.id ? 'Instalando…' : already ? 'Reinstalar' : 'Instalar'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

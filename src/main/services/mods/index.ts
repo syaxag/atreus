@@ -1,7 +1,9 @@
 import { dialog } from 'electron';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import type { GameId, Mod, ModProfile } from '@shared/types';
+import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
+import type { GameId, Mod, ModProfile, RemoteMod } from '@shared/types';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 import { getGame } from '../catalog';
@@ -13,6 +15,7 @@ import {
   listMods, saveMods, removeModFiles, modDir,
   listProfiles, saveProfiles,
 } from './store';
+import { discover as discoverRemote, download, hasProvider } from './providers';
 
 const logger = log('mods');
 
@@ -272,4 +275,34 @@ export function activateProfile(gameId: GameId, profileId: string): void {
 
 export function deleteProfile(gameId: GameId, profileId: string): void {
   saveProfiles(gameId, listProfiles(gameId).filter((p) => p.id !== profileId));
+}
+
+// ── Catálogo público ──────────────────────────────────────────
+export { hasProvider };
+
+/** Lo que hay disponible para este juego, sin instalar nada. */
+export function discover(gameId: GameId): Promise<RemoteMod[]> {
+  return discoverRemote(gameId);
+}
+
+/**
+ * Descarga uno de los mods del catálogo y lo instala.
+ *
+ * El archivo baja a un temporal y se pasa por el mismo `install` de siempre,
+ * así que hereda todo: la protección contra zip slip, los metadatos del
+ * manifiesto y la decisión de extraer o dejar el paquete entero.
+ */
+export async function installRemote(gameId: GameId, mod: RemoteMod): Promise<Mod> {
+  const staging = join(tmpdir(), `atreus-dl-${Date.now().toString(36)}`);
+  mkdirSync(staging, { recursive: true });
+  const file = join(staging, mod.fileName);
+
+  try {
+    await download(mod, file);
+    const installed = await install(gameId, file);
+    logger.info(`${gameId}: "${mod.name}" instalado desde ${mod.source}`);
+    return installed;
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }

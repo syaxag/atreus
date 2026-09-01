@@ -300,6 +300,29 @@ Con un ejecutable de destino propio, no contra un juego: enganche, primera pasad
 filtro por valor exacto, filtro por comparación, escritura confirmada por el
 destino, y las dos ramas de conversión.
 
+## Descubrimiento automático de mods ✅ HECHO
+
+Al detectar un juego nuevo en un escaneo, Atreus consulta su catálogo público y
+avisa de lo que hay disponible. Verificado contra las APIs reales:
+
+| Juego | Catálogo | Resultado |
+|---|---|---|
+| Balatro | Thunderstore | 85 mods en 333 ms, con Steamodded y lovely |
+| Geometry Dash | Geode | 200 mods en 988 ms, todos `.geode` |
+| PEAK | Thunderstore | comunidad existente |
+| DOOM: The Dark Ages | — | explica que falta el proveedor |
+
+Descarga e instalación reales probadas de punta a punta: "Node IDs" v1.23.3,
+3.080 KB, instalado como `.geode`, desplegado sin extraer y purgado dejando la
+carpeta vacía. El nombre sale del manifiesto de dentro del paquete, no del id.
+
+### Lo que esto NO hace
+
+**No descubre cheats, y no puede.** Un patrón AoB es una dirección de una
+compilación concreta; no hay catálogo público legible por máquina que los
+publique, y las apps comerciales no los generan solas — los escriben personas.
+Para eso está el buscador de memoria.
+
 ## FASE 6 — Actualización y pulido *(paralelo)*
 
 ### Lado A — backend

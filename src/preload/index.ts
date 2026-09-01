@@ -66,6 +66,8 @@ const api: AtreusApi = {
     saveProfile: (profile) => invoke('mods.saveProfile', profile),
     activateProfile: (gameId, profileId) => invoke('mods.activateProfile', gameId, profileId),
     deleteProfile: (gameId, profileId) => invoke('mods.deleteProfile', gameId, profileId),
+    discover: (gameId) => invoke('mods.discover', gameId),
+    installRemote: (gameId, mod) => invoke('mods.installRemote', gameId, mod),
   },
 
   settings: {

@@ -10,7 +10,7 @@
 
 import type {
   Achievement, AchievementPatch, CheatDef, CheatState, DerivedResolve, Game, GameId,
-  GameStat, MemType, Mod, ModProfile, Result, ScanCandidate, ScanMode, ScanProgress,
+  GameStat, MemType, Mod, ModProfile, RemoteMod, Result, ScanCandidate, ScanMode, ScanProgress,
   ScanProgressEvent, ScanSession, ScanSummary, Settings,
   StatPatch, SteamSession, TrainerSession,
 } from './types';
@@ -99,6 +99,14 @@ export interface AtreusApi {
     saveProfile(profile: ModProfile): Promise<Result<ModProfile>>;
     activateProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
     deleteProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
+
+    /**
+     * Consulta el catálogo público del juego y devuelve lo que hay disponible.
+     * Falla si el juego no declara proveedor en su definición.
+     */
+    discover(gameId: GameId): Promise<Result<RemoteMod[]>>;
+    /** Descarga e instala uno de los mods devueltos por `discover`. */
+    installRemote(gameId: GameId, mod: RemoteMod): Promise<Result<Mod>>;
   };
 
   settings: {
@@ -142,6 +150,8 @@ export interface AtreusEvents {
   'scanner:progress': ScanProgressEvent;
   'scanner:session': ScanSession;
   'mods:updated': { gameId: GameId; mods: Mod[] };
+  /** Juegos nuevos detectados en un escaneo, con cuántos mods hay para ellos. */
+  'mods:available': { games: { gameId: GameId; name: string; count: number }[] };
   'game:started': { gameId: GameId; pid: number };
   'game:stopped': { gameId: GameId };
   'toast': { level: 'info' | 'success' | 'warn' | 'error'; message: string };
@@ -168,6 +178,7 @@ export const IPC_CHANNELS = [
   'mods.list', 'mods.install', 'mods.uninstall', 'mods.setEnabled',
   'mods.reorder', 'mods.deploy', 'mods.purge', 'mods.profiles',
   'mods.saveProfile', 'mods.activateProfile', 'mods.deleteProfile',
+  'mods.discover', 'mods.installRemote',
 
   'settings.get', 'settings.set', 'settings.pickFolder', 'settings.pickFile',
   'settings.openPath',
@@ -182,7 +193,7 @@ export type IpcChannel = (typeof IPC_CHANNELS)[number];
 export const EVENT_CHANNELS = [
   'library:scan-progress', 'library:updated', 'steam:session',
   'trainer:session', 'trainer:state', 'scanner:progress', 'scanner:session',
-  'mods:updated',
+  'mods:updated', 'mods:available',
   'game:started', 'game:stopped', 'toast', 'update:available',
 ] as const;
 

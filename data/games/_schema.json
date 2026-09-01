@@ -63,6 +63,40 @@
             "type": "string"
           },
           "description": "Extensiones que se despliegan sin extraer, tal cual. Ej: [\".geode\"] para Geode, [\".pak\"] para Unreal."
+        },
+        "provider": {
+          "description": "Catálogo público del que sacar los mods disponibles automáticamente.",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "community"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "thunderstore"
+                },
+                "community": {
+                  "type": "string",
+                  "description": "Identificador de la comunidad, p. ej. \"balatro\""
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "geode"
+                }
+              }
+            }
+          ]
         }
       }
     },

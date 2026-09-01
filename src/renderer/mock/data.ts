@@ -1,5 +1,5 @@
 import type {
-  Achievement, CheatDef, Game, GameStat, Mod, ModProfile,
+  Achievement, CheatDef, Game, GameStat, Mod, ModProfile, RemoteMod,
 } from '@shared/types';
 
 /**
@@ -146,3 +146,28 @@ export const MOCK_PROFILES: ModProfile[] = [
   { id: 'p1', gameId: 'steam:2379780', name: 'Partida limpia', mods: [], launchArgs: '', isActive: false },
   { id: 'p2', gameId: 'steam:2379780', name: 'Modded', mods: ['m1', 'm2'], launchArgs: '', isActive: true },
 ];
+
+/** Catálogo público simulado, con la forma que devuelve Thunderstore. */
+export const MOCK_REMOTE: RemoteMod[] = [
+  ['Steamodded', 'Steamodded', '26.829.0', 'A Balatro Modding Framework', 395, 761856],
+  ['lovely', 'Thunderstore', '0.9.0', 'Lovely is a runtime lua injector for LÖVE 2d', 22554, 1824768],
+  ['Cryptid', 'MathIsFun0', '0.5.2', 'Añade más de 200 comodines nuevos', 18420, 8300000],
+  ['Talisman', 'MathIsFun0', '2.1.0', 'Soporte para puntuaciones enormes', 15308, 921600],
+  ['JokerDisplay', 'nh6574', '1.8.4', 'Muestra el valor de cada comodín en tiempo real', 12044, 430080],
+  ['Bunco', 'Firch', '0.6.1', 'Mazos, comodines y mejoras cosméticas', 9877, 5242880],
+].map(([name, author, version, description, downloads, sizeBytes]) => ({
+  id: `${author as string}/${name as string}`,
+  name: name as string,
+  author: author as string,
+  version: version as string,
+  description: description as string,
+  downloads: downloads as number,
+  sizeBytes: sizeBytes as number,
+  iconUrl: null,
+  pageUrl: `https://thunderstore.io/c/balatro/p/${author as string}/${name as string}/`,
+  downloadUrl: `https://thunderstore.io/package/download/${author as string}/${name as string}/${version as string}/`,
+  fileName: `${author as string}-${name as string}-${version as string}.zip`,
+  categories: ['Mods'],
+  dependencies: 0,
+  source: 'Thunderstore',
+}));

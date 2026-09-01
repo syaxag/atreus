@@ -5,7 +5,7 @@ import type {
   Settings, TrainerSession,
 } from '@shared/types';
 import {
-  MOCK_ACHIEVEMENTS, MOCK_CHEATS, MOCK_GAMES, MOCK_MODS, MOCK_PROFILES, MOCK_STATS,
+  MOCK_ACHIEVEMENTS, MOCK_CHEATS, MOCK_GAMES, MOCK_MODS, MOCK_PROFILES, MOCK_REMOTE, MOCK_STATS,
 } from './data';
 
 /**
@@ -447,6 +447,33 @@ export const mockApi: AtreusApi = {
       await wait(120, 240);
       profiles = profiles.filter((p) => p.id !== profileId);
       return ok(undefined);
+    },
+
+    async discover(gameId) {
+      await wait(600, 1200);
+      const g = games.find((x) => x.id === gameId);
+      if (g?.nativeId !== '2379780' && g?.nativeId !== '322170') {
+        return err(
+          'Este juego no tiene un catálogo de mods configurado. Añade ' +
+          '"mods": { "provider": … } en su definición.',
+        );
+      }
+      return ok(MOCK_REMOTE);
+    },
+
+    async installRemote(gameId, remote) {
+      await wait(900, 1800);
+      const m: Mod = {
+        id: `m${Date.now().toString(36)}`, gameId,
+        name: remote.name, version: remote.version, author: remote.author,
+        description: remote.description, status: 'staged', enabled: false,
+        order: mods.length, sizeBytes: remote.sizeBytes ?? 1_000_000,
+        installedAt: Math.floor(Date.now() / 1000),
+        files: [], conflictsWith: [], error: null,
+      };
+      mods = [...mods, m];
+      emit('mods:updated', { gameId, mods: mods.filter((x) => x.gameId === gameId) });
+      return ok(m);
     },
   },
 

@@ -11,7 +11,10 @@
     "loader": "geode",
     "packaged": [
       ".geode"
-    ]
+    ],
+    "provider": {
+      "kind": "geode"
+    }
   },
-  "notes": "Geode ya está instalado en esta máquina (geode/, GeodeUpdater.exe). Sus mods son archivos .geode que se copian enteros en geode/mods, sin extraer: son zips que el cargador abre por su cuenta. Verificado contra la instalación real."
+  "notes": "Geode ya está instalado en esta máquina (geode/, GeodeUpdater.exe). Sus mods son archivos .geode que se copian enteros en geode/mods, sin extraer: son zips que el cargador abre por su cuenta. Verificado contra la instalación real. El indice de Geode es publico y devuelve el .geode listo para descargar."
 }

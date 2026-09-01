@@ -25,7 +25,13 @@ export interface GameDefinition {
   multiplayer?: boolean;
   achievements?: { source?: 'steam' | 'none' };
   cheats?: CheatDef[];
-  mods?: { root?: string; loader?: string; packaged?: string[] };
+  mods?: {
+    root?: string;
+    loader?: string;
+    packaged?: string[];
+    /** Catálogo público del que sacar los mods disponibles. Ver mods/providers.ts. */
+    provider?: { kind: 'thunderstore'; community: string } | { kind: 'geode' };
+  };
   notes?: string;
   /** Lo rellena el cargador: de qué capa viene. */
   origin?: 'builtin' | 'user';

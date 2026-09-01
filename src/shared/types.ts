@@ -231,6 +231,33 @@ export interface Mod {
   error: string | null;
 }
 
+/**
+ * Un mod disponible en un catálogo público, todavía no instalado.
+ *
+ * Sale de los proveedores (Thunderstore, Geode). Los **cheats** no aparecen
+ * aquí: no existe catálogo público legible por máquina que los publique.
+ */
+export interface RemoteMod {
+  /** Identificador dentro de su catálogo. */
+  id: string;
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  downloads: number;
+  sizeBytes: number | null;
+  iconUrl: string | null;
+  pageUrl: string;
+  downloadUrl: string;
+  /** Nombre con el que se guarda al descargar; decide si se extrae o no. */
+  fileName: string;
+  categories: string[];
+  /** Cuántas dependencias declara. Informativo. */
+  dependencies: number;
+  /** Catálogo del que viene, para enseñarlo. */
+  source: string;
+}
+
 export interface ModProfile {
   id: string;
   gameId: GameId;

@@ -5,6 +5,12 @@
   "achievements": {
     "source": "steam"
   },
-  "notes": "Co-op online: el motor de cheats queda bloqueado. Solo logros.",
-  "exe": "PEAK.exe"
+  "notes": "Co-op online: el motor de cheats queda bloqueado. Solo logros. Thunderstore tiene comunidad de PEAK. Los mods se gestionan; el motor de cheats sigue bloqueado por ser co-op online.",
+  "exe": "PEAK.exe",
+  "mods": {
+    "provider": {
+      "kind": "thunderstore",
+      "community": "peak"
+    }
+  }
 }

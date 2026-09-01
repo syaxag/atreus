@@ -124,10 +124,21 @@ export async function scan(): Promise<Game[]> {
   const manualIds = new Set(state.manual.map((g) => g.id));
   const merged = [...found.filter((g) => !manualIds.has(g.id)), ...state.manual];
 
+  // Qué juegos son nuevos respecto al escaneo anterior. Se calcula antes de
+  // pisar el estado, y es lo que dispara la búsqueda automática de mods.
+  const known = new Set(state.games.map((g) => g.id));
+
   state.games = decorate(merged);
   state.scannedAt = Math.floor(Date.now() / 1000);
   setCoverPaths(covers);
   persist();
+
+  const fresh = state.games.filter((g) => !known.has(g.id));
+  if (fresh.length > 0 && known.size > 0) {
+    // Solo a partir del segundo escaneo: en el primero "todo es nuevo" y
+    // avisar de dieciséis juegos a la vez no le sirve a nadie.
+    void announceNewGames(fresh);
+  }
 
   emit('library:scan-progress', {
     phase: 'done',
@@ -136,6 +147,41 @@ export async function scan(): Promise<Game[]> {
   });
   logger.info(`escaneo terminado: ${state.games.length} juegos`);
   return state.games;
+}
+
+/**
+ * Mira si los juegos recién detectados tienen mods en algún catálogo público
+ * y lo anuncia.
+ *
+ * Es lo que hace que instalar un juego y abrir Atreus baste para ver qué hay
+ * disponible, sin buscarlo a mano. Va aparte del escaneo, sin bloquearlo: si un
+ * catálogo está caído, el escaneo ya terminó.
+ */
+async function announceNewGames(fresh: Game[]): Promise<void> {
+  const { hasProvider, discover } = await import('../mods/providers');
+  const found: { gameId: GameId; name: string; count: number }[] = [];
+
+  for (const game of fresh) {
+    if (!hasProvider(game.id)) continue;
+    try {
+      const available = await discover(game.id);
+      if (available.length > 0) {
+        found.push({ gameId: game.id, name: game.name, count: available.length });
+      }
+    } catch (e) {
+      logger.warn(`no se pudo consultar el catálogo de ${game.name}:`, e);
+    }
+  }
+
+  if (found.length === 0) return;
+  emit('mods:available', { games: found });
+  emit('toast', {
+    level: 'info',
+    message: found.length === 1
+      ? `${found[0]!.name}: ${found[0]!.count} mods disponibles`
+      : `${found.length} juegos nuevos con mods disponibles`,
+  });
+  logger.info(`catálogo: ${found.map((f) => `${f.name} (${f.count})`).join(', ')}`);
 }
 
 /** Restablece el mapa de carátulas desde la caché, sin reescanear. */

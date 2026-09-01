@@ -205,6 +205,11 @@ export function registerIpc(): void {
     mods.deleteProfile(gameId, profileId);
     return ok(undefined);
   });
+  handle('mods.discover', async (gameId: string) => ok(await mods.discover(gameId)));
+  handle('mods.installRemote', async (
+    gameId: string,
+    mod: Parameters<typeof mods.installRemote>[1],
+  ) => ok(await mods.installRemote(gameId, mod)));
 
   // ── Catálogo de definiciones ───────────────────────────────
   handle('catalog.sync', async () => ok(await catalogSync.sync(getSettings().catalogSource)));

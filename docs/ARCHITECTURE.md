@@ -166,6 +166,35 @@ La lista de bloqueo y los módulos anti-cheat **se suman** entre capas: se puede
 añadir títulos, nunca quitar los de fábrica. Es una barrera de alcance, no una
 preferencia. Ver [SCOPE.md](SCOPE.md).
 
+### Descubrimiento automático de mods
+
+Cuando un escaneo detecta un juego que antes no estaba, Atreus consulta su
+catálogo público y avisa de cuántos mods hay. No hay que buscarlos a mano.
+
+Cada juego declara su catálogo en la definición:
+
+```jsonc
+"mods": { "provider": { "kind": "thunderstore", "community": "balatro" } }
+"mods": { "provider": { "kind": "geode" } }
+```
+
+| Proveedor | API | Cubre |
+|---|---|---|
+| Thunderstore | `thunderstore.io/c/<comunidad>/api/v1/package/` | Balatro (85 mods), PEAK, y 314 comunidades más |
+| Geode | `api.geode-sdk.org/v1/mods` | Geometry Dash (200+ mods) |
+
+Instalar desde el catálogo baja el archivo a un temporal y lo pasa por el mismo
+`install` de siempre, así que hereda la protección contra zip slip, la lectura
+del manifiesto y la decisión de extraer o dejar el paquete entero.
+
+### Esto cubre mods, no cheats
+
+Un cheat es un patrón de memoria de una **compilación concreta**. No existe
+ningún catálogo público legible por máquina que los publique, y las apps
+comerciales no los generan solas: los escriben personas, uno a uno. Para eso
+está el buscador de memoria, y el catálogo de definiciones para compartirlos
+una vez encontrados.
+
 ### Mods
 
 Los mods ya vivían fuera del paquete: se instalan en
