@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Definición de juego de Atreus",
+  "description": "Un archivo por juego en data/games/. Añadir un juego = añadir un JSON. No hace falta recompilar la app.",
+  "type": "object",
+  "required": ["id", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(steam|epic|gog|xbox|manual):[A-Za-z0-9._-]+$",
+      "description": "Identificador con prefijo de plataforma. Ej: steam:2379780"
+    },
+    "name": { "type": "string" },
+    "exe": {
+      "type": "string",
+      "description": "Nombre del ejecutable del proceso al que engancharse. Ej: Balatro.exe"
+    },
+    "multiplayer": {
+      "type": "boolean",
+      "default": false,
+      "description": "true bloquea el trainer de forma permanente. Ver docs/SCOPE.md"
+    },
+    "achievements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["steam", "none"], "default": "steam" }
+      }
+    },
+    "cheats": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/cheat" }
+    },
+    "mods": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Subcarpeta del juego donde se despliegan los mods. Ej: Mods"
+        },
+        "loader": {
+          "type": "string",
+          "description": "Cargador esperado. Ej: lovely, bepinex, fomod, none"
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "definitions": {
+    "cheat": {
+      "type": "object",
+      "required": ["id", "name", "type", "resolve", "write"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "enum": ["toggle", "value", "button"] },
+        "group": { "type": "string" },
+        "hotkey": { "type": "string", "description": "Acelerador de Electron. Ej: F1, CmdOrCtrl+Shift+M" },
+        "warning": { "type": "string", "description": "Aviso mostrado antes de activar" },
+        "resolve": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["kind", "module", "pattern", "offset"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": { "const": "aob" },
+                "module": { "type": "string" },
+                "pattern": {
+                  "type": "string",
+                  "description": "Bytes en hex separados por espacio; ?? es comodín. Ej: 48 8B ?? ?? 00 89"
+                },
+                "offset": { "type": "integer" },
+                "deref": { "type": "boolean", "default": false }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "module", "base", "offsets"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": { "const": "pointer" },
+                "module": { "type": "string" },
+                "base": { "type": "integer" },
+                "offsets": { "type": "array", "items": { "type": "integer" } }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "module", "offset"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": { "const": "static" },
+                "module": { "type": "string" },
+                "offset": { "type": "integer" }
+              }
+            }
+          ]
+        },
+        "write": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": ["i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "f32", "f64", "bytes"]
+            },
+            "value": { "type": ["number", "string"] },
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "step": { "type": "number" },
+            "freeze": { "type": "boolean", "default": false },
+            "restore": {
+              "type": "string",
+              "description": "Bytes originales en hex, para revertir parches de código"
+            }
+          }
+        }
+      }
+    }
+  }
+}

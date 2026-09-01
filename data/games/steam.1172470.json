@@ -1,0 +1,8 @@
+{
+  "id": "steam:1172470",
+  "name": "Apex Legends",
+  "exe": "r5apex.exe",
+  "multiplayer": true,
+  "achievements": { "source": "steam" },
+  "notes": "Multijugador competitivo con Easy Anti-Cheat. El trainer queda bloqueado de forma permanente por guard.ts. Solo se permite la vista de logros. Ver docs/SCOPE.md."
+}

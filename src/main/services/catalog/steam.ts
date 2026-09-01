@@ -1,0 +1,182 @@
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import type { Game } from '@shared/types';
+import { parseVdf, dig, str, num } from './vdf';
+import { log } from '../../logger';
+
+const logger = log('catalog:steam');
+
+/** AppIDs que Steam instala pero no son juegos. */
+const NOT_GAMES = new Set([
+  '228980', // Steamworks Common Redistributables
+  '1070560', // Steam Linux Runtime
+  '1391110', // Steam Linux Runtime - Soldier
+  '1628350', // Steam Linux Runtime - Sniper
+]);
+
+/** Localiza la instalación de Steam: registro primero, rutas típicas después. */
+export function findSteamPath(override?: string | null): string | null {
+  if (override && existsSync(join(override, 'steamapps'))) return override;
+
+  try {
+    const out = execFileSync(
+      'reg',
+      ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'],
+      { encoding: 'utf8', windowsHide: true },
+    );
+    const match = /SteamPath\s+REG_SZ\s+(.+)/i.exec(out);
+    if (match?.[1]) {
+      const path = match[1].trim().replace(/\//g, '\\');
+      if (existsSync(join(path, 'steamapps'))) return path;
+    }
+  } catch {
+    // El registro puede no estar disponible; se prueba con las rutas típicas.
+  }
+
+  for (const candidate of [
+    'C:\\Program Files (x86)\\Steam',
+    'C:\\Program Files\\Steam',
+  ]) {
+    if (existsSync(join(candidate, 'steamapps'))) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Todas las carpetas de biblioteca declaradas en `libraryfolders.vdf`.
+ * Steam permite bibliotecas en otras unidades: aquí salen `C:` y `G:`, por ejemplo.
+ */
+export function readLibraryFolders(steamPath: string): string[] {
+  const vdfPath = join(steamPath, 'steamapps', 'libraryfolders.vdf');
+  const folders = new Set<string>([steamPath]);
+
+  try {
+    const root = parseVdf(readFileSync(vdfPath, 'utf8'));
+    const libs = dig(root, 'libraryfolders');
+    if (libs && typeof libs !== 'string') {
+      for (const key of Object.keys(libs)) {
+        const path = str(libs, key, 'path');
+        if (path && existsSync(join(path, 'steamapps'))) folders.add(path);
+      }
+    }
+  } catch (e) {
+    logger.warn('no se pudo leer libraryfolders.vdf:', e);
+  }
+
+  return [...folders];
+}
+
+/** Busca la carátula: primero la caché local, si no la CDN de Steam. */
+function resolveCover(steamPath: string, appId: string): {
+  cover: string | null;
+  local: string | null;
+} {
+  const dir = join(steamPath, 'appcache', 'librarycache', appId);
+  // Steam guarda unos juegos con nombre legible y otros con hash sin extensión;
+  // solo sirven los primeros.
+  for (const name of ['library_600x900.jpg', 'library_header.jpg', 'header.jpg']) {
+    const file = join(dir, name);
+    if (existsSync(file)) return { cover: `atreus://cover/steam.${appId}`, local: file };
+  }
+  return {
+    cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+    local: null,
+  };
+}
+
+export interface SteamScanResult {
+  games: Game[];
+  /** Rutas locales de carátula por GameId, para servirlas por el protocolo propio. */
+  covers: Map<string, string>;
+}
+
+/** Recorre todas las bibliotecas y devuelve un `Game` por `appmanifest_*.acf`. */
+export function scanSteam(steamPath: string): SteamScanResult {
+  const games: Game[] = [];
+  const covers = new Map<string, string>();
+  const seen = new Set<string>();
+
+  for (const folder of readLibraryFolders(steamPath)) {
+    const appsDir = join(folder, 'steamapps');
+    let entries: string[];
+    try {
+      entries = readdirSync(appsDir).filter(
+        (f) => f.startsWith('appmanifest_') && f.endsWith('.acf'),
+      );
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      try {
+        const acf = parseVdf(readFileSync(join(appsDir, entry), 'utf8'));
+        const appId = str(acf, 'AppState', 'appid');
+        const name = str(acf, 'AppState', 'name');
+        if (!appId || !name || NOT_GAMES.has(appId) || seen.has(appId)) continue;
+        seen.add(appId);
+
+        const installDirName = str(acf, 'AppState', 'installdir');
+        const installDir = installDirName
+          ? join(appsDir, 'common', installDirName)
+          : null;
+
+        const { cover, local } = resolveCover(steamPath, appId);
+        const id = `steam:${appId}`;
+        if (local) covers.set(id, local);
+
+        games.push({
+          id,
+          platform: 'steam',
+          nativeId: appId,
+          name,
+          installDir: installDir && existsSync(installDir) ? installDir : null,
+          exePath: null, // Steam lanza por URL; no hace falta el exe salvo para el trainer.
+          iconUrl: null,
+          headerUrl: cover,
+          sizeBytes: num(acf, 'AppState', 'SizeOnDisk'),
+          lastPlayed: num(acf, 'AppState', 'LastPlayed'),
+          hasDefinition: false, // Lo rellena definitions.ts
+          multiplayer: false,
+          favorite: false,
+        });
+      } catch (e) {
+        logger.warn(`no se pudo leer ${entry}:`, e);
+      }
+    }
+  }
+
+  logger.info(`${games.length} juegos de Steam en ${readLibraryFolders(steamPath).length} bibliotecas`);
+  return { games, covers };
+}
+
+/** Busca el ejecutable más probable dentro del directorio del juego. */
+export function guessExe(installDir: string | null, gameName: string): string | null {
+  if (!installDir || !existsSync(installDir)) return null;
+  try {
+    const exes = readdirSync(installDir)
+      .filter((f) => f.toLowerCase().endsWith('.exe'))
+      .filter((f) => !/^(unins|setup|vc_?redist|dxsetup|crash)/i.test(f));
+    if (exes.length === 0) return null;
+
+    // Preferir el que se parezca al nombre del juego; si no, el más grande.
+    const slug = gameName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const byName = exes.find(
+      (f) => f.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/exe$/, '') === slug,
+    );
+    if (byName) return join(installDir, byName);
+
+    let best: { file: string; size: number } | null = null;
+    for (const f of exes) {
+      try {
+        const size = statSync(join(installDir, f)).size;
+        if (!best || size > best.size) best = { file: f, size };
+      } catch {
+        // Un exe ilegible no debe abortar la detección.
+      }
+    }
+    return best ? join(installDir, best.file) : null;
+  } catch {
+    return null;
+  }
+}

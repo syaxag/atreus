@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Atreus — tokens de diseño.
+ * Fuente de verdad de los colores. Ver docs/DESIGN.md.
+ * Ningún componente escribe un color literal: siempre var(--…).
+ */
+
+:root {
+  /* Fondos */
+  --bg-base: #0a0a0d;
+  --bg-surface: #121216;
+  --bg-elevated: #1a1a20;
+  --bg-inset: #08080a;
+
+  /* Bordes */
+  --border: #26262f;
+  --border-strong: #34343f;
+
+  /* Texto */
+  --text: #f5f5f7;
+  --text-muted: #9e9eac;
+  --text-faint: #6b6b78;
+
+  /* Acento — morado, el único color de la interfaz */
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-press: #7c3aed;
+  --accent-soft: rgba(139, 92, 246, 0.12);
+  --accent-glow: rgba(139, 92, 246, 0.35);
+
+  /* Semánticos — solo para estado */
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
+  /* Variantes suaves y de borde. Tailwind 3 no admite el modificador /alpha
+     sobre colores declarados como var(), así que se declaran explícitas. */
+  --accent-line: rgba(139, 92, 246, 0.4);
+  --success-line: rgba(52, 211, 153, 0.3);
+  --warn-line: rgba(251, 191, 36, 0.3);
+  --danger-line: rgba(248, 113, 113, 0.35);
+  --danger-soft: rgba(248, 113, 113, 0.1);
+
+  /* Radios */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* Movimiento */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-mid: 180ms;
+  --dur-slow: 240ms;
+
+  /* Layout */
+  --titlebar-h: 40px;
+  --sidebar-w: 220px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: Inter, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Zonas de arrastre de la ventana frameless */
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Foco visible y coherente en toda la app */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid var(--bg-base);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/* El texto seleccionable se marca explícitamente */
+.selectable {
+  user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Slider: pista pintada por gradiente inline, pulgar propio en ambos motores */
+.atreus-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--text);
+  border: 2px solid var(--bg-base);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.atreus-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.atreus-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Entrada de los toasts */
+@keyframes atreus-toast {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

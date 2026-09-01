@@ -1,0 +1,40 @@
+{
+  "id": "steam:2379780",
+  "name": "Balatro",
+  "exe": "Balatro.exe",
+  "multiplayer": false,
+  "achievements": { "source": "steam" },
+  "cheats": [
+    {
+      "id": "inf-money",
+      "name": "Dinero infinito",
+      "description": "Congela el contador de dólares del run actual.",
+      "type": "value",
+      "group": "Recursos",
+      "hotkey": "F1",
+      "resolve": {
+        "kind": "aob",
+        "module": "Balatro.exe",
+        "pattern": "00 00 00 00 00 00 00 00",
+        "offset": 0
+      },
+      "write": { "type": "i32", "min": 0, "max": 999999, "step": 1, "freeze": true }
+    },
+    {
+      "id": "inf-hands",
+      "name": "Manos infinitas",
+      "type": "toggle",
+      "group": "Run",
+      "hotkey": "F2",
+      "resolve": {
+        "kind": "aob",
+        "module": "Balatro.exe",
+        "pattern": "00 00 00 00 00 00 00 00",
+        "offset": 0
+      },
+      "write": { "type": "i32", "value": 99, "freeze": true }
+    }
+  ],
+  "mods": { "root": "Mods", "loader": "lovely" },
+  "notes": "PLANTILLA. Los patrones AoB son marcadores de posición: hay que resolverlos en la FASE 4 con un escaneo real sobre el proceso. Ver docs/ROADMAP.md."
+}

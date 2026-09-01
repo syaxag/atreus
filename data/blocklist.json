@@ -1,0 +1,63 @@
+{
+  "$comment": "Títulos donde el motor de trainer NUNCA engancha. Ver docs/SCOPE.md. Esta lista no es configurable desde la interfaz.",
+  "appIds": {
+    "1172470": "Apex Legends — multijugador competitivo, Easy Anti-Cheat",
+    "252950": "Rocket League — multijugador competitivo",
+    "3527290": "PEAK — co-op online",
+    "730": "Counter-Strike 2 — multijugador competitivo, VAC",
+    "570": "Dota 2 — multijugador competitivo, VAC",
+    "1085660": "Destiny 2 — multijugador, BattlEye",
+    "578080": "PUBG — multijugador, BattlEye",
+    "1938090": "Call of Duty — multijugador, Ricochet",
+    "1203220": "NARAKA — multijugador, Easy Anti-Cheat",
+    "1599340": "Lost Ark — MMO",
+    "440": "Team Fortress 2 — multijugador, VAC",
+    "271590": "GTA V — Online, BattlEye"
+  },
+  "processNames": [
+    "r5apex.exe",
+    "RocketLeague.exe",
+    "cs2.exe",
+    "dota2.exe",
+    "destiny2.exe",
+    "TslGame.exe"
+  ],
+  "$comment2": "Si alguno de estos módulos está cargado en el proceso objetivo, se aborta el attach sin más comprobaciones.",
+  "antiCheatModules": [
+    "EasyAntiCheat.dll",
+    "EasyAntiCheat_x64.dll",
+    "BEClient.dll",
+    "BEClient_x64.dll",
+    "battleye.dll",
+    "vgk.sys",
+    "anticheatexpert.dll",
+    "ACE-BASE.sys"
+  ],
+  "$comment3": "Coincidencia por nombre, para Epic/GOG/Xbox/manual, que no tienen AppID de Steam. Se compara en minusculas, sin acentos ni simbolos, por subcadena.",
+  "names": [
+    "call of duty",
+    "fortnite",
+    "apex legends",
+    "rocket league",
+    "counter-strike",
+    "dota 2",
+    "destiny 2",
+    "pubg",
+    "battlegrounds",
+    "valorant",
+    "rainbow six",
+    "overwatch",
+    "the finals",
+    "delta force",
+    "naraka",
+    "lost ark",
+    "team fortress",
+    "rust",
+    "dayz",
+    "escape from tarkov",
+    "marvel rivals",
+    "peak",
+    "gta",
+    "grand theft auto"
+  ]
+}

@@ -1,0 +1,234 @@
+import { dialog } from 'electron';
+import { existsSync } from 'node:fs';
+import type { GameId, Mod, ModProfile } from '@shared/types';
+import { log } from '../../logger';
+import { emit } from '../../ipc/emit';
+import { getGame } from '../catalog';
+import { getDefinition } from '../catalog/definitions';
+import { extract, flattenSingleRoot, listFiles, treeSize, SUPPORTED } from './archive';
+import { detectMeta, looksValid } from './detect';
+import { deploy as deployFiles, purge as purgeFiles, findConflicts, resolveRoot, isDeployed } from './deploy';
+import {
+  listMods, saveMods, removeModFiles, modDir,
+  listProfiles, saveProfiles,
+} from './store';
+
+const logger = log('mods');
+
+/** Raíz de despliegue del juego, o un error explicando por qué no se puede. */
+function targetRoot(gameId: GameId): { root: string } | { error: string } {
+  const game = getGame(gameId);
+  if (!game) return { error: `Juego no encontrado: ${gameId}` };
+
+  const def = getDefinition(gameId);
+  const root = resolveRoot(game.installDir, def?.mods?.root);
+  if (!root) {
+    return {
+      error:
+        `No se sabe dónde desplegar los mods de "${game.name}". ` +
+        `Añade "mods": { "root": "..." } en data/games/${gameId.replace(':', '.')}.json.`,
+    };
+  }
+  return { root };
+}
+
+/** Marca conflictos en la lista antes de devolverla a la interfaz. */
+function withConflicts(gameId: GameId, mods: Mod[]): Mod[] {
+  const active = mods.filter((m) => m.enabled);
+  const conflicts = findConflicts(gameId, active);
+
+  const byMod = new Map<string, Set<string>>();
+  for (const conflict of conflicts) {
+    for (const id of conflict.mods) {
+      const others = conflict.mods.filter((other) => other !== id);
+      byMod.set(id, new Set([...(byMod.get(id) ?? []), ...others]));
+    }
+  }
+  return mods.map((m) => ({ ...m, conflictsWith: [...(byMod.get(m.id) ?? [])] }));
+}
+
+function publish(gameId: GameId, mods: Mod[]): Mod[] {
+  const decorated = withConflicts(gameId, mods);
+  emit('mods:updated', { gameId, mods: decorated });
+  return decorated;
+}
+
+export function list(gameId: GameId): Mod[] {
+  return withConflicts(gameId, listMods(gameId));
+}
+
+export async function install(gameId: GameId, archivePath?: string): Promise<Mod> {
+  let source = archivePath;
+
+  if (!source) {
+    const picked = await dialog.showOpenDialog({
+      title: 'Elige el archivo del mod',
+      properties: ['openFile'],
+      filters: [{ name: 'Archivos de mod', extensions: ['zip', '7z', 'rar'] }],
+    });
+    if (picked.canceled || !picked.filePaths[0]) throw new Error('Instalación cancelada');
+    source = picked.filePaths[0];
+  }
+
+  if (!existsSync(source)) throw new Error(`No existe el archivo: ${source}`);
+  const lower = source.toLowerCase();
+  if (!SUPPORTED.some((ext) => lower.endsWith(ext))) {
+    throw new Error(`Formato no soportado. Se admiten: ${SUPPORTED.join(', ')}`);
+  }
+
+  const mods = listMods(gameId);
+  const modId = `m${Date.now().toString(36)}`;
+  const staging = modDir(gameId, modId);
+
+  try {
+    await extract(source, staging);
+    flattenSingleRoot(staging);
+  } catch (e) {
+    removeModFiles(gameId, modId);
+    throw new Error(`No se pudo extraer: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  if (!looksValid(staging)) {
+    removeModFiles(gameId, modId);
+    throw new Error('El archivo no contiene ningún archivo utilizable');
+  }
+
+  const meta = detectMeta(staging, source);
+  const mod: Mod = {
+    id: modId,
+    gameId,
+    name: meta.name,
+    version: meta.version,
+    author: meta.author,
+    description: meta.description,
+    status: 'staged',
+    enabled: false,
+    order: mods.length,
+    sizeBytes: treeSize(staging),
+    installedAt: Math.floor(Date.now() / 1000),
+    files: listFiles(staging),
+    conflictsWith: [],
+    error: null,
+  };
+
+  const next = [...mods, mod];
+  saveMods(gameId, next);
+  publish(gameId, next);
+  logger.info(`${gameId}: instalado "${mod.name}" (${mod.files.length} archivos)`);
+  return withConflicts(gameId, next).find((m) => m.id === modId) ?? mod;
+}
+
+export function uninstall(gameId: GameId, modId: string): void {
+  const mods = listMods(gameId);
+  const mod = mods.find((m) => m.id === modId);
+  if (!mod) throw new Error(`Mod no encontrado: ${modId}`);
+
+  // Si estaba desplegado hay que retirarlo del juego antes de borrar el
+  // staging, o quedarían archivos sueltos sin forma de revertirlos.
+  if (mod.enabled && isDeployed(gameId)) purgeFiles(gameId);
+
+  removeModFiles(gameId, modId);
+  const next = mods.filter((m) => m.id !== modId).map((m, i) => ({ ...m, order: i }));
+  saveMods(gameId, next);
+  publish(gameId, next);
+}
+
+export function setEnabled(gameId: GameId, modId: string, enabled: boolean): Mod {
+  const mods = listMods(gameId);
+  const mod = mods.find((m) => m.id === modId);
+  if (!mod) throw new Error(`Mod no encontrado: ${modId}`);
+  if (mod.status === 'error') throw new Error('Este mod está en error y no se puede activar');
+
+  const next = mods.map((m) => (m.id === modId ? { ...m, enabled } : m));
+  saveMods(gameId, next);
+  const published = publish(gameId, next);
+  return published.find((m) => m.id === modId)!;
+}
+
+export function reorder(gameId: GameId, modIds: string[]): Mod[] {
+  const mods = listMods(gameId);
+  const next = mods
+    .map((m) => {
+      const index = modIds.indexOf(m.id);
+      return { ...m, order: index >= 0 ? index : mods.length };
+    })
+    .sort((a, b) => a.order - b.order);
+
+  saveMods(gameId, next);
+  return publish(gameId, next);
+}
+
+export function deploy(gameId: GameId): { files: number } {
+  const target = targetRoot(gameId);
+  if ('error' in target) throw new Error(target.error);
+
+  const mods = listMods(gameId);
+  if (!mods.some((m) => m.enabled)) throw new Error('No hay ningún mod activo que desplegar');
+
+  const result = deployFiles(gameId, mods, target.root);
+
+  const next = mods.map((m) => ({
+    ...m,
+    status: (m.enabled ? 'deployed' : 'staged') as Mod['status'],
+  }));
+  saveMods(gameId, next);
+  publish(gameId, next);
+
+  if (result.conflicts.length > 0) {
+    emit('toast', {
+      level: 'warn',
+      message:
+        `${result.conflicts.length} archivo(s) en conflicto: ` +
+        'ha ganado el mod que está más abajo en el orden de carga.',
+    });
+  }
+  return { files: result.files };
+}
+
+export function purge(gameId: GameId): void {
+  purgeFiles(gameId);
+  const next = listMods(gameId).map((m) => ({ ...m, status: 'staged' as const }));
+  saveMods(gameId, next);
+  publish(gameId, next);
+}
+
+// ── Perfiles ──────────────────────────────────────────────────
+export function profiles(gameId: GameId): ModProfile[] {
+  return listProfiles(gameId);
+}
+
+export function saveProfile(profile: ModProfile): ModProfile {
+  const all = listProfiles(profile.gameId);
+  const exists = all.some((p) => p.id === profile.id);
+  const next = exists
+    ? all.map((p) => (p.id === profile.id ? profile : p))
+    : [...all, profile];
+  saveProfiles(profile.gameId, next);
+  return profile;
+}
+
+/** Activa un perfil: aplica su selección de mods y su orden. */
+export function activateProfile(gameId: GameId, profileId: string): void {
+  const all = listProfiles(gameId);
+  const profile = all.find((p) => p.id === profileId);
+  if (!profile) throw new Error(`Perfil no encontrado: ${profileId}`);
+
+  saveProfiles(gameId, all.map((p) => ({ ...p, isActive: p.id === profileId })));
+
+  const chosen = new Set(profile.mods);
+  const next = listMods(gameId)
+    .map((m) => ({
+      ...m,
+      enabled: chosen.has(m.id),
+      order: chosen.has(m.id) ? profile.mods.indexOf(m.id) : Number.MAX_SAFE_INTEGER,
+    }))
+    .sort((a, b) => a.order - b.order)
+    .map((m, i) => ({ ...m, order: i }));
+
+  saveMods(gameId, next);
+  publish(gameId, next);
+}
+
+export function deleteProfile(gameId: GameId, profileId: string): void {
+  saveProfiles(gameId, listProfiles(gameId).filter((p) => p.id !== profileId));
+}
