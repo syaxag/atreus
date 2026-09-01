@@ -180,10 +180,32 @@ Cada juego declara su catálogo en la definición:
 "mods": { "provider": { "kind": "geode" } }
 ```
 
-| Proveedor | API | Cubre |
+| Proveedor | API | Métrica |
 |---|---|---|
-| Thunderstore | `thunderstore.io/c/<comunidad>/api/v1/package/` | Balatro (85 mods), PEAK, y 314 comunidades más |
-| Geode | `api.geode-sdk.org/v1/mods` | Geometry Dash (200+ mods) |
+| Thunderstore | `thunderstore.io/c/<comunidad>/api/v1/package/` | descargas |
+| Geode | `api.geode-sdk.org/v1/mods` | descargas |
+| GameBanana | `gamebanana.com/apiv11/Game/<id>/Subfeed` | me gusta |
+
+Un juego puede tener **varios** catálogos: son comunidades distintas con
+contenido distinto. Si uno falla, se sigue con los demás.
+
+| Juego | Catálogos | Mods |
+|---|---|---|
+| PEAK | Thunderstore | 1.910 |
+| Geometry Dash | Geode + GameBanana | 278 |
+| Balatro | Thunderstore + GameBanana | 204 |
+| Resident Evil 4 | GameBanana | 24 |
+| DOOM: The Dark Ages | — | aún no hay escena de modding |
+| Halo: Campaign Evolved | — | no está en ningún catálogo con API |
+| KovaaK's · Wallpaper Engine | — | usan Steam Workshop, que gestiona Steam |
+
+**Cada catálogo mide la popularidad a su manera.** Thunderstore y Geode publican
+descargas; GameBanana, "me gusta". Llamarlo todo "descargas" sería mentir, así
+que cada mod dice qué es su número.
+
+**Descargas diferidas.** GameBanana no da la URL en el listado. Pedirla para los
+148 mods de un juego serían 148 peticiones, así que los mods salen marcados como
+`deferred` y la URL se resuelve solo la del que se instala.
 
 Instalar desde el catálogo baja el archivo a un temporal y lo pasa por el mismo
 `install` de siempre, así que hereda la protección contra zip slip, la lectura

@@ -65,35 +65,107 @@
           "description": "Extensiones que se despliegan sin extraer, tal cual. Ej: [\".geode\"] para Geode, [\".pak\"] para Unreal."
         },
         "provider": {
-          "description": "Catálogo público del que sacar los mods disponibles automáticamente.",
+          "description": "Catalogos publicos de los que sacar los mods. Uno o varios.",
           "oneOf": [
             {
-              "type": "object",
-              "required": [
-                "kind",
-                "community"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "const": "thunderstore"
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "community"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "thunderstore"
+                    },
+                    "community": {
+                      "type": "string"
+                    }
+                  }
                 },
-                "community": {
-                  "type": "string",
-                  "description": "Identificador de la comunidad, p. ej. \"balatro\""
+                {
+                  "type": "object",
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "geode"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "gameId"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "gamebanana"
+                    },
+                    "gameId": {
+                      "type": "integer",
+                      "description": "Id numerico del juego en GameBanana"
+                    }
+                  }
                 }
-              }
+              ]
             },
             {
-              "type": "object",
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "const": "geode"
-                }
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "community"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "thunderstore"
+                      },
+                      "community": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "geode"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "gameId"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "gamebanana"
+                      },
+                      "gameId": {
+                        "type": "integer",
+                        "description": "Id numerico del juego en GameBanana"
+                      }
+                    }
+                  }
+                ]
               }
             }
           ]

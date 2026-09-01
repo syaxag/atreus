@@ -15,5 +15,5 @@
       ".utoc"
     ]
   },
-  "notes": "Unreal Engine; el proyecto se llama Meteorite. Los mods son .pak (con sus .ucas/.utoc si los traen) y van en Content/Paks/~mods, que Unreal carga después del pak base. La carpeta ~mods la crea Atreus al desplegar. Ruta verificada: Meteorite/Content/Paks existe."
+  "notes": "Unreal Engine; el proyecto se llama Meteorite. Los mods son .pak (con sus .ucas/.utoc si los traen) y van en Content/Paks/~mods, que Unreal carga después del pak base. La carpeta ~mods la crea Atreus al desplegar. Ruta verificada: Meteorite/Content/Paks existe. SIN catalogo de mods: no esta en ningun catalogo con API."
 }

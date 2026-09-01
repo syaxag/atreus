@@ -448,7 +448,8 @@ function DiscoverPanel({
           />
         </div>
         <span className="text-[12px] text-faint">
-          {visible.length} de {remote.length} · {remote[0]!.source}
+          {visible.length} de {remote.length} ·{' '}
+          {[...new Set(remote.map((m) => m.source))].join(' + ')}
         </span>
       </div>
 
@@ -468,8 +469,9 @@ function DiscoverPanel({
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">{mod.description}</p>
                 <p className="mt-1 text-[11px] text-faint">
-                  {mod.author} · {mod.downloads.toLocaleString('es-ES')} descargas
+                  {mod.author} · {mod.downloads.toLocaleString('es-ES')} {mod.metric}
                   {mod.sizeBytes ? ` · ${bytes(mod.sizeBytes)}` : ''}
+                  {' · '}{mod.source}
                 </p>
               </div>
 

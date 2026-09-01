@@ -170,4 +170,6 @@ export const MOCK_REMOTE: RemoteMod[] = [
   categories: ['Mods'],
   dependencies: 0,
   source: 'Thunderstore',
+  metric: 'descargas',
+  deferred: false,
 }));

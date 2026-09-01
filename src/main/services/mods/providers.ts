@@ -20,17 +20,9 @@ const logger = log('mods:providers');
  * apps comerciales los escriben personas, uno a uno. Ver docs/SCOPE.md.
  */
 
-export interface ThunderstoreProvider {
-  kind: 'thunderstore';
-  /** Identificador de la comunidad, p. ej. "balatro" o "peak". */
-  community: string;
-}
+import type { ModProviderSpec } from '../catalog/definitions';
 
-export interface GeodeProvider {
-  kind: 'geode';
-}
-
-export type ModProvider = ThunderstoreProvider | GeodeProvider;
+export type ModProvider = ModProviderSpec;
 
 /** Timeout de red. Un catálogo caído no debe colgar la interfaz. */
 const TIMEOUT_MS = 25_000;
@@ -100,6 +92,8 @@ async function listThunderstore(community: string): Promise<RemoteMod[]> {
         categories: p.categories,
         dependencies: latest.dependencies.length,
         source: 'Thunderstore',
+        metric: 'descargas',
+        deferred: false,
       };
     })
     .sort((a, b) => b.downloads - a.downloads);
@@ -155,6 +149,8 @@ async function listGeode(): Promise<RemoteMod[]> {
         categories: mod.tags ?? [],
         dependencies: 0,
         source: 'Geode',
+        metric: 'descargas',
+        deferred: false,
       });
     }
     if (body.payload.data.length < 100) break;
@@ -162,19 +158,141 @@ async function listGeode(): Promise<RemoteMod[]> {
   return out.sort((a, b) => b.downloads - a.downloads);
 }
 
+// ── GameBanana ────────────────────────────────────────────────
+interface GbRecord {
+  _idRow: number;
+  _sName: string;
+  _bHasFiles?: boolean;
+  _bIsObsolete?: boolean;
+  _nLikeCount?: number;
+  _nViewCount?: number;
+  _aSubmitter?: { _sName?: string };
+  _aRootCategory?: { _sName?: string };
+  _aTags?: { _sValue?: string }[];
+  _aPreviewMedia?: { _aImages?: { _sBaseUrl?: string; _sFile220?: string }[] };
+}
+
+interface GbSubfeed {
+  _aRecords: GbRecord[];
+  _aMetadata?: { _nRecordCount?: number };
+}
+
+interface GbProfile {
+  _sName?: string;
+  _sDescription?: string;
+  _aFiles?: { _sFile?: string; _nFilesize?: number; _sDownloadUrl?: string }[];
+}
+
+/**
+ * GameBanana no publica descargas por mod en el listado, sino "me gusta", y
+ * **no da la URL de descarga** hasta que se pide la ficha completa. Pedirla
+ * para los 148 mods de un juego serían 148 peticiones, así que los mods salen
+ * marcados como `deferred` y la URL se resuelve solo al instalar.
+ */
+async function listGameBanana(gameId: number): Promise<RemoteMod[]> {
+  const out: RemoteMod[] = [];
+
+  // Las páginas van de 15 en 15 y cada una es una petición. En serie, ocho
+  // páginas tardaban varios segundos; en paralelo cuesta casi lo mismo que una.
+  const pages = await Promise.allSettled(
+    [1, 2, 3, 4, 5, 6, 7, 8].map((page) =>
+      fetchJson<GbSubfeed>(
+        `https://gamebanana.com/apiv11/Game/${gameId}/Subfeed` +
+        `?_nPage=${page}&_sSort=default&_csvModelInclusions=Mod`,
+      ),
+    ),
+  );
+
+  for (const result of pages) {
+    if (result.status !== 'fulfilled') continue;
+    const records = result.value._aRecords ?? [];
+    for (const r of records) {
+      if (r._bIsObsolete || r._bHasFiles === false) continue;
+      const image = r._aPreviewMedia?._aImages?.[0];
+      out.push({
+        id: String(r._idRow),
+        name: r._sName,
+        author: r._aSubmitter?._sName ?? 'desconocido',
+        version: '',
+        description: r._aRootCategory?._sName ?? '',
+        downloads: r._nLikeCount ?? 0,
+        sizeBytes: null,
+        iconUrl: image?._sBaseUrl && image._sFile220
+          ? `${image._sBaseUrl}/${image._sFile220}`
+          : null,
+        pageUrl: `https://gamebanana.com/mods/${r._idRow}`,
+        // Se rellena al instalar; ver `resolve`.
+        downloadUrl: '',
+        fileName: '',
+        categories: (r._aTags ?? []).map((t) => t._sValue ?? '').filter(Boolean),
+        dependencies: 0,
+        source: 'GameBanana',
+        metric: 'me gusta',
+        deferred: true,
+      });
+    }
+  }
+
+  // Las páginas pueden solaparse; se quita lo repetido.
+  const vistos = new Set<string>();
+  return out
+    .filter((m) => (vistos.has(m.id) ? false : (vistos.add(m.id), true)))
+    .sort((a, b) => b.downloads - a.downloads);
+}
+
+/** Pide la ficha de un mod de GameBanana para saber qué archivo bajar. */
+async function resolveGameBanana(mod: RemoteMod): Promise<RemoteMod> {
+  const profile = await fetchJson<GbProfile>(
+    `https://gamebanana.com/apiv11/Mod/${mod.id}/ProfilePage`,
+  );
+  const files = (profile._aFiles ?? []).filter((f) => f._sDownloadUrl);
+  if (files.length === 0) {
+    throw new Error(`"${mod.name}" no tiene ningún archivo descargable en GameBanana`);
+  }
+
+  // El más grande suele ser el mod; los pequeños son parches o extras.
+  const best = files.reduce((a, b) => ((b._nFilesize ?? 0) > (a._nFilesize ?? 0) ? b : a));
+  return {
+    ...mod,
+    downloadUrl: best._sDownloadUrl!,
+    fileName: best._sFile ?? `${mod.id}.zip`,
+    sizeBytes: best._nFilesize ?? null,
+    description: profile._sDescription
+      ? profile._sDescription.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300)
+      : mod.description,
+    deferred: false,
+  };
+}
+
 // ── API pública ───────────────────────────────────────────────
-export function providerOf(gameId: GameId): ModProvider | null {
-  return getDefinition(gameId)?.mods?.provider ?? null;
+/** Los catálogos de un juego. Uno, varios o ninguno. */
+export function providersOf(gameId: GameId): ModProvider[] {
+  const spec = getDefinition(gameId)?.mods?.provider;
+  if (!spec) return [];
+  return Array.isArray(spec) ? spec : [spec];
 }
 
 export function hasProvider(gameId: GameId): boolean {
-  return providerOf(gameId) !== null;
+  return providersOf(gameId).length > 0;
 }
 
-/** Lista lo que hay disponible para un juego. Lanza si no hay proveedor. */
+function listOne(provider: ModProvider): Promise<RemoteMod[]> {
+  switch (provider.kind) {
+    case 'geode': return listGeode();
+    case 'thunderstore': return listThunderstore(provider.community);
+    case 'gamebanana': return listGameBanana(provider.gameId);
+  }
+}
+
+/**
+ * Lista lo que hay disponible, sumando todos los catálogos del juego.
+ *
+ * Si uno falla, se sigue con los demás: que GameBanana esté caído no debe
+ * dejar sin ver los mods de Thunderstore.
+ */
 export async function discover(gameId: GameId): Promise<RemoteMod[]> {
-  const provider = providerOf(gameId);
-  if (!provider) {
+  const providers = providersOf(gameId);
+  if (providers.length === 0) {
     throw new Error(
       'Este juego no tiene un catálogo de mods configurado. Añade ' +
       '"mods": { "provider": … } en su definición.',
@@ -182,15 +300,36 @@ export async function discover(gameId: GameId): Promise<RemoteMod[]> {
   }
 
   const started = Date.now();
-  const mods = provider.kind === 'geode'
-    ? await listGeode()
-    : await listThunderstore(provider.community);
+  const results = await Promise.allSettled(providers.map(listOne));
 
+  const mods: RemoteMod[] = [];
+  const fallos: string[] = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') mods.push(...r.value);
+    else fallos.push(`${providers[i]!.kind}: ${String(r.reason).slice(0, 80)}`);
+  });
+
+  if (mods.length === 0 && fallos.length > 0) {
+    throw new Error(`No se pudo consultar ningún catálogo. ${fallos.join(' · ')}`);
+  }
+  for (const f of fallos) logger.warn(`${gameId}: catálogo caído — ${f}`);
+
+  const resumen = providers.map((p) => p.kind).join(' + ');
   logger.info(
-    `${gameId}: ${mods.length} mods disponibles en ${provider.kind} ` +
-    `(${Date.now() - started} ms)`,
+    `${gameId}: ${mods.length} mods disponibles en ${resumen} (${Date.now() - started} ms)`,
   );
   return mods;
+}
+
+/**
+ * Completa la información que falta antes de descargar.
+ *
+ * Los mods marcados como `deferred` no traen URL en el listado; aquí se pide.
+ */
+export async function resolve(mod: RemoteMod): Promise<RemoteMod> {
+  if (!mod.deferred) return mod;
+  if (mod.source === 'GameBanana') return resolveGameBanana(mod);
+  throw new Error(`No se sabe resolver la descarga de ${mod.source}`);
 }
 
 /** Descarga un mod a un archivo temporal y devuelve su ruta. */

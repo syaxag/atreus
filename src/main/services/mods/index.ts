@@ -15,7 +15,7 @@ import {
   listMods, saveMods, removeModFiles, modDir,
   listProfiles, saveProfiles,
 } from './store';
-import { discover as discoverRemote, download, hasProvider } from './providers';
+import { discover as discoverRemote, download, hasProvider, resolve } from './providers';
 
 const logger = log('mods');
 
@@ -293,14 +293,21 @@ export function discover(gameId: GameId): Promise<RemoteMod[]> {
  * manifiesto y la decisión de extraer o dejar el paquete entero.
  */
 export async function installRemote(gameId: GameId, mod: RemoteMod): Promise<Mod> {
+  // Algunos catálogos no dan la URL en el listado; se pide ahora, solo para
+  // este mod. Ver providers.ts.
+  const ready = await resolve(mod);
+  if (!ready.downloadUrl) {
+    throw new Error(`"${mod.name}" no tiene una descarga utilizable`);
+  }
+
   const staging = join(tmpdir(), `atreus-dl-${Date.now().toString(36)}`);
   mkdirSync(staging, { recursive: true });
-  const file = join(staging, mod.fileName);
+  const file = join(staging, ready.fileName);
 
   try {
-    await download(mod, file);
+    await download(ready, file);
     const installed = await install(gameId, file);
-    logger.info(`${gameId}: "${mod.name}" instalado desde ${mod.source}`);
+    logger.info(`${gameId}: "${ready.name}" instalado desde ${ready.source}`);
     return installed;
   } finally {
     rmSync(staging, { recursive: true, force: true });

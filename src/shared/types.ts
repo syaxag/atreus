@@ -256,6 +256,20 @@ export interface RemoteMod {
   dependencies: number;
   /** Catálogo del que viene, para enseñarlo. */
   source: string;
+  /**
+   * Qué mide el número de `downloads` en este catálogo.
+   *
+   * No todos publican descargas: GameBanana da "me gusta". Llamarlo descargas
+   * en la interfaz sería mentir, así que cada proveedor dice qué es lo suyo.
+   */
+  metric: string;
+  /**
+   * true si la URL de descarga aún no se conoce y hay que pedirla al instalar.
+   *
+   * GameBanana no la da en el listado; pedirla para los 148 mods de un juego
+   * serían 148 peticiones, así que se resuelve solo la del que se instala.
+   */
+  deferred: boolean;
 }
 
 export interface ModProfile {

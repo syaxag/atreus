@@ -8,7 +8,11 @@
   },
   "mods": {
     "root": "",
-    "loader": "loose-files"
+    "loader": "loose-files",
+    "provider": {
+      "kind": "gamebanana",
+      "gameId": 18219
+    }
   },
-  "notes": "RE Engine. Los mods de archivos sueltos (REFramework, natives/STM/...) van en la raíz del juego, así que root queda vacío para desplegar ahí. Exe verificado."
+  "notes": "RE Engine. Los mods de archivos sueltos (REFramework, natives/STM/...) van en la raíz del juego, así que root queda vacío para desplegar ahí. Exe verificado. GameBanana tiene 24 mods para el remake de 2023. La escena grande de RE4 esta en Nexus, que exige clave de API."
 }

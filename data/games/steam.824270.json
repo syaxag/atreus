@@ -15,5 +15,5 @@
       ".utoc"
     ]
   },
-  "notes": "Unreal Engine. El exe real está en FPSAimTrainer/Binaries/Win64, no en la raíz. Ruta de Paks verificada."
+  "notes": "Unreal Engine. El exe real está en FPSAimTrainer/Binaries/Win64, no en la raíz. Ruta de Paks verificada. SIN catalogo de mods: usa Steam Workshop, que gestiona el propio Steam."
 }

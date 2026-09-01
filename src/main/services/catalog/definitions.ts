@@ -17,6 +17,11 @@ const logger = log('catalog:defs');
  * reiniciar la app. Ver docs/ARCHITECTURE.md.
  */
 
+export type ModProviderSpec =
+  | { kind: 'thunderstore'; community: string }
+  | { kind: 'geode' }
+  | { kind: 'gamebanana'; gameId: number };
+
 /** Una definición de `data/games/<id>.json`. Ver `data/games/_schema.json`. */
 export interface GameDefinition {
   id: GameId;
@@ -29,8 +34,14 @@ export interface GameDefinition {
     root?: string;
     loader?: string;
     packaged?: string[];
-    /** Catálogo público del que sacar los mods disponibles. Ver mods/providers.ts. */
-    provider?: { kind: 'thunderstore'; community: string } | { kind: 'geode' };
+    /**
+     * Catálogos públicos de los que sacar los mods disponibles.
+     *
+     * Admite uno o varios: Balatro tiene 85 mods en Thunderstore y 148 en
+     * GameBanana, y son comunidades distintas con contenido distinto.
+     * Ver mods/providers.ts.
+     */
+    provider?: ModProviderSpec | ModProviderSpec[];
   };
   notes?: string;
   /** Lo rellena el cargador: de qué capa viene. */
