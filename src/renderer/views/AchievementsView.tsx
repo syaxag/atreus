@@ -10,8 +10,11 @@ import { Badge, Button, Empty, Input, Skeleton, Toggle, ViewHeader } from '@/com
 
 type Tab = 'achievements' | 'stats';
 
-/** Alto fijo de fila; la virtualización lo necesita para calcular el scroll. */
-const ROW_HEIGHT = 44;
+/**
+ * Alto fijo de fila; la virtualización lo necesita para calcular el scroll.
+ * Cabe el nombre y una descripción larga sin que se toquen.
+ */
+const ROW_HEIGHT = 52;
 
 export function AchievementsView() {
   const game = useStore((s) => s.selected());
@@ -297,8 +300,18 @@ export function AchievementsView() {
                         <p className="truncate text-[12px] text-faint">{a.description}</p>
                       </div>
 
-                      <span className="shrink-0 font-mono text-[11px] text-faint">
-                        {dateTime(a.unlockTime)}
+                      {/* Un logro activado sin fecha se contradice a la vista.
+                          Mientras el cambio no se guarde, se dice que está
+                          pendiente en vez de enseñar un guion. */}
+                      <span
+                        className={cn(
+                          'shrink-0 font-mono text-[11px]',
+                          dirty ? 'text-accent-hover' : 'text-faint',
+                        )}
+                      >
+                        {dirty
+                          ? (on ? 'sin guardar' : 'se borrará')
+                          : dateTime(a.unlockTime)}
                       </span>
 
                       <Toggle

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Zap, ShieldOff, Plug, Unplug, Play, TriangleAlert } from 'lucide-react';
+import { Zap, ShieldOff, Plug, Unplug, Play, TriangleAlert, Crosshair } from 'lucide-react';
 import type { CheatDef, CheatState, TrainerSession } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
@@ -10,6 +10,7 @@ export function CheatsView() {
   const game = useStore((s) => s.selected());
   const settings = useStore((s) => s.settings);
   const pushToast = useStore((s) => s.pushToast);
+  const go = useStore((s) => s.go);
 
   // Ver la nota de AchievementsView: el objeto `game` cambia de identidad con
   // cualquier actualización de la biblioteca.
@@ -145,8 +146,18 @@ export function CheatsView() {
         ) : defs.length === 0 ? (
           <Empty
             icon={<Zap size={40} strokeWidth={1.25} />}
-            title="Este juego no tiene definición de cheats"
-            hint={`Crea data/games/${game.id.replace(':', '.')}.json siguiendo la plantilla de data/games/README.md.`}
+            title={`Todavía no hay cheats para ${game.name}`}
+            hint={
+              'Un cheat necesita la dirección de memoria donde el juego guarda el ' +
+              'valor, y esa solo se encuentra con el juego abierto. El Buscador hace ' +
+              'justo eso: buscas un número que veas en pantalla, lo cambias en el ' +
+              'juego, filtras, y cuando queda una dirección la guardas como cheat.'
+            }
+            action={
+              <Button variant="primary" onClick={() => go('scanner')}>
+                <Crosshair size={14} /> Abrir el Buscador
+              </Button>
+            }
           />
         ) : (
           <div className="flex flex-col gap-6">
