@@ -11,6 +11,7 @@ import { getSettings, setSettings } from '../settings';
 import { findSteamPath, scanSteam, guessExe } from './steam';
 import { scanEpic, scanGog, scanXbox } from './others';
 import { applyDefinitions } from './definitions';
+import { splitArgs } from './args';
 
 const logger = log('catalog');
 
@@ -273,7 +274,7 @@ export async function launch(id: GameId, args?: string): Promise<{ pid: number }
   const exe = game.exePath ?? guessExe(game.installDir, game.name);
   if (!exe) throw new Error(`No se encontró un ejecutable para "${game.name}"`);
 
-  const child = spawn(exe, args ? args.split(' ').filter(Boolean) : [], {
+  const child = spawn(exe, splitArgs(args), {
     cwd: dirname(exe),
     detached: true,
     stdio: 'ignore',

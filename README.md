@@ -18,7 +18,7 @@ Todo se extiende añadiendo un JSON en [`data/games/`](data/games/) — sin reco
 
 ## Estado
 
-**Fases 0 a 5 completadas.** Contrato, arquitectura, diseño, esqueleto,
+**Completa y empaquetable.** Contrato, arquitectura, diseño, esqueleto,
 biblioteca real (Steam, Epic, Xbox con carátulas), el editor de logros y
 estadísticas de Steam contra la cuenta real, y el motor de cheats (escaneo AoB,
 lectura y escritura de memoria, congelado, hotkeys) con su barrera de bloqueo,
@@ -28,8 +28,8 @@ Descubre **mods automáticamente** desde Thunderstore y Geode al detectar un jue
 nuevo, e incluye un **buscador de memoria** para sacar los patrones de los cheats
 del juego en marcha, porque esos no se pueden inventar.
 
-Queda la FASE 6: empaquetado NSIS y auto-actualización.
-La app compila, arranca y las seis vistas navegan.
+**Instalable**: `npm run dist` genera `release/Atreus-0.1.0-setup.exe`.
+69 pruebas en verde; el empaquetado no se lanza si alguna falla.
 El desarrollo sigue [docs/ROADMAP.md](docs/ROADMAP.md), pensado para dos sesiones
 de construcción trabajando en paralelo sin pisarse.
 

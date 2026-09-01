@@ -84,7 +84,7 @@ export function scanGog(): Game[] {
 
   let subkeys: string[];
   try {
-    subkeys = execFileSync('reg', ['query', key], { encoding: 'utf8', windowsHide: true })
+    subkeys = execFileSync('reg', ['query', key], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] })
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.startsWith(key + '\\'));
@@ -94,7 +94,7 @@ export function scanGog(): Game[] {
 
   for (const sub of subkeys) {
     try {
-      const out = execFileSync('reg', ['query', sub], { encoding: 'utf8', windowsHide: true });
+      const out = execFileSync('reg', ['query', sub], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
       const pick = (name: string) =>
         new RegExp(`${name}\\s+REG_SZ\\s+(.+)`, 'i').exec(out)?.[1]?.trim();
 

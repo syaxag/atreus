@@ -23,7 +23,7 @@ export function findSteamPath(override?: string | null): string | null {
     const out = execFileSync(
       'reg',
       ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'],
-      { encoding: 'utf8', windowsHide: true },
+      { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
     );
     const match = /SteamPath\s+REG_SZ\s+(.+)/i.exec(out);
     if (match?.[1]) {

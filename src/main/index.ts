@@ -54,7 +54,33 @@ function createWindow(): void {
   });
 
   // Evita el parpadeo blanco: mostrar solo cuando ya hay algo pintado.
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => {
+    logger.info('ventana lista, mostrando');
+    mainWindow?.show();
+  });
+
+  // Red de seguridad: si `ready-to-show` no llega, la ventana se queda invisible
+  // y la app parece no arrancar. Es mejor enseñarla aunque esté a medias, que
+  // así al menos se ve el error en pantalla.
+  const showGuard = setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      logger.warn('la ventana no avisó de estar lista en 8 s; se muestra igualmente');
+      mainWindow.show();
+    }
+  }, 8000);
+  mainWindow.once('show', () => clearTimeout(showGuard));
+
+  mainWindow.webContents.on('did-fail-load', (_e, code, description, url) => {
+    logger.error(`no se pudo cargar la interfaz (${code} ${description}): ${url}`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    logger.error(`el proceso de la interfaz murió: ${details.reason}`);
+  });
+  mainWindow.webContents.on('console-message', (_e, level, message, line, source) => {
+    // Los errores de la consola del renderer no llegan al registro del main,
+    // y son justo los que hacen falta cuando la ventana sale en blanco.
+    if (level >= 2) logger.error(`[renderer] ${message} (${source}:${line})`);
+  });
 
   mainWindow.on('close', (e) => {
     if (!quitting && getSettings().minimizeToTray) {

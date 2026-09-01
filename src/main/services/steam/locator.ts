@@ -130,7 +130,7 @@ export function isSteamRunning(): boolean {
     const out = execFileSync(
       'tasklist',
       ['/FI', 'IMAGENAME eq steam.exe', '/NH'],
-      { encoding: 'utf8', windowsHide: true },
+      { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
     );
     return /steam\.exe/i.test(out);
   } catch {
@@ -144,7 +144,7 @@ export function getActiveSteamId(): string | null {
     const out = execFileSync(
       'reg',
       ['query', 'HKCU\\Software\\Valve\\Steam\\ActiveProcess', '/v', 'ActiveUser'],
-      { encoding: 'utf8', windowsHide: true },
+      { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
     );
     const hex = /ActiveUser\s+REG_DWORD\s+0x([0-9a-f]+)/i.exec(out)?.[1];
     if (!hex) return null;

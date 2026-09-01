@@ -323,20 +323,61 @@ compilación concreta; no hay catálogo público legible por máquina que los
 publique, y las apps comerciales no los generan solas — los escriben personas.
 Para eso está el buscador de memoria.
 
-## FASE 6 — Actualización y pulido *(paralelo)*
+## FASE 6 — Empaquetado y pulido ✅ HECHO
 
-### Lado A — backend
-1. `services/catalog/sync.ts` — sincronizar `data/games/*.json` desde repo Git o carpeta.
-2. `electron-updater` + configuración de `electron-builder` (NSIS, instalador único).
-3. Manejo global de errores → todo error acaba en un `toast` y en el log.
-4. Empaquetado, icono, metadatos.
+`npm run dist` produce **`release/Atreus-0.1.0-setup.exe`** (88 MB), verificado
+ejecutando la app instalada, no solo compilándola.
 
-### Lado B — interfaz
-1. Pantalla de Ajustes completa (API key, rutas, hotkeys, idioma, origen del catálogo).
-2. Diálogo "hay actualización disponible".
-3. Sistema de toasts conectado al evento `toast`.
-4. Animaciones y transiciones finales; repaso de accesibilidad (foco, teclado).
-5. Atajos globales de la app (`Ctrl+K` para buscar juego).
+### Lo que hubo que resolver
+
+**El contenido fuera del asar.** `extraResources` deja `data/` en
+`resources/data`, así que las 11 definiciones cargan en la app instalada y se
+pueden editar sin reempaquetar. Confirmado en el registro de la app empaquetada:
+`definiciones: 11 (11 de fábrica)` y `lista de bloqueo: 12 AppIDs y 24 nombres`
+— este segundo era el fallo de alcance que habría dejado Fortnite sin bloquear.
+
+**koffi fuera del asar.** Los `.node` no se cargan desde dentro de un archivo
+empaquetado. Con `asarUnpack` funciona: se ejecutó el worker de Steam de la app
+**instalada** y leyó 29/38 logros reales de DOOM.
+
+**La firma de código estorbaba.** electron-builder descarga un paquete con
+enlaces simbólicos de macOS que Windows no crea sin Modo Desarrollador. Como no
+firmamos nada, se desactiva esa fase. Efecto secundario honesto: el `.exe` de la
+app se queda con el icono por defecto de Electron; el instalador, el acceso
+directo y el menú de inicio sí llevan el nuestro.
+
+**El desinstalador no borra tus datos.** `deleteAppDataOnUninstall: false`: ahí
+viven las definiciones, los mods y los perfiles.
+
+### Auto-actualización
+
+`electron-updater` cargado de forma perezosa, sin descarga automática. Ojo con la
+distinción: esto trae **versiones nuevas del programa**, que sí exigen empaquetar.
+El contenido —juegos, cheats, mods— va por la capa de usuario y `catalog.sync`,
+que no necesitan reempaquetar nada.
+
+## Pendientes resueltos de la revisión
+
+| Pendiente | Estado |
+|---|---|
+| Sin control de versiones | ✅ 4 commits |
+| `resources/icon.ico` no existía | ✅ generado desde cero: 7 tamaños, PNG dentro de ICO |
+| Sin error boundary | ✅ muestra el fallo y la pila en vez de una ventana en blanco |
+| `args.split(' ')` rompía rutas con espacios | ✅ `splitArgs` respeta comillas, con pruebas |
+| Cero tests versionados | ✅ **69 pruebas**, y `npm run build` no empaqueta si fallan |
+| `openPath` sin restringir | ✅ solo cuatro carpetas conocidas y URLs https |
+
+### Sobre las pruebas
+
+Cubren justo donde ya hubo fallos que costaron una sesión de depuración: el
+patrón que se elegía a ciegas, la versión que se perdía al normalizar
+separadores, el tipo del esquema que era cadena y no número, las cadenas anchas
+del KeyValues binario que desalineaban el resto del archivo. Para que corran sin
+Electron se extrajo la lógica pura a `pattern.ts`, `codec.ts`, `args.ts` y
+`naming.ts` — que además es mejor diseño, no una contorsión para poder probar.
+
+Una prueba encontró un fallo real mientras se escribía: `1.2.3.zip` daba nombre
+`"1"`. Ahora el nombre tiene que contener letras para aceptar el recorte.
 
 ---
 

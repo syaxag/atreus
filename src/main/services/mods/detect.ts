@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { fromFileName } from './naming';
 import { listFiles, readJsonFromZip } from './archive';
 
 /**
@@ -51,29 +52,6 @@ function pick(obj: Record<string, unknown>, keys: string[]): string | null {
     if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
   }
   return null;
-}
-
-/** Separadores a espacios, para que "Cool_Mod-final" se lea como texto. */
-function humanize(value: string): string {
-  return value.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-/**
- * Saca nombre y versión del nombre del archivo.
- *
- * El orden importa: hay que buscar la versión **antes** de convertir los
- * separadores en espacios, o "OtroMod v2.1" se lee como "OtroMod v2 1" y el
- * número se pierde.
- */
-function fromFileName(archivePath: string): { name: string; version: string | null } {
-  const raw = basename(archivePath).replace(/\.(zip|7z|rar)$/i, '');
-  const match = /[ ._-]v?(\d+(?:\.\d+)+)\s*$/i.exec(raw) ?? /[ ._-]v?(\d+(?:\.\d+)+)/i.exec(raw);
-
-  if (match) {
-    const name = humanize(raw.slice(0, match.index));
-    if (name) return { name, version: match[1] ?? null };
-  }
-  return { name: humanize(raw), version: null };
 }
 
 export function detectMeta(stagingDir: string, archivePath: string): ModMeta {

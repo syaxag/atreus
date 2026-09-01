@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:mock": "cross-env VITE_MOCK=1 electron-vite dev",
-    "build": "npm run typecheck && electron-vite build",
+    "test": "node --test --experimental-strip-types \"test/*.test.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "icon": "node scripts/make-icon.mjs",
+    "build": "npm run typecheck && npm test && electron-vite build",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder --win nsis"
   },
@@ -52,14 +54,26 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Atreus",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "deleteAppDataOnUninstall": false
     },
     "extraResources": [
       {
@@ -70,6 +84,8 @@
     "asarUnpack": [
       "**/node_modules/koffi/**",
       "**/node_modules/7zip-bin/**"
-    ]
+    ],
+    "artifactName": "${productName}-${version}-setup.${ext}",
+    "compression": "maximum"
   }
 }

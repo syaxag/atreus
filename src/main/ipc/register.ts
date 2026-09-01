@@ -8,6 +8,7 @@ import * as trainer from '../services/trainer';
 import * as scanner from '../services/trainer/scan-session';
 import * as mods from '../services/mods';
 import * as catalogSync from '../services/catalog/sync';
+import * as updater from '../services/updater';
 import { paths, OPENABLE, type OpenableKey } from '../paths';
 import { log } from '../logger';
 
@@ -98,10 +99,7 @@ export function registerIpc(): void {
 
   // ── App ────────────────────────────────────────────────────
   handle('app.version', () => ok(app.getVersion()));
-  handle('app.checkForUpdates', () =>
-    // El actualizador real llega en la FASE 6.
-    ok({ available: false, version: null }),
-  );
+  handle('app.checkForUpdates', async () => ok(await updater.checkForUpdates()));
   handle('app.openLogs', async () => {
     const error = await shell.openPath(paths.logs);
     return error ? err(error) : ok(undefined);
