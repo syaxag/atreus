@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { Game, GameId, PlatinumSummary, ScanProgress, Settings } from '@shared/types';
+import type {
+  Game, GameId, PlatinumReport, PlatinumSummary, ScanProgress, Settings,
+} from '@shared/types';
 import { api } from '@/lib/api';
 
 export type Section = 'library' | 'game' | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
@@ -22,6 +24,8 @@ interface State {
   scanning: boolean;
   scanProgress: ScanProgress | null;
   settings: Settings | null;
+  /** Platino recién conseguido, esperando su celebración. */
+  celebration: PlatinumReport | null;
   toasts: Toast[];
 
   go: (section: Section) => void;
@@ -33,6 +37,7 @@ interface State {
   toggleFavorite: (id: GameId) => Promise<void>;
   loadSettings: () => Promise<void>;
   patchSettings: (patch: Partial<Settings>) => Promise<void>;
+  celebrate: (report: PlatinumReport | null) => void;
   pushToast: (level: Toast['level'], message: string) => void;
   dismissToast: (id: number) => void;
   /** El juego seleccionado, o null. */
@@ -51,6 +56,7 @@ export const useStore = create<State>((set, get) => ({
   scanning: false,
   scanProgress: null,
   settings: null,
+  celebration: null,
   toasts: [],
 
   go: (section) => set({ section }),
@@ -117,6 +123,8 @@ export const useStore = create<State>((set, get) => ({
     else get().pushToast('error', res.error);
   },
 
+  celebrate: (celebration) => set({ celebration }),
+
   pushToast: (level, message) => {
     const id = ++toastSeq;
     set({ toasts: [...get().toasts, { id, level, message }] });
@@ -157,7 +165,16 @@ export function wireEvents(): () => void {
       useStore.setState((state) => ({
         activeGameIds: state.activeGameIds.filter((id) => id !== gameId),
       }));
-      // Acaba de cambiar el tiempo jugado, y puede que también los logros.
+      /*
+       * Acaba de cambiar el tiempo jugado y puede que también los logros. Se
+       * fuerza el recálculo de ese juego: si en esa partida has rematado el
+       * platino, el backend lo detecta aquí y la celebración salta sola.
+       */
+      void api.platinum.report(gameId, true).then(() => useStore.getState().loadPlatinum());
+    }),
+    // El momento que da nombre a la aplicación: solo llega con platinos nuevos.
+    api.on('platinum:achieved', (report) => {
+      useStore.setState({ celebration: report });
       void useStore.getState().loadPlatinum();
     }),
     api.on('toast', ({ level, message }) => store.pushToast(level, message)),

@@ -113,6 +113,18 @@ recorrer la biblioteca entera. Sin clave, sin SteamID o con el perfil en privado
 null y el resto sigue su camino; `checkKey()` existe para que ese silencio se pueda
 diagnosticar desde Ajustes.
 
+### `services/platinum/celebrated.ts` — que la fiesta sea de lo nuevo
+Lleva la cuenta de qué platinos ya se han celebrado, con una marca de *sembrado* que se
+cierra al terminar el primer recorrido de la biblioteca. Los platinos que ya tenías se
+apuntan callados durante esa pasada; a partir de ahí, cualquiera nuevo emite
+`platinum:achieved` y dispara la celebración.
+
+El calentamiento recalcula además los juegos a los que has jugado después del último
+cálculo y que aún no estaban completos. Sin eso, un platino rematado jugando no se
+notaría hasta abrir su ficha a mano, y la celebración no saltaría al volver a la
+aplicación, que es justo cuando tiene que saltar. Al cerrarse un juego se fuerza también
+el recálculo de ese informe.
+
 ### `services/platinum/warmup.ts` — rellenar la biblioteca por detrás
 El informe se calculaba solo al abrir la ficha de un juego, así que la Biblioteca
 arrancaba sin barras y con el orden "más cerca del platino" ordenando por nada. El

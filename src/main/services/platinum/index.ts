@@ -9,6 +9,8 @@ import { getGame, listGames } from '../catalog';
 import * as achievements from '../achievements';
 import { steamMinutes, trackedMinutes } from '../playtime';
 import { difficultyOf, estimateOf } from './estimate';
+import { registrar } from './celebrated';
+import { emit } from '../../ipc/emit';
 
 const logger = log('platinum');
 
@@ -207,6 +209,15 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
   };
 
   rememberSummary(report);
+
+  /*
+   * El momento que da nombre a la aplicación. Solo se anuncia una vez por
+   * juego, y nunca en la primera pasada: si no, al instalar Atreus desfilarían
+   * seguidas las celebraciones de platinos que conseguiste hace meses.
+   */
+  if (report.complete && report.total > 0 && registrar(gameId)) {
+    emit('platinum:achieved', report);
+  }
   return report;
 }
 

@@ -1,4 +1,4 @@
-import { LibraryBig, Trophy, BookOpen, Map, Package, Settings2 } from 'lucide-react';
+import { Gem, Trophy, Compass, Map, Package, Settings2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useStore, type Section } from '@/store';
@@ -6,15 +6,21 @@ import { useStore, type Section } from '@/store';
 /**
  * Seis destinos, ni uno más.
  *
- * Cinco de ellos operan sobre el juego en contexto y están en el orden en que
- * se usan al ir a por un platino: ver qué falta, leer cómo se hace, encontrar
- * dónde está, y solo al final los mods.
+ * Cinco operan sobre el juego en contexto y están en el orden en que se usan al
+ * ir a por un platino: ver qué falta, leer cómo se hace, encontrar dónde está,
+ * y solo al final los mods.
+ *
+ * Los nombres no son los genéricos de un launcher, porque esto no lo es.
+ * "Colección" es lo que tiene un coleccionista, no una estantería de programas;
+ * "Trofeos" es la palabra con la que se habla de esto de verdad; "Rutas" es lo
+ * que se sigue para un platino, que no es lo mismo que un manual; y "Atlas" es
+ * un libro de mapas, que es exactamente lo que ofrece.
  */
 const ITEMS: { id: Section; label: string; icon: LucideIcon; needsGame?: boolean }[] = [
-  { id: 'library', label: 'Biblioteca', icon: LibraryBig },
-  { id: 'achievements', label: 'Logros', icon: Trophy, needsGame: true },
-  { id: 'guides', label: 'Guías', icon: BookOpen, needsGame: true },
-  { id: 'maps', label: 'Mapas', icon: Map, needsGame: true },
+  { id: 'library', label: 'Colección', icon: Gem },
+  { id: 'achievements', label: 'Trofeos', icon: Trophy, needsGame: true },
+  { id: 'guides', label: 'Rutas', icon: Compass, needsGame: true },
+  { id: 'maps', label: 'Atlas', icon: Map, needsGame: true },
   { id: 'mods', label: 'Mods', icon: Package, needsGame: true },
 ];
 
@@ -58,7 +64,7 @@ export function Sidebar() {
           {section === 'game' && (
             <span className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-full bg-accent" />
           )}
-          <p className="text-[11px] uppercase tracking-wide text-faint">En contexto</p>
+          <p className="text-[11px] uppercase tracking-wide text-faint">Persiguiendo</p>
           <p className="mt-0.5 truncate text-[13px] font-medium" title={selected.name}>
             {selected.name}
           </p>
@@ -70,8 +76,10 @@ export function Sidebar() {
                   style={{ width: `${summary.percent}%` }}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-faint">
-                {summary.unlocked}/{summary.total} logros
+              <p className={cn('mt-1 text-[11px]', summary.complete ? 'text-success' : 'text-faint')}>
+                {summary.complete
+                  ? 'Platino conseguido'
+                  : `${summary.unlocked}/${summary.total} trofeos`}
               </p>
             </>
           )}
@@ -105,7 +113,7 @@ function Item({
     <button
       onClick={onClick}
       disabled={disabled}
-      title={disabled ? 'Elige un juego en la Biblioteca' : undefined}
+      title={disabled ? 'Elige un juego en la Colección' : undefined}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex h-9 items-center gap-2.5 rounded-sm px-3 text-[13px] font-medium',

@@ -282,7 +282,7 @@ export function AchievementsView() {
       <Empty
         icon={<Trophy size={40} strokeWidth={1.25} />}
         title="Ningún juego seleccionado"
-        hint="Elige un juego en la Biblioteca para ver y editar sus logros."
+        hint="Elige un juego en la Colección para ver y editar sus logros."
       />
     );
   }

@@ -63,7 +63,7 @@ export function GuidesView() {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
       title="Ningún juego seleccionado"
-      hint="Elige un juego en la Biblioteca para que Atreus busque sus guías." />;
+      hint="Elige un juego en la Colección para que Atreus busque sus guías." />;
   }
 
   if (document) {
@@ -73,7 +73,7 @@ export function GuidesView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Guías · ${game.name}`}
+        title={`Rutas · ${game.name}`}
         subtitle="Buscadas automáticamente. Las que Atreus sabe leer se abren aquí dentro, con su texto completo." />
 
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
@@ -170,7 +170,7 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
-        <Button size="sm" variant="ghost" onClick={onBack}><ChevronLeft size={15} /> Guías</Button>
+        <Button size="sm" variant="ghost" onClick={onBack}><ChevronLeft size={15} /> Rutas</Button>
         <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">{document.title}</p>
         <Badge mono>{document.source}</Badge>
         <Button size="sm" variant="outline" onClick={() => void api.settings.openPath(document.url)}>

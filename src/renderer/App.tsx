@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { TitleBar } from '@/components/TitleBar';
 import { Sidebar } from '@/components/Sidebar';
 import { Toaster } from '@/components/Toaster';
+import { PlatinumCelebration } from '@/components/PlatinumCelebration';
 import { LibraryView } from '@/views/LibraryView';
 import { AchievementsView } from '@/views/AchievementsView';
 import { ModsView } from '@/views/ModsView';
@@ -16,6 +17,8 @@ export default function App() {
   const selectedGame = useStore((s) => s.selected());
   const loadLibrary = useStore((s) => s.loadLibrary);
   const loadSettings = useStore((s) => s.loadSettings);
+  const celebration = useStore((s) => s.celebration);
+  const celebrate = useStore((s) => s.celebrate);
 
   useEffect(() => {
     const unwire = wireEvents();
@@ -52,6 +55,11 @@ export default function App() {
         </div>
         <Toaster />
       </div>
+      {/* Va fuera de la capa z-10 y por encima de todo: es lo único de la
+          aplicación que merece tapar el resto. */}
+      {celebration && (
+        <PlatinumCelebration report={celebration} onClose={() => celebrate(null)} />
+      )}
     </div>
   );
 }

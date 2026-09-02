@@ -19,7 +19,7 @@ deja margen de tablero puro por los cuatro lados.
 from collections import deque
 import sys
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 
 SRC = r'C:\Users\Syax_\Downloads\LOGO PLATINO.jpg'
 OUT = sys.argv[1]
@@ -353,6 +353,36 @@ caja = mask.point(lambda v: 255 if v > 8 else 0).getbbox()
 out = out.crop(caja)
 escala = ALTO_FINAL / out.height
 out = out.resize((round(out.width * escala), ALTO_FINAL), Image.LANCZOS)
+# ── Los cuatro bloques que quedan ──
+# Después de todo lo anterior sobreviven cuatro trozos de casilla pegados al
+# contorno. No hay criterio automático que los separe sin dañar el cristal: son
+# blancos, neutros y planos, y la esfera del trofeo también tiene brillos
+# quemados que lo son. Lo probé por color, por forma, por planitud local y
+# erosionando la silueta; o quedaban ellos, o se picaba el cristal.
+#
+# Como esto es el recorte de **una** imagen concreta, se terminan a mano: se
+# listan sus zonas y dentro de cada una se borra solo lo que tenga color de
+# tablero. Si el trofeo entra ahí, no se toca. Las coordenadas son de la imagen
+# ya recortada y escalada a ALTO_FINAL.
+ZONAS = (
+    (0, 40, 40, 110), (222, 74, 300, 156), (155, 380, 205, 435),
+    (540, 448, 622, 522), (726, 386, 782, 440), (780, 578, 899, 672),
+)
+
+pix = out.load()
+limpiados = 0
+for x0, y0, x1, y1 in ZONAS:
+    for y in range(max(0, y0), min(out.height, y1)):
+        for x in range(max(0, x0), min(out.width, x1)):
+            r, g, b, a = pix[x, y]
+            if a == 0:
+                continue
+            v = (r + g + b) / 3
+            if max(r, g, b) - min(r, g, b) <= 10 and v >= 185:
+                pix[x, y] = (r, g, b, 0)
+                limpiados += 1
+print(f'restos borrados en las zonas listadas: {limpiados} px')
+
 out.save(OUT, 'PNG', optimize=True)
 print('guardado', out.size)
 

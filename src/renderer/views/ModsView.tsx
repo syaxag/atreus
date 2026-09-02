@@ -207,7 +207,7 @@ export function ModsView() {
   if (!game) {
     return (
       <Empty icon={<Package size={40} strokeWidth={1.25} />} title="Ningún juego seleccionado"
-             hint="Elige un juego en la Biblioteca para gestionar sus mods." />
+             hint="Elige un juego en la Colección para gestionar sus mods." />
     );
   }
 

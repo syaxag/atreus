@@ -164,6 +164,11 @@ export interface AtreusEvents {
   'library:updated': Game[];
   /** El cálculo en segundo plano ha rellenado un juego más de la biblioteca. */
   'platinum:summaries': PlatinumSummary[];
+  /**
+   * Acabas de completar el 100 % de un juego. Solo se emite para platinos
+   * nuevos: los que ya tenías cuando se instaló Atreus se apuntan en silencio.
+   */
+  'platinum:achieved': PlatinumReport;
   'steam:session': SteamSession;
   'mods:updated': { gameId: GameId; mods: Mod[] };
   /** Juegos nuevos detectados en un escaneo, con cuántos mods hay para ellos. */
@@ -215,7 +220,8 @@ export const IPC_CHANNELS = [
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 export const EVENT_CHANNELS = [
-  'library:scan-progress', 'library:updated', 'platinum:summaries', 'steam:session',
+  'library:scan-progress', 'library:updated', 'platinum:summaries', 'platinum:achieved',
+  'steam:session',
   'mods:updated', 'mods:available',
   'game:started', 'game:stopped', 'toast', 'update:available',
   'update:progress', 'update:downloaded', 'license:updated',

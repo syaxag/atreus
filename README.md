@@ -11,7 +11,8 @@ Uso personal. Ver [docs/SCOPE.md](docs/SCOPE.md).
 | Módulo | Qué resuelve |
 |---|---|
 | **Biblioteca** | Detecta juegos de Steam, Epic, GOG, EA y Xbox, más ejecutables sueltos. Ordena por lo más cerca del platino, con horas jugadas y progreso reales |
-| **Ficha del juego** | Cuántos logros llevas, cuánto has jugado, cuánto llevas persiguiendo el platino, cuánto te queda y cómo de duro es — con la lista de lo que falta ordenada por rareza |
+| **Ficha del juego** | Cuántos logros llevas, cuánto has jugado, cuánto llevas persiguiendo el platino, cuánto te queda y cómo de duro es — con la lista de lo que falta ordenada por rareza. Al llegar al 100 %, el trofeo preside la tarjeta |
+| **Celebración** | Cuando rematas un platino y vuelves a la aplicación, salta la celebración: el trofeo de Atreus, el nombre del juego y lo que te costó |
 | **Logros** | Funciona con juegos de cualquier tienda: progreso, rareza de cada logro e historial. En Steam los lee y puede desbloquearlos, avisando antes de lo que eso significa; en Xbox los lee con tu clave de OpenXBL; en Epic o EA enseña la lista y llevas tú el registro |
 | **Guías** | Busca solas las guías del juego y muestra su **texto completo** dentro de Atreus, con imágenes y atribución |
 | **Mapas** | Abre el mapa interactivo real del juego —MapGenie o su wiki— en una pestaña integrada |
@@ -79,6 +80,7 @@ nuevo. Los tres caminos, con su estado real, en [docs/UPDATING.md](docs/UPDATING
 
 ```
 docs/                 Arquitectura, contrato, diseño, alcance, actualizaciones
+scripts/              Herramientas: icono, trofeo, manifiesto de versiones
 data/games/           Fichas por juego (mapas, proveedores de mods) — extensible
 src/shared/           Tipos e interfaz IPC, compartidos por los dos lados
 src/main/             Proceso principal: catálogo, Steam, platino, guías, mapas, mods

@@ -77,7 +77,7 @@ export function MapsView() {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
       title="Ningún juego seleccionado"
-      hint="Elige un juego en la Biblioteca para abrir su mapa interactivo." />;
+      hint="Elige un juego en la Colección para abrir su mapa interactivo." />;
   }
 
   if (active) {
@@ -85,7 +85,7 @@ export function MapsView() {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
           <Button size="sm" variant="ghost" onClick={() => setActive(null)}>
-            <ArrowLeft size={14} /> Mapas
+            <ArrowLeft size={14} /> Atlas
           </Button>
           <div className="mx-1 h-5 w-px bg-line" />
           <Button size="sm" variant="ghost" aria-label="Atrás" onClick={() => frame.current?.goBack()}>
@@ -121,7 +121,7 @@ export function MapsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Mapas · ${game.name}`}
+        title={`Atlas · ${game.name}`}
         subtitle="Mapas interactivos reales, con sus coleccionables y sus filtros, dentro de Atreus."
         actions={<Button variant="outline" onClick={() => setAdding(true)}>
           <Plus size={14} /> Añadir un mapa

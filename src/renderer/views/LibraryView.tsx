@@ -95,7 +95,7 @@ export function LibraryView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title="Biblioteca"
+        title="Colección"
         subtitle={
           scanning && progress
             ? progress.message
@@ -131,7 +131,7 @@ export function LibraryView() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar juego…"
+            placeholder="Buscar en tu colección…"
             className="w-full pl-8"
           />
         </div>

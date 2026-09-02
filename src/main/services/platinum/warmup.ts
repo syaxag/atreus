@@ -5,6 +5,7 @@ import { listGames } from '../catalog';
 import { runningGames } from '../catalog/activity';
 import * as webapi from '../steam/webapi';
 import { report, summariesFor } from './index';
+import { estaSembrado, marcarSembrado } from './celebrated';
 
 const logger = log('platinum:warmup');
 
@@ -37,17 +38,31 @@ let stopped = false;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); });
 
-/** Juegos cuyo informe todavía no se ha calculado nunca. */
+/**
+ * Qué juegos hay que calcular.
+ *
+ * Los que no se han calculado nunca, y también aquellos a los que has jugado
+ * después del último cálculo y todavía no estaban al 100 %. Sin lo segundo, un
+ * platino rematado jugando no se notaría hasta que abrieras su ficha a mano, y
+ * la celebración no saltaría al volver a la aplicación, que es justo cuando
+ * tiene que saltar.
+ */
 function pending(): GameId[] {
-  const known = new Set(
-    summariesFor().filter((summary) => summary.updatedAt !== null).map((summary) => summary.gameId),
-  );
-  return listGames().map((game) => game.id).filter((id) => !known.has(id));
+  const resumen = new Map(summariesFor().map((s) => [s.gameId, s]));
+  return listGames()
+    .filter((game) => {
+      const s = resumen.get(game.id);
+      if (!s || s.updatedAt === null) return true;
+      if (s.complete) return false;
+      return game.lastPlayed !== null && game.lastPlayed * 1000 > s.updatedAt;
+    })
+    .map((game) => game.id);
 }
 
 async function pass(): Promise<void> {
   const queue = pending();
   if (queue.length === 0) {
+    if (!estaSembrado()) marcarSembrado();
     logger.info('la biblioteca ya está al día');
     return;
   }
@@ -85,6 +100,9 @@ async function pass(): Promise<void> {
     await sleep(fast ? FAST_GAP_MS : SLOW_GAP_MS);
   }
 
+  // Cerrar la siembra aquí, y no antes, es lo que garantiza que los platinos
+  // que ya tenías no se celebren: durante esta pasada se apuntan callados.
+  if (!estaSembrado()) marcarSembrado();
   logger.info(`calentamiento terminado: ${done} de ${queue.length} juegos`);
 }
 

@@ -96,6 +96,16 @@ es real —con fechas y con la rareza que publica Xbox— pero Xbox Live no acep
 escrituras de terceros. Sin clave se queda como estaba, en `'manual'` sobre la lista del
 catálogo público de Steam, y el aviso de la vista dice dónde está la salida.
 
+## Cuarta tanda: la celebración del platino
+
+**Dentro** — el evento `platinum:achieved`, que lleva el `PlatinumReport` entero del
+juego recién completado.
+
+Solo se emite para platinos **nuevos**. Los que ya tenías cuando se instaló Atreus se
+apuntan en silencio durante el primer recorrido de la biblioteca: si no, al abrir la
+aplicación por primera vez desfilarían seguidas las celebraciones de cosas que hiciste
+hace meses. Lo lleva `platinum/celebrated.ts` con una marca de *sembrado*.
+
 ## Cómo se implementa
 
 ```ts

@@ -4,6 +4,7 @@ import {
   Sparkles, Target, Trophy,
 } from 'lucide-react';
 import type { PlatinumReport } from '@shared/types';
+import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { duration, hours, PLATFORM_LABEL, percent, rarity, relative, span } from '@/lib/format';
@@ -20,9 +21,9 @@ import {
  */
 
 const SHORTCUTS = [
-  { section: 'achievements' as const, label: 'Logros', hint: 'Progreso, rareza y desbloqueo', icon: Trophy },
-  { section: 'guides' as const, label: 'Guías', hint: 'Texto completo dentro de Atreus', icon: BookOpen },
-  { section: 'maps' as const, label: 'Mapas', hint: 'Mapa interactivo del juego', icon: Map },
+  { section: 'achievements' as const, label: 'Trofeos', hint: 'Progreso, rareza y desbloqueo', icon: Trophy },
+  { section: 'guides' as const, label: 'Rutas', hint: 'Guías con su texto completo aquí dentro', icon: BookOpen },
+  { section: 'maps' as const, label: 'Atlas', hint: 'Mapa interactivo del juego', icon: Map },
   { section: 'mods' as const, label: 'Mods', hint: 'Workshop y catálogos públicos', icon: Package },
 ];
 
@@ -57,7 +58,7 @@ export function GameView() {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
       title="Ningún juego seleccionado"
-      hint="Elige un juego en la Biblioteca para ver cuánto te falta para su platino." />;
+      hint="Elige un juego en la Colección para ver cuánto te falta para su platino." />;
   }
 
   async function play() {
@@ -108,8 +109,25 @@ function Report({ report }: { report: PlatinumReport }) {
   const hasAchievements = report.total > 0;
 
   return <>
-    <Card className="p-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <Card className={report.complete ? 'relative overflow-hidden p-5' : 'p-5'}>
+      {/*
+        Cuando el juego está al 100 %, el trofeo preside su propia tarjeta. Va
+        al fondo y a la derecha, sangrado, para que la cifra siga siendo lo
+        primero que se lee y el trofeo lo que remata.
+      */}
+      {report.complete && <>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-10 -top-16 h-[190%] w-1/2 bg-[radial-gradient(circle_at_70%_40%,rgba(139,92,246,.22),transparent_62%)]"
+        />
+        <img
+          src={trofeo}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-10 right-6 h-[165%] w-auto opacity-90 drop-shadow-[0_10px_30px_rgba(109,40,217,.5)]"
+        />
+      </>}
+      <div className="relative flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <Trophy size={16} className={report.complete ? 'text-success' : 'text-accent'} />
@@ -132,7 +150,8 @@ function Report({ report }: { report: PlatinumReport }) {
           {report.tracking === 'manual' && (
             <Badge tone="accent"><NotebookPen size={11} className="mr-1" /> Progreso marcado por ti</Badge>
           )}
-          {report.complete && <Badge tone="success">100 % completado</Badge>}
+          {/* Estando completo no hace falta insignia: lo dicen el titular, el
+              100,0 % y el trofeo. Y así no se pisan. */}
         </div>
       </div>
       {hasAchievements && (
