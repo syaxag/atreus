@@ -224,8 +224,21 @@ export const EVENT_CHANNELS = [
   'steam:session',
   'mods:updated', 'mods:available',
   'game:started', 'game:stopped', 'toast', 'update:available',
-  'update:progress', 'update:downloaded', 'license:updated',
+  'update:progress', 'update:downloaded',
 ] as const;
+
+/**
+ * La lista de arriba y `AtreusEvents` tienen que cuadrar en los dos sentidos:
+ * un evento declarado pero no listado nunca cruzaría el puente, y uno listado
+ * pero no declarado es un canal muerto —que es exactamente cómo
+ * `license:updated` sobrevivió al borrado de las licencias—. Si dejan de
+ * coincidir, esto no compila.
+ */
+type MismosNombres<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+export const EVENTOS_CUADRAN: MismosNombres<
+  (typeof EVENT_CHANNELS)[number],
+  keyof AtreusEvents
+> = true;
 
 /** Helpers para construir `Result<T>` sin repetir literales. */
 export const ok = <T>(data: T): Result<T> => ({ ok: true, data });
