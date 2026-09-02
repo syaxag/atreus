@@ -144,7 +144,38 @@ function tryBind<T>(bind: () => T): T | null {
   try { return bind(); } catch { return null; }
 }
 
-function connect(): { appId: string; achievements: number } {
+/**
+ * ¿Deja Steam desbloquear los logros de este juego desde fuera?
+ *
+ * No hay forma de preguntarlo: hay que intentarlo. En Steamworks un logro
+ * puede marcarse como que **solo lo concede el servidor del editor**, y
+ * entonces `SetAchievement` falla en el cliente pase lo que pase. Le ocurre a
+ * varios juegos con backend propio —Assassin's Creed Unity, sin ir más lejos—,
+ * y hasta ahora Atreus lo daba por bueno y decía "hecho" sin que pasara nada.
+ *
+ * La prueba es local y no deja rastro: se marca un logro que aún no tienes y
+ * se deshace en el acto. Nada sale de este proceso, porque **nada de esto se
+ * persiste sin `StoreStats`**, que aquí no se llama.
+ */
+function probeWritable(): boolean {
+  if (!api || !userStats) return false;
+  const total = api.GetNumAchievements(userStats);
+  for (let i = 0; i < total; i++) {
+    const name = api.GetAchievementName(userStats, i);
+    const achieved = [false];
+    const when = [0];
+    if (!api.GetAchievementAndUnlockTime(userStats, name, achieved, when)) continue;
+    // Uno que ya tienes no distingue nada: Steam también lo rechaza.
+    if (achieved[0]) continue;
+    const ok = api.SetAchievement(userStats, name);
+    if (ok) api.ClearAchievement(userStats, name);
+    return ok;
+  }
+  // Están todos conseguidos: no hay nada que escribir, así que no estorba.
+  return true;
+}
+
+function connect(): { appId: string; achievements: number; writable: boolean } {
   if (!dllPath) throw new Error('No se encontró steam_api64.dll en ningún juego instalado');
   if (!appId) throw new Error('Falta SteamAppId en el entorno del proceso');
 
@@ -191,7 +222,7 @@ function connect(): { appId: string; achievements: number } {
     try { api?.RunCallbacks(); } catch { /* la sesión se está cerrando */ }
   }, 200);
 
-  return { appId, achievements: count };
+  return { appId, achievements: count, writable: probeWritable() };
 }
 
 function readAchievements(): WorkerAchievement[] {

@@ -32,6 +32,8 @@ interface Pending {
 class Worker {
   readonly appId: string;
   state: SteamSessionState = 'idle';
+  /** Falso si Steam rechaza toda escritura de logros en este juego. */
+  writable = true;
   error: string | null = null;
 
   private child: ChildProcess | null = null;
@@ -133,7 +135,11 @@ class Worker {
     });
 
     try {
-      await this.send('connect');
+      const hello = await this.send<{ writable: boolean }>('connect');
+      // Hay juegos cuyos logros solo concede el servidor del editor. Se sabe
+      // al conectar, para que la interfaz no ofrezca un botón que no puede
+      // cumplir. Ver `probeWritable` en el worker.
+      this.writable = hello.writable !== false;
       this.setState('connected');
 
       const steamPath = findSteamPath(getSettings().steamPath);
@@ -274,7 +280,7 @@ class Worker {
   async commit(
     achievements: AchievementPatch[],
     stats: StatPatch[],
-  ): Promise<{ applied: number }> {
+  ): Promise<{ applied: number; rejected: string[] }> {
     const typeOf = new Map(this.schemaStats.map((s) => [s.apiName, s.type]));
     const result = await this.send<{ applied: number; failed: string[] }>('commit', {
       achievements,
@@ -284,7 +290,7 @@ class Worker {
     if (result.failed.length > 0) {
       logger.warn(`[${this.appId}] Steam rechazó: ${result.failed.join(', ')}`);
     }
-    return { applied: result.applied };
+    return { applied: result.applied, rejected: result.failed };
   }
 
   async resetAll(): Promise<void> {
@@ -362,10 +368,15 @@ export async function stats(appId: string): Promise<GameStat[]> {
   return (await connected(appId)).stats();
 }
 
+/** ¿Acepta Steam que Atreus escriba los logros de este juego? */
+export async function canWrite(appId: string): Promise<boolean> {
+  return (await connected(appId)).writable;
+}
+
 export async function commit(
   appId: string,
   patch: { achievements: AchievementPatch[]; stats: StatPatch[] },
-): Promise<{ applied: number }> {
+): Promise<{ applied: number; rejected: string[] }> {
   const worker = await connected(appId);
   return worker.commit(patch.achievements, patch.stats);
 }

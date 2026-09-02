@@ -106,6 +106,22 @@ apuntan en silencio durante el primer recorrido de la biblioteca: si no, al abri
 aplicación por primera vez desfilarían seguidas las celebraciones de cosas que hiciste
 hace meses. Lo lleva `platinum/celebrated.ts` con una marca de *sembrado*.
 
+## Quinta tanda: los logros que Steam no deja tocar
+
+**Cambia** — `steam.commit` ya no devuelve solo `{ applied }` sino
+`{ applied, rejected }`, con los nombres que Steam se negó a escribir.
+
+Hay juegos cuyos logros **solo concede el servidor de su editor**: en Steamworks se
+marcan así y el cliente rechaza cualquier `SetAchievement`, venga de donde venga. En la
+biblioteca de prueba le pasa a Assassin's Creed Unity y a ningún otro. Atreus lo daba
+por bueno y cantaba "cambios escritos en Steam" sin que pasara nada.
+
+Ahora la sesión lo averigua al conectar —marca un logro pendiente y lo deshace en el
+acto, sin `StoreStats`, así que no se persiste nada— y el juego llega a la interfaz con
+`writable: false` y una nota que lo explica. Es el mismo modo de solo lectura que ya
+usaban los juegos de Xbox. Y si un guardado se acepta a medias, `rejected` permite
+decirlo en vez de cantar un éxito que no ha sido.
+
 ## Cómo se implementa
 
 ```ts

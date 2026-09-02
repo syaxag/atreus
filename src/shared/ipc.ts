@@ -33,11 +33,18 @@ export interface AtreusApi {
     close(appId: string): Promise<Result<void>>;
     achievements(appId: string): Promise<Result<Achievement[]>>;
     stats(appId: string): Promise<Result<GameStat[]>>;
-    /** Aplica cambios y llama a StoreStats. Todo o nada. */
+    /**
+     * Aplica cambios y llama a StoreStats.
+     *
+     * `rejected` son los que Steam se negó a tocar. No es raro: hay juegos con
+     * logros que solo concede el servidor de su editor, y el cliente los
+     * rechaza uno a uno. Van en la respuesta para que la interfaz pueda
+     * decirlo en vez de cantar un éxito que no ha sido.
+     */
     commit(
       appId: string,
       patch: { achievements: AchievementPatch[]; stats: StatPatch[] },
-    ): Promise<Result<{ applied: number }>>;
+    ): Promise<Result<{ applied: number; rejected: string[] }>>;
     backups(appId: string): Promise<Result<SteamSnapshot[]>>;
     restore(appId: string, snapshotId: string): Promise<Result<{ applied: number }>>;
     /** Restablece TODOS los logros y stats del juego. Destructivo. */

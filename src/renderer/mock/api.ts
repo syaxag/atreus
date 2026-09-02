@@ -233,7 +233,8 @@ export const mockApi: AtreusApi = {
       });
       const applied = patch.achievements.length + patch.stats.length;
       emit('toast', { level: 'success', message: `${applied} cambios guardados en Steam` });
-      return ok({ applied });
+      // El simulacro no tiene un Steam que rechace nada.
+      return ok({ applied, rejected: [] });
     },
 
     async backups(appId) {

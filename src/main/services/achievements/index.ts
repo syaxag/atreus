@@ -33,6 +33,19 @@ const logger = log('achievements');
  * la rareza, y esas sí están siempre.
  */
 
+/**
+ * Lo que se le cuenta al usuario cuando Steam rechaza toda escritura.
+ *
+ * No es un fallo de Atreus ni algo que se pueda rodear: el juego tiene sus
+ * logros marcados para que solo los conceda el servidor de su editor, y el
+ * cliente de Steam los rechaza vengan de donde vengan. Merece decirse con
+ * todas las letras, porque antes la aplicación decía "hecho" y no pasaba nada.
+ */
+const NO_ESCRIBIBLE =
+  'Steam no deja desbloquear los logros de este juego desde fuera: los concede el servidor de su ' +
+  'editor, y el cliente rechaza cualquier intento —venga de Atreus o de lo que sea—. El progreso ' +
+  'que ves es el real y se actualiza solo; estos hay que ganárselos jugando.';
+
 function empty(gameId: GameId, note: string): AchievementSet {
   return { gameId, tracking: 'none', writable: false, source: '—', note, items: [] };
 }
@@ -87,12 +100,13 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
     try {
       const items = await steam.achievements(game.nativeId);
       if (items.length > 0) {
+        const writable = await steam.canWrite(game.nativeId);
         return {
           gameId,
           tracking: 'steam',
-          writable: true,
+          writable,
           source: 'Cliente de Steam',
-          note: null,
+          note: writable ? null : NO_ESCRIBIBLE,
           items,
         };
       }

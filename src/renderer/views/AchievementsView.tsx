@@ -263,7 +263,17 @@ export function AchievementsView() {
       : await api.achievements.mark(gameId, patches);
     setSaving(false);
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('success', writable ? 'Cambios escritos en Steam' : 'Registro actualizado');
+
+    // Steam puede aceptar unos y rechazar otros. Decirlo importa: callarlo es
+    // lo que hacía que un logro "guardado" no apareciera nunca en el perfil.
+    const rechazados = 'rejected' in res.data ? res.data.rejected : [];
+    if (rechazados.length > 0) {
+      pushToast('warn', rechazados.length === patches.length
+        ? 'Steam no ha aceptado ninguno: este juego solo deja que sus logros los conceda el editor'
+        : `Steam rechazó ${rechazados.length} de ${patches.length}; el resto sí se guardó`);
+    } else {
+      pushToast('success', writable ? 'Cambios escritos en Steam' : 'Registro actualizado');
+    }
     await load();
   }
 
