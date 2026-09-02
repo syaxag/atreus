@@ -39,16 +39,24 @@ interface Nota {
 }
 
 /**
+ * Cuándo estalla la luz en el vídeo de la celebración. Todo lo demás se coloca
+ * respecto a este instante, que es lo que hace que suene *con* la imagen y no
+ * al lado. Si el vídeo cambia, se cambia este número y ya.
+ */
+export const ESTALLIDO_S = 3.25;
+
+/**
  * Sol mayor subiendo, que es el acorde con el que suena a logro en medio mundo.
- * Las dos primeras entran con el estallido; las demás lo rematan hacia arriba.
+ * Los tiempos son relativos al estallido: las dos primeras notas caen con él y
+ * las demás lo rematan hacia arriba mientras se abren las chispas.
  */
 const ARPEGIO: Nota[] = [
-  { en: 0.70, hz: 392.0, largo: 1.6, volumen: 0.16, brillo: 0.5 },  // sol4
-  { en: 0.70, hz: 587.3, largo: 1.6, volumen: 0.13, brillo: 0.5 },  // re5
-  { en: 0.86, hz: 784.0, largo: 1.5, volumen: 0.15, brillo: 0.45 }, // sol5
-  { en: 1.00, hz: 987.8, largo: 1.5, volumen: 0.13, brillo: 0.4 },  // si5
-  { en: 1.14, hz: 1174.7, largo: 1.7, volumen: 0.12, brillo: 0.35 },// re6
-  { en: 1.30, hz: 1568.0, largo: 2.4, volumen: 0.11, brillo: 0.3 }, // sol6
+  { en: 0.00, hz: 392.0, largo: 1.8, volumen: 0.16, brillo: 0.5 },  // sol4
+  { en: 0.00, hz: 587.3, largo: 1.8, volumen: 0.13, brillo: 0.5 },  // re5
+  { en: 0.16, hz: 784.0, largo: 1.6, volumen: 0.15, brillo: 0.45 }, // sol5
+  { en: 0.30, hz: 987.8, largo: 1.6, volumen: 0.13, brillo: 0.4 },  // si5
+  { en: 0.44, hz: 1174.7, largo: 1.9, volumen: 0.12, brillo: 0.35 },// re6
+  { en: 0.60, hz: 1568.0, largo: 2.8, volumen: 0.11, brillo: 0.3 }, // sol6
 ];
 
 /** Una campana: ataque instantáneo y caída exponencial, como al golpear metal. */
@@ -91,20 +99,24 @@ function golpe(ctx: AudioContext, inicio: number): void {
   osc.stop(inicio + 0.55);
 }
 
-/** La subida previa: acompaña al trofeo mientras retrocede hasta su sitio. */
-function subida(ctx: AudioContext, inicio: number): void {
+/**
+ * La subida previa: acompaña al trofeo mientras retrocede y se aleja, y va
+ * tensando hasta el estallido. Dura lo que dura ese tramo del vídeo.
+ */
+function subida(ctx: AudioContext, inicio: number, largo: number): void {
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
   osc.type = 'triangle';
-  osc.frequency.setValueAtTime(120, inicio);
-  osc.frequency.exponentialRampToValueAtTime(480, inicio + 0.68);
+  osc.frequency.setValueAtTime(90, inicio);
+  osc.frequency.exponentialRampToValueAtTime(460, inicio + largo);
   g.gain.setValueAtTime(0.0001, inicio);
-  g.gain.exponentialRampToValueAtTime(0.075, inicio + 0.4);
-  g.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.72);
+  g.gain.exponentialRampToValueAtTime(0.02, inicio + largo * 0.35);
+  g.gain.exponentialRampToValueAtTime(0.08, inicio + largo * 0.94);
+  g.gain.exponentialRampToValueAtTime(0.0001, inicio + largo + 0.04);
   osc.connect(g);
   g.connect(ctx.destination);
   osc.start(inicio);
-  osc.stop(inicio + 0.75);
+  osc.stop(inicio + largo + 0.1);
 }
 
 /**
@@ -148,10 +160,11 @@ export function sonarPlatino(): void {
   if (!ctx) return;
   try {
     const t = ctx.currentTime + 0.02;
-    subida(ctx, t);
-    golpe(ctx, t + 0.7);
-    brillo(ctx, t + 0.72);
-    for (const nota of ARPEGIO) campana(ctx, t + nota.en, nota);
+    const estallido = t + ESTALLIDO_S;
+    subida(ctx, t, ESTALLIDO_S);
+    golpe(ctx, estallido);
+    brillo(ctx, estallido + 0.02);
+    for (const nota of ARPEGIO) campana(ctx, estallido + nota.en, nota);
   } catch {
     // Sin sonido, pero la fiesta continúa.
   }

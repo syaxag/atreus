@@ -1,107 +1,53 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { PlatinumReport } from '@shared/types';
-import trofeo from '@/assets/trofeo.png';
+import celebracion from '@/assets/celebracion.mp4';
 import { duration, hours, span } from '@/lib/format';
-import { sonarPlatino } from '@/lib/sonido';
+import { ESTALLIDO_S, sonarPlatino } from '@/lib/sonido';
 import { useStore } from '@/store';
 import { Button } from '@/components/ui';
 
 /**
  * La celebración del platino.
  *
- * Reproduce la coreografía del vídeo original —retroceso que revela el trofeo,
- * estallido de luz, cintas girando y reposo entre estrellas— pero dibujada aquí
- * en vez de incrustar el vídeo. Así no arrastra la marca de agua, se ve nítida
- * a cualquier tamaño de ventana, pesa unos kilobytes en lugar de cinco megas, y
- * puede decir de qué juego se trata y lo que costó, que es lo que convierte una
- * animación bonita en el remate de algo tuyo.
+ * La animación es **el vídeo del propio trofeo**, con la marca de agua quitada
+ * y compuesto en modo `screen`: su fondo negro no pinta nada, así que el trofeo
+ * y sus partículas se funden con el fondo de la ventana sin recuadro visible.
  *
- * Nada se queda quieto cuando termina la entrada: el trofeo flota, el
- * resplandor respira, las cintas siguen girando y las ascuas suben desde abajo.
- * Una animación que se congela a los tres segundos se siente rota.
+ * Hubo antes una recreación en CSS. Se descartó: por bien resuelta que
+ * estuviera, no alcanza el acabado de un render 3D, y aquí lo que se celebra
+ * merece verse bien. El vídeo pesa 1,8 MB y va incrustado, así que funciona sin
+ * conexión igual que el resto.
  *
- * Todo el movimiento es CSS: lo compone la GPU y no compite con el juego si lo
- * tienes abierto detrás. Con `prefers-reduced-motion` el sistema lo deja quieto
- * (ver theme.css) y entonces esto es una tarjeta con el trofeo, sin más.
+ * Encima del vídeo va lo que el vídeo no puede saber: de qué juego se trata,
+ * cuánto costó y cómo de duro era.
  */
-
-/** Motas de polvo estelar repartidas por el fondo. */
-const ESTRELLAS = 46;
-/** Chispas que salen disparadas en el estallido. */
-const CHISPAS = 28;
-/** Ascuas que suben sin parar desde el borde inferior. */
-const ASCUAS = 16;
-
-interface Mota {
-  izq: number;
-  arr: number;
-  tam: number;
-  retardo: number;
-  duracion: number;
-}
-
-interface Chispa {
-  angulo: number;
-  distancia: number;
-  retardo: number;
-  tam: number;
-}
 
 /**
- * Posiciones estables mientras la celebración esté abierta.
+ * Al acabar, se vuelve aquí en vez de al principio.
  *
- * Se calculan una vez con `useMemo`: si se recalcularan en cada repintado, las
- * motas saltarían de sitio a mitad de la animación. El generador es propio y
- * determinista, así que dos celebraciones del mismo juego se ven igual.
+ * El vídeo empieza con un acercamiento que solo tiene sentido la primera vez;
+ * repetirlo en bucle marearía. Desde este punto es deriva de partículas, que
+ * encadena sin que se note el salto y deja la escena viva mientras la miras.
  */
-function useConfeti(semilla: string) {
-  return useMemo(() => {
-    let estado = [...semilla].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const azar = () => {
-      estado = (estado * 1664525 + 1013904223) >>> 0;
-      return estado / 0xffffffff;
-    };
-    const estrellas: Mota[] = Array.from({ length: ESTRELLAS }, () => ({
-      izq: azar() * 100,
-      arr: azar() * 100,
-      tam: 1 + azar() * 2.6,
-      retardo: azar() * 2.4,
-      duracion: 2.2 + azar() * 2.6,
-    }));
-    const chispas: Chispa[] = Array.from({ length: CHISPAS }, (_, i) => ({
-      angulo: (360 / CHISPAS) * i + azar() * 8,
-      distancia: 140 + azar() * 200,
-      retardo: azar() * 0.18,
-      tam: 2 + azar() * 3,
-    }));
-    const ascuas: Mota[] = Array.from({ length: ASCUAS }, () => ({
-      izq: azar() * 100,
-      arr: 0,
-      tam: 1.5 + azar() * 2.5,
-      retardo: azar() * 9,
-      duracion: 7 + azar() * 6,
-    }));
-    return { estrellas, chispas, ascuas };
-  }, [semilla]);
-}
+const BUCLE_DESDE_S = 6.4;
 
 export function PlatinumCelebration({
   report, onClose,
 }: { report: PlatinumReport; onClose: () => void }) {
-  const { estrellas, chispas, ascuas } = useConfeti(report.gameId);
   const conSonido = useStore((state) => state.settings?.celebrationSound ?? true);
-  // El botón de cerrar aparece cuando la animación ya ha dicho lo suyo: antes
-  // sería una invitación a saltarse justo lo que se ha ganado.
+  const video = useRef<HTMLVideoElement | null>(null);
+  // El botón de cerrar aparece pasado el estallido: antes sería una invitación
+  // a saltarse justo lo que se ha ganado.
   const [listo, setListo] = useState(false);
 
   useEffect(() => {
     if (conSonido) sonarPlatino();
-    // El sonido suena una vez por celebración, no cada vez que React repinta.
+    // Suena una vez por celebración, no cada vez que React repinta.
   }, [report.gameId, conSonido]);
 
   useEffect(() => {
-    const t = setTimeout(() => setListo(true), 3000);
+    const t = setTimeout(() => setListo(true), (ESTALLIDO_S + 1.2) * 1000);
     const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', escape);
     return () => { clearTimeout(t); window.removeEventListener('keydown', escape); };
@@ -112,90 +58,36 @@ export function PlatinumCelebration({
       role="dialog"
       aria-modal="true"
       aria-label={`Platino conseguido en ${report.gameName}`}
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-[#07070b]/95 backdrop-blur-md"
+      /*
+        El fondo va **opaco del todo**, no traslúcido. Con el vídeo compuesto en
+        modo `screen`, cualquier claridad que se cuele por detrás delata su
+        recuadro: el negro del vídeo es más oscuro que la ventana difuminada y
+        se dibuja el rectángulo. Sobre negro puro, el rectángulo desaparece.
+      */
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-[#06060a]"
     >
-      {/* Polvo estelar y ascuas: el fondo nunca se queda inmóvil. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {estrellas.map((mota, i) => (
-          <span
-            key={`e${i}`}
-            className="celebra-estrella"
-            style={{
-              left: `${mota.izq}%`,
-              top: `${mota.arr}%`,
-              width: `${mota.tam}px`,
-              height: `${mota.tam}px`,
-              animationDelay: `${mota.retardo}s`,
-              animationDuration: `${mota.duracion}s`,
-            }}
-          />
-        ))}
-        {ascuas.map((mota, i) => (
-          <span
-            key={`a${i}`}
-            className="celebra-ascua"
-            style={{
-              left: `${mota.izq}%`,
-              width: `${mota.tam}px`,
-              height: `${mota.tam}px`,
-              animationDelay: `${mota.retardo}s`,
-              animationDuration: `${mota.duracion}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="relative flex flex-col items-center px-6">
+      <div className="relative flex flex-col items-center">
         <div className="relative flex items-center justify-center">
-          {/* Resplandor de entrada, y detrás otro que respira sin parar. */}
-          <div aria-hidden="true" className="celebra-respira" />
-          <div aria-hidden="true" className="celebra-halo" />
-          {/* El estallido: un anillo que se expande y se apaga. */}
-          <div aria-hidden="true" className="celebra-onda" />
-          {/* Las chispas del estallido, disparadas en todas direcciones. */}
-          <div aria-hidden="true" className="absolute inset-0">
-            {chispas.map((chispa, i) => (
-              <span
-                key={i}
-                className="celebra-chispa"
-                style={{
-                  width: `${chispa.tam}px`,
-                  height: `${chispa.tam}px`,
-                  transform: `rotate(${chispa.angulo}deg)`,
-                  ['--distancia' as string]: `${chispa.distancia}px`,
-                  animationDelay: `${0.72 + chispa.retardo}s`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/*
-            Dos cintas orbitando en sentidos contrarios y con distinta
-            inclinación. Cada capa hace una sola cosa —aparecer, inclinar,
-            girar— porque dos animaciones sobre el mismo transform se pisan.
-          */}
-          <div aria-hidden="true" className="celebra-orbita">
-            <div className="celebra-orbita-inclina">
-              <div className="celebra-orbita-gira"><span className="celebra-anillo" /></div>
-            </div>
-            <div className="celebra-orbita-inclina inversa">
-              <div className="celebra-orbita-gira inversa">
-                <span className="celebra-anillo tenue" />
-              </div>
-            </div>
-          </div>
-
-          {/* Envoltorio que flota; dentro, el que entra. Separados por lo mismo. */}
-          <div className="celebra-flota relative">
-            <img
-              src={trofeo}
-              alt=""
-              className="celebra-entrada h-[46vh] max-h-[420px] min-h-[220px] w-auto"
-            />
-          </div>
+          <video
+            ref={video}
+            src={celebracion}
+            autoPlay
+            muted
+            playsInline
+            aria-hidden="true"
+            onEnded={() => {
+              const el = video.current;
+              if (!el) return;
+              el.currentTime = BUCLE_DESDE_S;
+              void el.play();
+            }}
+            className="celebra-video relative h-[56vh] max-h-[600px] min-h-[240px] w-auto"
+          />
         </div>
 
-        <div className="celebra-texto mt-6 flex flex-col items-center text-center">
+        {/* Debajo del vídeo, no encima: en el estallido la luz llena el cuadro
+            y cualquier texto puesto ahí se vuelve ilegible. */}
+        <div className="celebra-texto mt-1 flex flex-col items-center px-6 text-center">
           <p className="text-[12px] font-semibold uppercase tracking-[0.32em] text-accent">
             Platino conseguido
           </p>
@@ -224,7 +116,7 @@ export function PlatinumCelebration({
 
           <Button
             variant="outline"
-            className={`mt-8 transition-opacity duration-500 ${listo ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+            className={`mt-7 transition-opacity duration-500 ${listo ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
             onClick={onClose}
           >
             <X size={14} /> Cerrar
