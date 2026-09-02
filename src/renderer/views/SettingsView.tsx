@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
+import { FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package, KeyRound } from 'lucide-react';
+import type { LicenseInfo } from '@shared/types';
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
@@ -14,6 +15,13 @@ export function SettingsView() {
   const [apiKey, setApiKey] = useState('');
   const [catalog, setCatalog] = useState<{ version: string; updatedAt: number } | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<number | null>(null);
+  const [license, setLicense] = useState<LicenseInfo | null>(null);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [activating, setActivating] = useState(false);
 
   const loadCatalog = useCallback(async () => {
     const res = await api.catalog.version();
@@ -23,11 +31,20 @@ export function SettingsView() {
   useEffect(() => {
     void api.app.version().then((r) => { if (r.ok) setVersion(r.data); });
     void loadCatalog();
+    void api.license.get().then((result) => { if (result.ok) setLicense(result.data); });
   }, [loadCatalog]);
 
   useEffect(() => {
     setApiKey(settings?.steamWebApiKey ?? '');
   }, [settings?.steamWebApiKey]);
+
+  useEffect(() => api.on('update:available', ({ version: nextVersion }) => {
+    setUpdateVersion(nextVersion);
+    pushToast('info', `Actualización disponible: Atreus ${nextVersion}`);
+  }), [pushToast]);
+  useEffect(() => api.on('license:updated', setLicense), []);
+  useEffect(() => api.on('update:progress', ({ percent }) => setUpdateProgress(percent)), []);
+  useEffect(() => api.on('update:downloaded', () => { setUpdateProgress(100); setInstallingUpdate(false); }), []);
 
   if (!settings) return null;
 
@@ -55,6 +72,33 @@ export function SettingsView() {
         : `${res.data.updated} definiciones actualizadas · ${res.data.total} en total`,
     );
     void loadCatalog();
+  }
+
+  async function checkForUpdate() {
+    setCheckingUpdate(true);
+    const res = await api.app.checkForUpdates();
+    setCheckingUpdate(false);
+    if (!res.ok) return pushToast('error', res.error);
+    setUpdateVersion(res.data.available ? res.data.version : null);
+    pushToast(
+      res.data.available ? 'success' : 'info',
+      res.data.available ? `Disponible la versión ${res.data.version}` : 'Ya estás en la última versión',
+    );
+  }
+
+  async function installUpdate() {
+    setInstallingUpdate(true);
+    setUpdateProgress(0);
+    const res = await api.app.downloadUpdate();
+    setInstallingUpdate(false);
+    if (!res.ok) return pushToast('error', res.error);
+    pushToast('info', 'Descargando actualización; Atreus se reiniciará al terminar.');
+  }
+
+  async function activate() {
+    setActivating(true); const result = await api.license.activate(licenseKey); setActivating(false);
+    if (!result.ok) return pushToast('error', result.error);
+    setLicense(result.data); setLicenseKey(''); pushToast('success', `Licencia ${result.data.tier} activada`);
   }
 
   return (
@@ -101,6 +145,20 @@ export function SettingsView() {
             </Row>
           </Section>
 
+          <Section title="Licencia y activación">
+            <Row label={license?.active ? `${license.tier} · ${license.ownerName}` : 'Sin licencia activada'}
+                 hint={license?.active ? (license.expiresAt ? `Expira el ${new Date(license.expiresAt * 1000).toLocaleDateString('es-ES')}` : 'Acceso permanente en este equipo.') : 'Introduce una clave firmada emitida por el administrador de Atreus.'}>
+              {license?.active ? <Badge tone="success">Activa</Badge> : <Badge tone="warn">Vista previa</Badge>}
+            </Row>
+            {!license?.active && <Row label="Clave de acceso" hint="La verificación se hace localmente; Atreus no envía la clave a un servidor.">
+              <div className="flex w-96 max-w-full gap-2"><Input value={licenseKey} onChange={(event) => setLicenseKey(event.target.value)} placeholder="ATREUS-1.…" className="font-mono text-[12px]" />
+                <Button variant="primary" onClick={activate} disabled={!licenseKey.trim() || activating}><KeyRound size={14} />{activating ? 'Verificando…' : 'Activar'}</Button></div>
+            </Row>}
+            {license?.active && <Row label="Desactivar este equipo" hint="Elimina solo la activación local; no revoca la clave emitida.">
+              <Button variant="outline" onClick={() => void api.license.deactivate().then((result) => { if (result.ok) setLicense(null); else pushToast('error', result.error); })}>Desactivar</Button>
+            </Row>}
+          </Section>
+
           <Section title="Comportamiento">
             <Row label="Escanear al arrancar"
                  hint="Refresca la biblioteca cada vez que se abre Atreus.">
@@ -112,15 +170,15 @@ export function SettingsView() {
               <Toggle checked={settings.minimizeToTray}
                       onChange={(v) => void patch({ minimizeToTray: v })} />
             </Row>
-            <Row label="Hotkeys globales"
-                 hint="Permite activar cheats con el teclado sin salir del juego.">
-              <Toggle checked={settings.hotkeysEnabled}
-                      onChange={(v) => void patch({ hotkeysEnabled: v })} />
-            </Row>
-            <Row label="Confirmar cheats con aviso"
-                 hint="Pide confirmación antes de activar un cheat que lleve advertencia.">
-              <Toggle checked={settings.confirmBeforeCheats}
-                      onChange={(v) => void patch({ confirmBeforeCheats: v })} />
+            {/*
+              El aviso de logros se acepta una sola vez, así que el único modo
+              de volver a verlo es este interruptor. Va aquí, en Ajustes, y no
+              escondido: quien lo aceptó sin leer tiene que poder deshacerlo.
+            */}
+            <Row label="Avisar antes de desbloquear logros"
+                 hint="Vuelve a mostrar la advertencia sobre desbloquear logros a mano la próxima vez que lo intentes.">
+              <Toggle checked={!settings.achievementRiskAccepted}
+                      onChange={(v) => void patch({ achievementRiskAccepted: !v })} />
             </Row>
           </Section>
 
@@ -136,7 +194,7 @@ export function SettingsView() {
 
             <Row
               label="Origen para sincronizar"
-              hint="Una carpeta local, o una URL a un .zip (vale el de un repositorio de GitHub) o a un .json suelto."
+              hint="Carpeta, ZIP, JSON suelto o manifiesto atreus.catalog/v1 con versión, hashes y retiradas de seguridad."
             >
               <div className="flex w-96 gap-2">
                 <Input
@@ -173,6 +231,16 @@ export function SettingsView() {
               </Button>
             </Row>
 
+            <Row
+              label="Actualizar contenido automáticamente"
+              hint="Al abrir Atreus y cada seis horas busca nuevas fichas de juego: mapas y proveedores de mods. Las guías se consultan al abrir cada juego."
+            >
+              <Toggle
+                checked={settings.autoSyncCatalog}
+                onChange={(value) => void patch({ autoSyncCatalog: value })}
+              />
+            </Row>
+
             <Row label="Carpeta de mods" hint="Los mods instalados viven aquí, aparte de los juegos.">
               <Button variant="outline" onClick={() => void api.settings.openPath('mods')}>
                 <Package size={14} /> Abrir carpeta
@@ -180,7 +248,37 @@ export function SettingsView() {
             </Row>
           </Section>
 
-          <Section title="Diagnóstico">
+          <Section title="Actualizaciones de Atreus">
+            <Row
+              label="Origen de versiones"
+              hint="Carpeta HTTPS de releases con latest.yml y el instalador de Atreus. Se configura una sola vez; después la app se actualiza desde aquí."
+            >
+              <Input
+                value={settings.updateSource}
+                onChange={(event) => void patch({ updateSource: event.target.value })}
+                placeholder="https://updates.tudominio.com/atreus"
+                className="w-96 max-w-full font-mono text-[12px]"
+              />
+            </Row>
+            <Row
+              label="Buscar actualizaciones al arrancar"
+              hint="No interrumpe el inicio. Si hay una versión nueva, Atreus la muestra dentro de esta misma pantalla."
+            >
+              <Toggle
+                checked={settings.checkForAppUpdates}
+                onChange={(value) => void patch({ checkForAppUpdates: value })}
+              />
+            </Row>
+            <Row
+              label="Descargar actualizaciones automáticamente"
+              hint="Solo descarga desde el origen HTTPS configurado. Se instalará al cerrar Atreus."
+            >
+              <Toggle
+                checked={settings.autoDownloadUpdates}
+                disabled={!settings.updateSource.trim()}
+                onChange={(value) => void patch({ autoDownloadUpdates: value })}
+              />
+            </Row>
             <Row label="Registro de la aplicación"
                  hint="Todo lo que hace el backend queda aquí. Útil cuando algo falla en silencio.">
               <Button variant="outline" onClick={() => void api.app.openLogs()}>
@@ -191,25 +289,21 @@ export function SettingsView() {
               label="Buscar actualizaciones de la app"
               hint={
                 `Versión instalada: ${version}. Esto solo busca versiones nuevas del ` +
-                'programa. Los juegos, cheats y mods se actualizan por separado, arriba, ' +
-                'sin reinstalar nada.'
+                'programa desde el origen configurado. El contenido de los juegos se actualiza ' +
+                'por separado, arriba, sin reinstalar nada.'
               }
             >
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  const res = await api.app.checkForUpdates();
-                  if (!res.ok) return pushToast('error', res.error);
-                  pushToast(
-                    res.data.available ? 'success' : 'info',
-                    res.data.available
-                      ? `Disponible la versión ${res.data.version}`
-                      : 'Ya estás en la última versión',
-                  );
-                }}
-              >
-                <RefreshCw size={14} /> Comprobar
-              </Button>
+              <div className="flex items-center gap-2">
+                {updateVersion && (
+                  <Button variant="primary" onClick={installUpdate} disabled={installingUpdate}>
+                    <Package size={14} /> {installingUpdate ? `Descargando ${Math.round(updateProgress ?? 0)} %` : `Instalar ${updateVersion}`}
+                  </Button>
+                )}
+                <Button variant="outline" onClick={checkForUpdate} disabled={checkingUpdate}>
+                  <RefreshCw size={14} className={checkingUpdate ? 'animate-spin' : undefined} />
+                  {checkingUpdate ? 'Buscando…' : 'Comprobar'}
+                </Button>
+              </div>
             </Row>
           </Section>
 
@@ -217,9 +311,10 @@ export function SettingsView() {
             <div className="flex items-start gap-3">
               <Badge tone="warn">Alcance</Badge>
               <p className="text-[12px] leading-relaxed text-muted">
-                El motor de cheats no engancha a juegos multijugador ni intenta evadir
-                sistemas anti-cheat. Esa comprobación no se puede desactivar desde aquí.
-                Los logros sí están disponibles en cualquier juego de tu biblioteca.
+                Atreus no modifica ni la memoria ni los archivos de tus juegos. Lee tu
+                biblioteca, habla con el cliente de Steam para los logros, y todo lo demás
+                —guías, mapas, rareza— son consultas a fuentes públicas. Los mods sí escriben
+                en la carpeta del juego, y siempre avisan antes de hacerlo.
               </p>
             </div>
           </Card>

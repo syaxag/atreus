@@ -5,13 +5,13 @@ es lo que lleva a pensar que hay que reempaquetar para todo, y no es así.
 
 | Qué | Cómo | ¿Reempaquetar? | Estado |
 |---|---|---|---|
-| **Juegos y cheats** (`data/games/*.json`) | Dejar el JSON en la carpeta, o Ajustes → Catálogo → Sincronizar | **No** | ✅ verificado en la app instalada |
+| **Fichas de juego** (`data/games/*.json`) | Dejar el JSON en la carpeta, o Ajustes → Catálogo → Sincronizar | **No** | ✅ verificado en la app instalada |
 | **Mods** | Mods → Descubrir, o arrastrar el archivo | **No** | ✅ verificado con catálogos reales |
-| **La app** (código) | Reinstalar el `.exe`, o auto-actualización | Sí | ⚠️ requiere configurar un servidor |
+| **La app** (código) | Auto-actualización desde Ajustes | Sí, solo la primera vez | ⚠️ requiere publicar un feed HTTPS |
 
 ---
 
-## 1. Juegos y cheats — sin reempaquetar
+## 1. Fichas de juego — sin reempaquetar
 
 Las definiciones viven en dos capas y **la tuya manda**:
 
@@ -49,13 +49,13 @@ definiciones: 11 (11 de fábrica, 1 del usuario, las del usuario mandan)
 Sincronizar es idempotente: si nada cambió, no reescribe nada. Los archivos que
 no son JSON válido se descartan con su motivo, sin tocar los buenos.
 
-### Lo que no se puede sobrescribir
+### Catálogo versionado recomendado
 
-La lista de bloqueo y los módulos anti-cheat **se suman** entre capas. Se pueden
-añadir títulos, nunca quitar los de fábrica. Es una barrera de alcance, no una
-preferencia. Ver [SCOPE.md](SCOPE.md).
-
----
+Además de ZIP y JSON individuales, Atreus acepta un manifiesto
+`atreus.catalog/v1`. Incluye versión, fecha, URL HTTPS y SHA-256 de cada
+definición. Usa
+[`data/catalog.manifest.example.json`](../data/catalog.manifest.example.json)
+como plantilla para el feed.
 
 ## 2. Mods — sin reempaquetar
 
@@ -87,18 +87,31 @@ npm run dist
 
 ### Estado actual
 
-`electron-updater` **viaja en el paquete** (184 archivos), pero **no hay servidor
-configurado**, así que la app no puede buscarse a sí misma. Pulsar "Buscar
-actualizaciones" lo dice con esas palabras en vez de soltar un error interno.
+Atreus consulta una carpeta HTTPS de releases al arrancar. Si se activa la
+descarga automática, baja la versión nueva en segundo plano y la instala al
+cerrar. El usuario no vuelve a descargar ni ejecutar instaladores manualmente.
 
-Mientras siga así, actualizar es **reinstalar el `.exe`**. El desinstalador no
+La primera instalación sigue siendo mediante el `.exe`. El desinstalador no
 borra `%APPDATA%/Atreus`, así que las definiciones, los mods y los perfiles
 sobreviven.
 
 ### Cómo activarla
 
-Hace falta un sitio donde publicar. Con un repositorio de GitHub son tres líneas
-en `package.json`:
+Hace falta un sitio donde publicar que controles. Tras crear una release, en
+**Ajustes → Actualizaciones de Atreus → Origen de versiones** se pega la URL de
+la carpeta HTTPS que contiene los artefactos. No hace falta recompilar la app
+para cambiar de servidor.
+
+El directorio debe contener, como mínimo, los archivos que produce el builder:
+
+```
+latest.yml (Atreus lo genera con `npm run dist`)
+Atreus-<version>-setup.exe
+Atreus-<version>-setup.exe.blockmap
+```
+
+Con un repositorio de GitHub también se puede fijar `publish` en
+`package.json` para automatizar la publicación:
 
 ```jsonc
 "build": {
@@ -118,5 +131,5 @@ Para un repositorio privado hace falta además un token en `GH_TOKEN`. Si prefie
 no usar GitHub, `{"provider": "generic", "url": "https://…"}` sirve con cualquier
 carpeta servida por HTTP.
 
-Al añadir `publish`, electron-builder genera `app-update.yml` dentro del paquete,
-que es justo lo que `isConfigured()` comprueba.
+El feed configurable de Ajustes tiene prioridad; el `app-update.yml` generado
+por `publish` sigue siendo compatible para instalaciones antiguas.

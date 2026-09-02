@@ -2,8 +2,10 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
 import type {
   Achievement, AchievementPatch, GameStat, StatPatch, SteamSession, SteamSessionState,
+  SteamSnapshot,
 } from '@shared/types';
 import { log } from '../../logger';
+import { globalPercentages } from '../achievements/rarity';
 import { paths } from '../../paths';
 import { setIconRoot } from '../../protocol';
 import { emit } from '../../ipc/emit';
@@ -11,6 +13,7 @@ import { findSteamPath } from '../catalog/steam';
 import { getSettings } from '../settings';
 import { findSteamApiDll, isSteamRunning } from './locator';
 import { readSchema, type SchemaStat } from './schema';
+import { getSnapshot, listSnapshots, saveSnapshot } from './backups';
 
 const logger = log('steam:session');
 
@@ -45,6 +48,8 @@ class Worker {
   private closing = false;
   /** Nombres y tipos de las estadísticas: la API plana no sabe enumerarlas. */
   private schemaStats: SchemaStat[] = [];
+  /** Definiciones de logros del esquema local para textos e iconos. */
+  private schemaAchievements = new Map<string, { displayName: string; description: string; hidden: boolean; icon?: string; iconGray?: string }>();
 
   constructor(appId: string) {
     this.appId = appId;
@@ -132,9 +137,17 @@ class Worker {
       this.setState('connected');
 
       const steamPath = findSteamPath(getSettings().steamPath);
-      this.schemaStats = steamPath
-        ? readSchema(steamPath, this.appId, getSettings().language === 'es' ? 'spanish' : 'english').stats
-        : [];
+      if (steamPath) {
+        const schema = readSchema(steamPath, this.appId, getSettings().language === 'es' ? 'spanish' : 'english');
+        this.schemaStats = schema.stats;
+        this.schemaAchievements.clear();
+        for (const ach of schema.achievements) {
+          this.schemaAchievements.set(ach.apiName, ach);
+        }
+      } else {
+        this.schemaStats = [];
+        this.schemaAchievements.clear();
+      }
     } catch (e) {
       if (this.closing) {
         // Cancelado por el usuario al cambiar de vista: ni error ni ruido.
@@ -202,14 +215,38 @@ class Worker {
         unlocked: boolean; unlockTime: number | null; icon: string | null }[]
     >('achievements');
 
-    return raw.map(({ icon, ...a }) => ({
-      ...a,
-      // El worker ya los ha convertido a PNG y cacheado; aquí solo se referencian
-      // por el protocolo propio. null si Steam aún no había descargado el icono.
-      iconUrl: icon ? `atreus://icon/${this.appId}/${icon}` : null,
-      iconGrayUrl: null,
-      protected: false,
-    }));
+    const cdn = (hash: string) =>
+      `https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/${this.appId}/${hash}`;
+
+    return raw.map(({ icon, ...a }) => {
+      const schema = this.schemaAchievements.get(a.apiName);
+
+      /*
+       * El PNG que cachea el worker es el del **estado actual** del logro: para
+       * uno bloqueado, Steam devuelve su icono apagado. Metiéndolo antes en la
+       * ranura de "icono de color", un logro bloqueado enseñaba el gris al
+       * activarlo y parecía que no pasaba nada. Cada imagen va a la ranura que
+       * de verdad le corresponde, y la otra cara sale del esquema, que sí
+       * distingue las dos.
+       */
+      const cached = icon ? `atreus://icon/${this.appId}/${icon}` : null;
+      const iconUrl = (a.unlocked ? cached : null) ?? (schema?.icon ? cdn(schema.icon) : null);
+      const iconGrayUrl = (a.unlocked ? null : cached) ?? (schema?.iconGray ? cdn(schema.iconGray) : null);
+
+      return {
+        apiName: a.apiName,
+        displayName: a.displayName || schema?.displayName || a.apiName,
+        description: a.description || schema?.description || '',
+        hidden: a.hidden ?? schema?.hidden ?? false,
+        unlocked: a.unlocked,
+        unlockTime: a.unlockTime,
+        iconUrl,
+        iconGrayUrl,
+        protected: false,
+        // Lo rellena el envoltorio exportado, que sí puede ir a la red.
+        globalPercent: null,
+      };
+    });
   }
 
   async stats(): Promise<GameStat[]> {
@@ -306,8 +343,19 @@ async function connected(appId: string): Promise<Worker> {
   return worker;
 }
 
+/**
+ * Logros del juego, ya cruzados con su rareza global.
+ *
+ * La rareza no viene del cliente de Steam sino de una API pública, y se pide en
+ * paralelo: si tarda o falla, los logros salen igual con `globalPercent: null`.
+ */
 export async function achievements(appId: string): Promise<Achievement[]> {
-  return (await connected(appId)).achievements();
+  const [list, percentages] = await Promise.all([
+    connected(appId).then((worker) => worker.achievements()),
+    globalPercentages(appId),
+  ]);
+  if (percentages.size === 0) return list;
+  return list.map((a) => ({ ...a, globalPercent: percentages.get(a.apiName) ?? null }));
 }
 
 export async function stats(appId: string): Promise<GameStat[]> {
@@ -324,4 +372,18 @@ export async function commit(
 
 export async function resetAll(appId: string): Promise<void> {
   await (await connected(appId)).resetAll();
+}
+
+export function backups(appId: string): SteamSnapshot[] {
+  return listSnapshots(appId);
+}
+
+export async function restore(appId: string, snapshotId: string): Promise<{ applied: number }> {
+  const snapshot = getSnapshot(appId, snapshotId);
+  if (!snapshot) throw new Error('No se encontró la copia de seguridad solicitada');
+  const worker = await connected(appId);
+  return worker.commit(
+    snapshot.achievements.filter((a) => !a.protected).map((a) => ({ apiName: a.apiName, unlocked: a.unlocked })),
+    snapshot.stats.filter((s) => !s.incrementOnly).map((s) => ({ apiName: s.apiName, value: s.value })),
+  );
 }

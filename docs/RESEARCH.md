@@ -1,5 +1,12 @@
 # Revisión de las dos aplicaciones de origen
 
+> **Documento histórico.** Describe el proyecto tal como era antes de la
+> reestructuración de septiembre de 2026, cuando Atreus dejó de ser un launcher con
+> trainer y pasó a ser una aplicación dedicada a los platinos. El motor de cheats y el
+> buscador de memoria que se mencionan aquí ya no existen; el historial de git los
+> conserva. El estado actual está en [SCOPE.md](SCOPE.md), [README](../README.md) y
+> [ARCHITECTURE.md](ARCHITECTURE.md).
+
 Fecha: 2026-09-01
 
 ## 1. `C:\Users\Syax_\Videos\xd` — Steam Achievement Manager (SAM)

@@ -12,9 +12,12 @@ export const DEFAULT_SETTINGS: Settings = {
   steamWebApiKey: null,
   scanOnStart: true,
   minimizeToTray: true,
-  hotkeysEnabled: true,
   catalogSource: '',
-  confirmBeforeCheats: true,
+  autoSyncCatalog: true,
+  updateSource: '',
+  checkForAppUpdates: true,
+  autoDownloadUpdates: false,
+  achievementRiskAccepted: false,
   language: 'es',
 };
 

@@ -205,16 +205,20 @@ function readAchievements(): WorkerAchievement[] {
 
     const achieved = [false];
     const unlockTime = [0];
-    api.GetAchievementAndUnlockTime(userStats, apiName, achieved, unlockTime);
+    const received = api.GetAchievementAndUnlockTime(userStats, apiName, achieved, unlockTime);
+    // Koffi puede devolver el bool de salida como `true` o como `1` según la
+    // ABI de la DLL. Una comparación estricta con true hacía que una cuenta
+    // con logros reales apareciera como si no tuviera ninguno.
+    const unlocked = received && Boolean(achieved[0]);
 
     out.push({
       apiName,
       displayName: api.GetAchievementDisplayAttribute(userStats, apiName, 'name') || apiName,
       description: api.GetAchievementDisplayAttribute(userStats, apiName, 'desc') || '',
       hidden: api.GetAchievementDisplayAttribute(userStats, apiName, 'hidden') === '1',
-      unlocked: achieved[0] === true,
-      unlockTime: achieved[0] && unlockTime[0] ? unlockTime[0]! : null,
-      icon: cacheIcon(apiName),
+      unlocked,
+      unlockTime: unlocked && Number(unlockTime[0]) > 0 ? Number(unlockTime[0]) : null,
+      icon: cacheIcon(apiName, unlocked),
     });
   }
   return out;
@@ -227,13 +231,21 @@ function readAchievements(): WorkerAchievement[] {
  * del PNG, o null si el cliente todavía no ha descargado ese icono — pedirlo
  * dispara la descarga, así que en una segunda visita suele estar.
  */
-function cacheIcon(apiName: string): string | null {
+function cacheIcon(apiName: string, unlocked: boolean): string | null {
   if (!iconDir || !api?.GetAchievementIcon || !utils || !api.GetImageSize || !api.GetImageRGBA) {
     return null;
   }
 
   // Un nombre de logro puede traer puntos o barras; se sanea para el disco.
-  const file = `${apiName.replace(/[^a-zA-Z0-9._-]/g, '_')}.png`;
+  //
+  // El estado va en el nombre, y no es un detalle: `GetAchievementIcon` devuelve
+  // el icono **del estado actual** del logro — el gris si está bloqueado, el de
+  // color si no. Guardando los dos bajo el mismo archivo, el gris de un logro
+  // bloqueado quedaba cacheado como si fuera su icono de color, y al
+  // desbloquearlo la imagen no cambiaba. Con el estado en el nombre, cada
+  // archivo es lo que dice ser y el de la otra cara se descarga cuando toca.
+  const base = apiName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const file = `${base}-${unlocked ? 'on' : 'off'}.png`;
   const full = join(iconDir, file);
   if (existsSync(full)) return file;
 

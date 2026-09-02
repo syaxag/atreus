@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
+import { getSettings } from '../settings';
 
 /**
  * Auto-actualización de la app.
@@ -25,6 +26,7 @@ interface UpdaterModule {
     autoDownload: boolean;
     autoInstallOnAppQuit: boolean;
     logger: unknown;
+    setFeedURL(options: { provider: 'generic'; url: string }): void;
     checkForUpdates(): Promise<{ updateInfo: { version: string } } | null>;
     downloadUpdate(): Promise<unknown>;
     quitAndInstall(): void;
@@ -33,6 +35,7 @@ interface UpdaterModule {
 }
 
 let loaded: UpdaterModule['autoUpdater'] | null | undefined;
+let configuredFeed: string | null = null;
 
 /** Carga `electron-updater` de forma perezosa: en desarrollo no hace falta. */
 function getUpdater(): UpdaterModule['autoUpdater'] | null {
@@ -41,7 +44,7 @@ function getUpdater(): UpdaterModule['autoUpdater'] | null {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('electron-updater') as UpdaterModule;
     loaded = mod.autoUpdater;
-    loaded.autoDownload = false; // descargar solo si el usuario acepta
+    loaded.autoDownload = false;
     loaded.autoInstallOnAppQuit = true;
     loaded.logger = {
       info: (m: unknown) => logger.info(String(m)),
@@ -53,6 +56,19 @@ function getUpdater(): UpdaterModule['autoUpdater'] | null {
       const version = (info as { version?: string })?.version ?? '?';
       logger.info(`actualización disponible: ${version}`);
       emit('update:available', { version });
+    });
+    loaded.on('update-downloaded', (info) => {
+      const version = (info as { version?: string })?.version ?? '?';
+      logger.info(`actualización descargada: ${version}`);
+      emit('toast', { level: 'success', message: `Atreus ${version} está listo para instalarse al cerrar.` });
+      emit('update:downloaded', { version });
+    });
+    loaded.on('download-progress', (value) => {
+      const progress = value as { percent?: number; bytesPerSecond?: number; transferred?: number; total?: number };
+      emit('update:progress', {
+        percent: progress.percent ?? 0, bytesPerSecond: progress.bytesPerSecond ?? 0,
+        transferred: progress.transferred ?? 0, total: progress.total ?? 0,
+      });
     });
     loaded.on('error', (e) => logger.error('fallo del actualizador:', e));
   } catch (e) {
@@ -67,6 +83,33 @@ export interface UpdateCheck {
   version: string | null;
 }
 
+function releaseFeed(): string | null {
+  const source = getSettings().updateSource.trim().replace(/\/+$/, '');
+  if (!source) return null;
+  try {
+    const url = new URL(source);
+    return url.protocol === 'https:' ? url.toString().replace(/\/$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+function configureFeed(updater: UpdaterModule['autoUpdater']): boolean {
+  const source = releaseFeed();
+  if (source) {
+    if (configuredFeed !== source) {
+      updater.setFeedURL({ provider: 'generic', url: source });
+      configuredFeed = source;
+      logger.info(`origen de actualizaciones configurado: ${source}`);
+    }
+    return true;
+  }
+
+  // Conserva la compatibilidad con instalaciones antiguas que sí se empaquetaron
+  // con publish en electron-builder.
+  return existsSync(join(process.resourcesPath, 'app-update.yml'));
+}
+
 /**
  * ¿Hay servidor de actualizaciones?
  *
@@ -75,7 +118,7 @@ export interface UpdateCheck {
  */
 export function isConfigured(): boolean {
   if (!app.isPackaged) return false;
-  return existsSync(join(process.resourcesPath, 'app-update.yml'));
+  return Boolean(releaseFeed()) || existsSync(join(process.resourcesPath, 'app-update.yml'));
 }
 
 export async function checkForUpdates(): Promise<UpdateCheck> {
@@ -86,15 +129,14 @@ export async function checkForUpdates(): Promise<UpdateCheck> {
 
   if (!isConfigured()) {
     throw new Error(
-      'No hay servidor de actualizaciones configurado, así que la app no puede ' +
-      'buscarse a sí misma. Se actualiza reinstalando desde el .exe. ' +
-      'Los juegos, cheats y mods sí se actualizan solos: van por la carpeta de ' +
-      'definiciones y por Ajustes → Catálogo, sin tocar la instalación.',
+      'Configura una URL HTTPS de releases en Ajustes → Actualizaciones. Debe ' +
+      'contener latest.yml y el instalador generado por Atreus.',
     );
   }
 
   const updater = getUpdater();
   if (!updater) throw new Error('El actualizador no está disponible en esta compilación');
+  if (!configureFeed(updater)) throw new Error('No se pudo configurar el origen de actualizaciones');
 
   const result = await updater.checkForUpdates();
   const version = result?.updateInfo?.version ?? null;
@@ -105,6 +147,22 @@ export async function checkForUpdates(): Promise<UpdateCheck> {
 export async function downloadAndInstall(): Promise<void> {
   const updater = getUpdater();
   if (!updater) throw new Error('El actualizador no está disponible en esta compilación');
+  if (!configureFeed(updater)) throw new Error('Configura una URL HTTPS de releases antes de descargar');
   await updater.downloadUpdate();
   updater.quitAndInstall();
+}
+
+/** Busca actualizaciones al arrancar; no bloquea la ventana ni molesta si no hay feed. */
+export async function startAutomaticUpdates(): Promise<void> {
+  if (!app.isPackaged || !getSettings().checkForAppUpdates || !isConfigured()) return;
+  try {
+    const result = await checkForUpdates();
+    if (result.available && getSettings().autoDownloadUpdates) {
+      const updater = getUpdater();
+      if (updater) await updater.downloadUpdate();
+    }
+  } catch (error) {
+    // Una red caída no debe mostrar un modal ni impedir que Atreus funcione.
+    logger.warn('comprobación automática de actualizaciones falló:', error);
+  }
 }

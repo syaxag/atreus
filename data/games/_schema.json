@@ -11,7 +11,7 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^(steam|epic|gog|xbox|manual):[A-Za-z0-9._-]+$",
+      "pattern": "^(steam|epic|gog|xbox|ea|battlenet|manual):[A-Za-z0-9._-]+$",
       "description": "Identificador con prefijo de plataforma. Ej: steam:2379780"
     },
     "name": {
@@ -19,12 +19,12 @@
     },
     "exe": {
       "type": "string",
-      "description": "Nombre del ejecutable del proceso al que engancharse. Ej: Balatro.exe"
+      "description": "Nombre del ejecutable, para reconocer cuándo el juego está abierto y contar el tiempo de sesión. Ej: Balatro.exe"
     },
     "multiplayer": {
       "type": "boolean",
       "default": false,
-      "description": "true bloquea el trainer de forma permanente. Ver docs/SCOPE.md"
+      "description": "Solo informativo: Atreus lo enseña en la biblioteca. No bloquea nada."
     },
     "achievements": {
       "type": "object",
@@ -37,12 +37,6 @@
           ],
           "default": "steam"
         }
-      }
-    },
-    "cheats": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/cheat"
       }
     },
     "mods": {
@@ -100,6 +94,37 @@
                 {
                   "type": "object",
                   "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "workshop"
+                    },
+                    "appId": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "game"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "modrinth"
+                    },
+                    "game": {
+                      "const": "minecraft"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
                     "kind",
                     "gameId"
                   ],
@@ -151,6 +176,37 @@
                   {
                     "type": "object",
                     "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "workshop"
+                      },
+                      "appId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "game"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "modrinth"
+                      },
+                      "game": {
+                        "const": "minecraft"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
                       "kind",
                       "gameId"
                     ],
@@ -172,177 +228,47 @@
         }
       }
     },
-    "notes": {
-      "type": "string"
-    }
-  },
-  "definitions": {
-    "cheat": {
+    "guides": {
       "type": "object",
-      "required": [
-        "id",
-        "name",
-        "type",
-        "resolve",
-        "write"
-      ],
       "additionalProperties": false,
+      "description": "Contenido de guía propio del catálogo.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "type": {
-          "enum": [
-            "toggle",
-            "value",
-            "button"
-          ]
-        },
-        "group": {
-          "type": "string"
-        },
-        "hotkey": {
-          "type": "string",
-          "description": "Acelerador de Electron. Ej: F1, CmdOrCtrl+Shift+M"
-        },
-        "warning": {
-          "type": "string",
-          "description": "Aviso mostrado antes de activar"
-        },
-        "resolve": {
-          "oneOf": [
-            {
-              "type": "object",
-              "required": [
-                "kind",
-                "module",
-                "pattern",
-                "offset"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "const": "aob"
-                },
-                "module": {
-                  "type": "string"
-                },
-                "pattern": {
-                  "type": "string",
-                  "description": "Bytes en hex separados por espacio; ?? es comodín. Ej: 48 8B ?? ?? 00 89"
-                },
-                "offset": {
-                  "type": "integer"
-                },
-                "deref": {
-                  "type": "boolean",
-                  "default": false
-                }
+        "maps": {
+          "type": "array",
+          "description": "Mapas interactivos declarados a mano. Son direcciones: Atreus abre la web del proveedor en su pestaña integrada. Solo hacen falta cuando MapGenie no cubre el juego o hay un mapa mejor.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "url"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "provider": {
+                "type": "string",
+                "description": "Nombre legible de quien publica el mapa. Ej: MapGenie"
               }
-            },
-            {
-              "type": "object",
-              "required": [
-                "kind",
-                "module",
-                "base",
-                "offsets"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "const": "pointer"
-                },
-                "module": {
-                  "type": "string"
-                },
-                "base": {
-                  "type": "integer"
-                },
-                "offsets": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer"
-                  }
-                }
-              }
-            },
-            {
-              "type": "object",
-              "required": [
-                "kind",
-                "module",
-                "offset"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "kind": {
-                  "const": "static"
-                },
-                "module": {
-                  "type": "string"
-                },
-                "offset": {
-                  "type": "integer"
-                }
-              }
-            }
-          ]
-        },
-        "write": {
-          "type": "object",
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "type": {
-              "enum": [
-                "i8",
-                "u8",
-                "i16",
-                "u16",
-                "i32",
-                "u32",
-                "i64",
-                "u64",
-                "f32",
-                "f64",
-                "bytes"
-              ]
-            },
-            "value": {
-              "type": [
-                "number",
-                "string"
-              ]
-            },
-            "min": {
-              "type": "number"
-            },
-            "max": {
-              "type": "number"
-            },
-            "step": {
-              "type": "number"
-            },
-            "freeze": {
-              "type": "boolean",
-              "default": false
-            },
-            "restore": {
-              "type": "string",
-              "description": "Bytes originales en hex, para revertir parches de código"
             }
           }
         }
       }
+    },
+    "notes": {
+      "type": "string"
     }
   }
 }

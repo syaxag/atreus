@@ -1,10 +1,15 @@
 /**
- * Genera `resources/icon.ico` desde cero.
+ * Genera la marca de Atreus desde cero: `resources/icon.ico` y `resources/icon.png`.
  *
- * No hay dependencia de imágenes en el proyecto y no quería añadir una por un
- * solo archivo: un ICO moderno admite payloads PNG, y un PNG se codifica con
- * zlib, que ya viene con Node. La marca se rasteriza a mano — un tejado en
- * chevron sobre fondo oscuro, la "A" de Atreus reducida a su forma.
+ * No hay dependencia de imágenes en el proyecto y no quería añadir una por dos
+ * archivos: un ICO moderno admite payloads PNG, y un PNG se codifica con zlib,
+ * que ya viene con Node. Todo se rasteriza a mano con distancias con signo, que
+ * es lo que permite que el borde siga limpio a 16 píxeles.
+ *
+ * La marca: una loseta morada con la **A** calada en negativo y su travesaño
+ * inclinado como un rayo. En negativo en vez de en positivo a propósito — a
+ * tamaño de pestaña, una silueta llena se distingue de un vistazo y un trazo
+ * fino se deshace.
  *
  *   node scripts/make-icon.mjs
  */
@@ -13,13 +18,15 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'resources', 'icon.ico');
-const SIZES = [16, 24, 32, 48, 64, 128, 256];
+const RESOURCES = join(dirname(fileURLToPath(import.meta.url)), '..', 'resources');
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
+const PNG_SIZE = 512;
 
 // Los mismos tokens que theme.css.
 const BG = [0x0a, 0x0a, 0x0d];
 const ACCENT = [0x8b, 0x5c, 0xf6];
 const ACCENT_HI = [0xa7, 0x8b, 0xfa];
+const ACCENT_PRESS = [0x6d, 0x33, 0xd7];
 
 // ── PNG ───────────────────────────────────────────────────────
 const CRC_TABLE = (() => {
@@ -67,8 +74,8 @@ function encodePng(rgba, size) {
   ]);
 }
 
-// ── Rasterizado ───────────────────────────────────────────────
-/** Distancia con signo a un rectángulo redondeado, para bordes suaves. */
+// ── Geometría ─────────────────────────────────────────────────
+/** Distancia con signo a un rectángulo redondeado. Negativa dentro. */
 function roundedBox(x, y, half, radius) {
   const dx = Math.abs(x) - half + radius;
   const dy = Math.abs(y) - half + radius;
@@ -76,7 +83,7 @@ function roundedBox(x, y, half, radius) {
   return outside + Math.min(Math.max(dx, dy), 0) - radius;
 }
 
-/** Distancia a un segmento, para dibujar el chevron con grosor. */
+/** Distancia a un segmento, para trazos con grosor uniforme. */
 function segment(px, py, ax, ay, bx, by) {
   const vx = bx - ax;
   const vy = by - ay;
@@ -86,62 +93,75 @@ function segment(px, py, ax, ay, bx, by) {
   return Math.hypot(wx - t * vx, wy - t * vy);
 }
 
+const mix = (a, b, t) => a + (b - a) * t;
+
+/**
+ * Distancia a la letra: dos patas hasta el vértice y un travesaño inclinado.
+ *
+ * El travesaño va en diagonal y no recto: es lo que convierte la A en una marca
+ * propia en lugar de una letra cualquiera, y a la vez deja el guiño al rayo del
+ * icono de cheats sin añadir una forma más que se pierda a 16 píxeles.
+ */
+function letterDistance(u, v) {
+  return Math.min(
+    segment(u, v, -0.44, 0.54, -0.02, -0.52),
+    segment(u, v, 0.44, 0.54, 0.02, -0.52),
+    segment(u, v, -0.245, 0.30, 0.245, 0.16),
+  );
+}
+
 function draw(size) {
   const rgba = Buffer.alloc(size * size * 4);
-  // Se muestrea 3×3 por píxel: sin esto los bordes salen dentados en 16px.
-  const SS = 3;
+  // Se muestrea 4×4 por píxel: a 16 px, con menos, el vértice de la A se dentea.
+  const SS = 4;
+  const samples = SS * SS;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let r = 0, g = 0, b = 0, a = 0;
+      let r = 0, g = 0, b = 0, covered = 0;
 
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          // Coordenadas normalizadas a [-1, 1].
           const u = ((x + (sx + 0.5) / SS) / size) * 2 - 1;
           const v = ((y + (sy + 0.5) / SS) / size) * 2 - 1;
 
-          const inTile = roundedBox(u, v, 0.94, 0.34) <= 0;
-          if (!inTile) continue;
+          if (roundedBox(u, v, 0.94, 0.34) > 0) continue;
+          covered++;
 
-          // Chevron: dos trazos que suben al vértice, más el travesaño.
-          const thickness = 0.155;
-          const d = Math.min(
-            segment(u, v, -0.44, 0.46, 0, -0.5),
-            segment(u, v, 0.44, 0.46, 0, -0.5),
-            segment(u, v, -0.22, 0.12, 0.22, 0.12),
-          );
-          const onMark = d <= thickness;
+          const k = (v + 1) / 2; // 0 arriba, 1 abajo
 
-          if (onMark) {
-            // Degradado sutil de arriba abajo, para que no se vea plano.
-            const k = (v + 1) / 2;
-            r += ACCENT_HI[0] * (1 - k) + ACCENT[0] * k;
-            g += ACCENT_HI[1] * (1 - k) + ACCENT[1] * k;
-            b += ACCENT_HI[2] * (1 - k) + ACCENT[2] * k;
+          if (letterDistance(u, v) <= 0.118) {
+            // La letra calada: el fondo de la app, con un punto de luz arriba
+            // para que no parezca un agujero plano.
+            const lift = Math.max(0, 0.35 - k) * 0.5;
+            r += mix(BG[0], 0x2a, lift);
+            g += mix(BG[1], 0x24, lift);
+            b += mix(BG[2], 0x3a, lift);
           } else {
-            r += BG[0]; g += BG[1]; b += BG[2];
+            // Loseta: degradado morado de arriba abajo, más un filo claro en el
+            // borde superior que le da volumen sin dibujar una sombra.
+            const rim = Math.max(0, 1 - Math.abs(roundedBox(u, v, 0.94, 0.34)) / 0.045) * (v < 0 ? 0.55 : 0.12);
+            r += mix(mix(ACCENT_HI[0], ACCENT_PRESS[0], k), 0xff, rim * 0.35);
+            g += mix(mix(ACCENT_HI[1], ACCENT_PRESS[1], k), 0xff, rim * 0.35);
+            b += mix(mix(ACCENT_HI[2], ACCENT_PRESS[2], k), 0xff, rim * 0.35);
           }
-          a += 255;
         }
       }
 
-      const samples = SS * SS;
-      const covered = a / 255;
       const i = (y * size + x) * 4;
       if (covered > 0) {
         rgba[i] = Math.round(r / covered);
         rgba[i + 1] = Math.round(g / covered);
         rgba[i + 2] = Math.round(b / covered);
       }
-      rgba[i + 3] = Math.round(a / samples);
+      rgba[i + 3] = Math.round((covered / samples) * 255);
     }
   }
   return rgba;
 }
 
 // ── ICO ───────────────────────────────────────────────────────
-const images = SIZES.map((size) => ({ size, png: encodePng(draw(size), size) }));
+const images = ICO_SIZES.map((size) => ({ size, png: encodePng(draw(size), size) }));
 
 const header = Buffer.alloc(6);
 header.writeUInt16LE(0, 0); // reservado
@@ -165,10 +185,15 @@ for (const { size, png } of images) {
   offset += png.length;
 }
 
-mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, Buffer.concat([header, ...entries, ...images.map((i) => i.png)]));
+mkdirSync(RESOURCES, { recursive: true });
+writeFileSync(join(RESOURCES, 'icon.ico'), Buffer.concat([header, ...entries, ...images.map((i) => i.png)]));
+
+// El PNG grande lo usan la ventana, la bandeja y cualquier empaquetado que no
+// entienda ICO. electron-builder exige al menos 256 px.
+const png = encodePng(draw(PNG_SIZE), PNG_SIZE);
+writeFileSync(join(RESOURCES, 'icon.png'), png);
 
 console.log(
-  `icon.ico escrito: ${images.length} tamaños (${SIZES.join(', ')}), ` +
-  `${(offset / 1024).toFixed(1)} KB`,
+  `icon.ico: ${images.length} tamaños (${ICO_SIZES.join(', ')}), ${(offset / 1024).toFixed(1)} KB\n` +
+  `icon.png: ${PNG_SIZE}×${PNG_SIZE}, ${(png.length / 1024).toFixed(1)} KB`,
 );

@@ -1,8 +1,13 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import type { Game } from '@shared/types';
 import { log } from '../../logger';
+import { guessExe } from './steam';
+import {
+  exeFromDisplayIcon, parseRegSubkeys, parseRegValues, parseUninstallEntries, pickValue,
+  type UninstallEntry,
+} from './registry';
 
 /**
  * Escáneres de las plataformas que no son Steam.
@@ -32,6 +37,7 @@ function base(
     headerUrl: null,
     sizeBytes: null,
     lastPlayed: null,
+    playtimeMinutes: null,
     hasDefinition: false,
     multiplayer: false,
     favorite: false,
@@ -113,6 +119,149 @@ export function scanGog(): Game[] {
   return games;
 }
 
+// ── EA App y Battle.net ──────────────────────────────────────
+//
+// Ninguno de los dos publica un manifiesto local legible: EA App cifra su
+// almacén de instalaciones y Battle.net guarda `product.db` en protobuf. Lo
+// estable es lo que ambos dejan en el registro de Windows: las claves de
+// cada juego (`EA Games`, `Origin Games`, `Blizzard Entertainment`) y las
+// entradas de "Programas instalados". Se leen las dos fuentes y se unen por
+// carpeta de instalación, sin iniciar ningún launcher.
+
+function regQuery(key: string): string | null {
+  try {
+    return execFileSync('reg', ['query', key], {
+      encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return null; // La clave no existe: la plataforma no está instalada.
+  }
+}
+
+/** Juegos registrados como subclaves directas de `root`. */
+function registryGames(root: string, platform: Game['platform'], skip: RegExp): Game[] {
+  const listing = regQuery(root);
+  if (!listing) return [];
+
+  const games: Game[] = [];
+  for (const subkey of parseRegSubkeys(listing, root)) {
+    const nativeId = subkey.slice(root.length + 1);
+    if (skip.test(nativeId)) continue;
+    const out = regQuery(subkey);
+    if (!out) continue;
+
+    const values = parseRegValues(out);
+    const installDir = pickValue(values, 'Install Dir', 'InstallDir', 'InstallLocation', 'InstallPath', 'Path');
+    if (!installDir || !existsSync(installDir)) continue;
+
+    // Origin usa ids numéricos como clave; el nombre legible es la carpeta.
+    const name = pickValue(values, 'DisplayName', 'Game Name', 'Title')
+      ?? (/^\d+$/.test(nativeId) ? basename(installDir.replace(/[\\/]+$/, '')) : nativeId);
+    const exe = pickValue(values, 'Launcher', 'Exe', 'ExecutablePath');
+    const exePath = exe && existsSync(exe) ? exe : guessExe(installDir, name);
+    games.push(base(platform, nativeId, name, installDir, exePath));
+  }
+  return games;
+}
+
+/**
+ * "Programas instalados" de Windows, las tres vistas (64 bits, 32 bits y
+ * usuario). Una sola llamada a PowerShell para todo el escaneo.
+ */
+export function readUninstallEntries(): UninstallEntry[] {
+  const script = [
+    'Get-ItemProperty',
+    "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',",
+    "'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',",
+    "'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'",
+    '-ErrorAction SilentlyContinue',
+    '| Where-Object { $_.DisplayName -and $_.Publisher }',
+    '| Select-Object DisplayName, Publisher, InstallLocation, DisplayIcon, PSChildName',
+    '| ConvertTo-Json -Compress',
+  ].join(' ');
+
+  try {
+    const out = execFileSync(
+      'powershell',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      { encoding: 'utf8', windowsHide: true, timeout: 30_000, maxBuffer: 8 * 1024 * 1024 },
+    );
+    return parseUninstallEntries(out);
+  } catch (e) {
+    logger.warn('no se pudo leer la lista de programas instalados:', e);
+    return [];
+  }
+}
+
+/** Convierte las entradas de un editor en juegos, descartando sus launchers. */
+export function gamesFromUninstall(
+  entries: UninstallEntry[],
+  platform: Game['platform'],
+  publisher: RegExp,
+  skip: RegExp,
+): Game[] {
+  const games: Game[] = [];
+  for (const entry of entries) {
+    if (!publisher.test(entry.publisher) || skip.test(entry.displayName)) continue;
+    const installDir = entry.installLocation?.replace(/^"|"$/g, '') ?? null;
+    if (!installDir || !existsSync(installDir)) continue;
+    const fromIcon = exeFromDisplayIcon(entry.displayIcon);
+    const exePath = fromIcon && existsSync(fromIcon) ? fromIcon : guessExe(installDir, entry.displayName);
+    games.push(base(platform, entry.key, entry.displayName, installDir, exePath));
+  }
+  return games;
+}
+
+/** Une varias fuentes del mismo launcher: la misma carpeta es el mismo juego. */
+export function mergeByInstallDir(...sources: Game[][]): Game[] {
+  const seen = new Set<string>();
+  const out: Game[] = [];
+  for (const list of sources) {
+    for (const game of list) {
+      const key = (game.installDir ?? game.id).toLowerCase().replace(/[\\/]+$/, '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(game);
+    }
+  }
+  return out;
+}
+
+const EA_LAUNCHERS = /^(EA app|EA Desktop|EA Core|EADM|Origin)$/i;
+const EA_PUBLISHER = /electronic arts/i;
+
+/**
+ * Juegos de EA App y Origin. `EA Games` y `Origin Games` son las claves que
+ * dejan los instaladores; la lista de programas cubre los que no las tienen.
+ */
+export function scanEa(entries: UninstallEntry[] = readUninstallEntries()): Game[] {
+  const games = mergeByInstallDir(
+    registryGames('HKLM\\SOFTWARE\\EA Games', 'ea', EA_LAUNCHERS),
+    registryGames('HKLM\\SOFTWARE\\WOW6432Node\\EA Games', 'ea', EA_LAUNCHERS),
+    registryGames('HKLM\\SOFTWARE\\WOW6432Node\\Origin Games', 'ea', EA_LAUNCHERS),
+    registryGames('HKLM\\SOFTWARE\\Origin Games', 'ea', EA_LAUNCHERS),
+    gamesFromUninstall(entries, 'ea', EA_PUBLISHER, EA_LAUNCHERS),
+  );
+  logger.info(`${games.length} juegos de EA App`);
+  return games;
+}
+
+const BLIZZARD_LAUNCHERS = /^(Battle\.net|Agent|Blizzard Browser)/i;
+const BLIZZARD_PUBLISHER = /blizzard/i;
+
+/**
+ * Juegos de Battle.net. Se excluye la propia aplicación y su agente: solo
+ * cuentan las entradas con una carpeta de juego que exista de verdad.
+ */
+export function scanBattleNet(entries: UninstallEntry[] = readUninstallEntries()): Game[] {
+  const games = mergeByInstallDir(
+    registryGames('HKLM\\SOFTWARE\\WOW6432Node\\Blizzard Entertainment', 'battlenet', BLIZZARD_LAUNCHERS),
+    gamesFromUninstall(entries, 'battlenet', BLIZZARD_PUBLISHER, BLIZZARD_LAUNCHERS),
+  );
+  logger.info(`${games.length} juegos de Battle.net`);
+  return games;
+}
+
 // ── Xbox / Microsoft Store ────────────────────────────────────
 
 /**
@@ -168,6 +317,9 @@ export function scanXbox(): Game[] {
     const games: Game[] = [];
     for (const pkg of list) {
       if (!pkg?.InstallLocation) continue;
+      // El launcher no es el juego Java. Se conserva la edición Java, que
+      // tiene su propia definición y detector de perfiles/mods.
+      if (/^Microsoft\.4297127D64EC6_/i.test(pkg.PackageFamilyName)) continue;
       const config = readGameConfig(pkg.InstallLocation);
       if (!config) continue;
 

@@ -1,11 +1,12 @@
 import type { AtreusApi, AtreusEvents } from '@shared/ipc';
 import { ok, err } from '@shared/ipc';
 import type {
-  Achievement, CheatState, Game, GameStat, Mod, ModProfile, ScanCandidate, ScanSession,
-  Settings, TrainerSession,
+  Achievement, CompletionProgress, Game, GameStat, LicenseInfo, Mod, ModProfile,
+  PlatinumReport, PlatinumSummary, Settings, SteamSnapshot,
 } from '@shared/types';
 import {
-  MOCK_ACHIEVEMENTS, MOCK_CHEATS, MOCK_GAMES, MOCK_MODS, MOCK_PROFILES, MOCK_REMOTE, MOCK_STATS,
+  MOCK_ACHIEVEMENTS, MOCK_GAMES, MOCK_GUIDES, MOCK_MAPS, MOCK_MODS, MOCK_PLAYTIME,
+  MOCK_PROFILES, MOCK_REMOTE, MOCK_STATS,
 } from './data';
 
 /**
@@ -23,10 +24,82 @@ let achievements: Achievement[] = structuredClone(MOCK_ACHIEVEMENTS);
 let stats: GameStat[] = structuredClone(MOCK_STATS);
 let mods: Mod[] = structuredClone(MOCK_MODS);
 let profiles: ModProfile[] = structuredClone(MOCK_PROFILES);
-const cheatStates = new Map<string, CheatState>();
-const sessions = new Map<string, TrainerSession>();
-let scanSession: ScanSession | null = null;
-let scanCandidates: ScanCandidate[] = [];
+const snapshots = new Map<string, SteamSnapshot[]>();
+/** Marcas manuales del mock: `${gameId}|${apiName}`. */
+const manualMarks = new Set<string>();
+const completionProgress = new Map<string, CompletionProgress>();
+let license: LicenseInfo = { active: false, tier: 'none', licenseKey: null, ownerName: null, expiresAt: null, issuedAt: null, features: ['guides_preview', 'mods_preview'] };
+
+function defaultProgress(gameId: string): CompletionProgress {
+  return {
+    gameId,
+    updatedAt: Date.now(),
+    notes: '',
+    items: [
+      { id: 'main-story', label: 'Completar la historia principal', kind: 'mission', done: false },
+      { id: 'collectibles', label: 'Revisar coleccionables y mapa', kind: 'collectible', done: false },
+      { id: 'achievements', label: 'Completar los logros restantes', kind: 'achievement', done: false },
+    ],
+  };
+}
+
+/**
+ * Informe de platino simulado.
+ *
+ * Se calcula igual que en el backend real —a partir de los logros y de la
+ * rareza— para que la ficha del juego se pueda ajustar sin Steam delante.
+ */
+function buildMockReport(game: Game): PlatinumReport {
+  const list = game.id === 'steam:2379780' ? achievements : achievements.slice(0, 6);
+  const unlocked = list.filter((a) => a.unlocked);
+  const remaining = list.filter((a) => !a.unlocked);
+  const times = unlocked.map((a) => a.unlockTime).filter((t): t is number => !!t);
+  const playtimeMinutes = MOCK_PLAYTIME[game.id] ?? null;
+  const rarest = Math.min(...list.map((a) => a.globalPercent ?? 100));
+
+  return {
+    gameId: game.id,
+    gameName: game.name,
+    // El mock enseña las dos caras: los juegos que no son de Steam llevan el
+    // progreso a mano, igual que en la aplicación real.
+    tracking: game.platform === 'steam' ? 'steam' : 'manual',
+    unlocked: unlocked.length,
+    total: list.length,
+    percent: list.length === 0 ? 0 : Math.round((unlocked.length / list.length) * 1000) / 10,
+    complete: list.length > 0 && unlocked.length === list.length,
+    playtimeMinutes,
+    trackedMinutes: Math.round((playtimeMinutes ?? 0) / 4),
+    firstUnlockAt: times.length > 0 ? Math.min(...times) : null,
+    lastUnlockAt: times.length > 0 ? Math.max(...times) : null,
+    estimate: {
+      totalHours: Math.round(((playtimeMinutes ?? 600) / 60) * 1.8 * 10) / 10,
+      remainingHours: Math.round(((playtimeMinutes ?? 600) / 60) * 0.8 * 10) / 10,
+      basis: 'measured',
+      confidence: 'medium',
+      explanation: 'Datos de ejemplo del modo mock: en la aplicación real salen de tus horas y de la rareza de cada logro.',
+    },
+    difficulty: {
+      score: rarest < 5 ? 7.5 : 4,
+      label: rarest < 5 ? 'Difícil' : 'Asequible',
+      rarestPercent: rarest,
+      ultraRare: list.filter((a) => (a.globalPercent ?? 100) < 5).length,
+      explanation: `El logro más raro lo tiene el ${rarest} % de los jugadores.`,
+    },
+    remaining: remaining
+      .sort((a, b) => (b.globalPercent ?? -1) - (a.globalPercent ?? -1))
+      .map((a) => ({
+        apiName: a.apiName,
+        displayName: a.displayName,
+        description: a.description,
+        iconUrl: a.iconGrayUrl ?? a.iconUrl,
+        globalPercent: a.globalPercent,
+        hidden: a.hidden,
+      })),
+    sources: ['Modo mock: datos de ejemplo'],
+    warning: null,
+    updatedAt: Date.now(),
+  };
+}
 
 let settings: Settings = {
   theme: 'dark',
@@ -35,9 +108,12 @@ let settings: Settings = {
   steamWebApiKey: null,
   scanOnStart: true,
   minimizeToTray: true,
-  hotkeysEnabled: true,
   catalogSource: '',
-  confirmBeforeCheats: true,
+  autoSyncCatalog: true,
+  updateSource: '',
+  checkForAppUpdates: true,
+  autoDownloadUpdates: false,
+  achievementRiskAccepted: false,
   language: 'es',
 };
 
@@ -47,16 +123,6 @@ const listeners = new Map<string, Set<Handler>>();
 
 function emit<K extends keyof AtreusEvents>(channel: K, payload: AtreusEvents[K]): void {
   for (const h of listeners.get(channel) ?? []) (h as (p: AtreusEvents[K]) => void)(payload);
-}
-
-function stateOf(gameId: string, cheatId: string): CheatState {
-  const key = `${gameId}|${cheatId}`;
-  let s = cheatStates.get(key);
-  if (!s) {
-    s = { id: cheatId, enabled: false, value: null, resolved: null, error: null };
-    cheatStates.set(key, s);
-  }
-  return s;
 }
 
 export const mockApi: AtreusApi = {
@@ -98,6 +164,7 @@ export const mockApi: AtreusApi = {
         platform: 'manual', nativeId: name, name,
         installDir: exePath.replace(/[\\/][^\\/]+$/, ''), exePath,
         iconUrl: null, headerUrl: null, sizeBytes: null, lastPlayed: null,
+        playtimeMinutes: null,
         hasDefinition: false, multiplayer: false, favorite: false,
       };
       games = [...games, g];
@@ -143,8 +210,14 @@ export const mockApi: AtreusApi = {
     async achievements() { await wait(300, 700); return ok(achievements); },
     async stats() { await wait(200, 500); return ok(stats); },
 
-    async commit(_appId, patch) {
+    async commit(appId, patch) {
       await wait(400, 800);
+      const snapshot: SteamSnapshot = {
+        id: `${Date.now().toString(36)}-mock`, appId,
+        createdAt: Math.floor(Date.now() / 1000),
+        achievements: structuredClone(achievements), stats: structuredClone(stats),
+      };
+      snapshots.set(appId, [snapshot, ...(snapshots.get(appId) ?? [])].slice(0, 12));
       const at = Math.floor(Date.now() / 1000);
       achievements = achievements.map((a) => {
         const p = patch.achievements.find((x) => x.apiName === a.apiName);
@@ -160,6 +233,20 @@ export const mockApi: AtreusApi = {
       return ok({ applied });
     },
 
+    async backups(appId) {
+      await wait(50, 100);
+      return ok(snapshots.get(appId) ?? []);
+    },
+
+    async restore(appId, snapshotId) {
+      await wait(250, 500);
+      const snapshot = snapshots.get(appId)?.find((item) => item.id === snapshotId);
+      if (!snapshot) return err(`No existe la copia ${snapshotId}`, 'NOT_FOUND');
+      achievements = structuredClone(snapshot.achievements);
+      stats = structuredClone(snapshot.stats);
+      return ok({ applied: achievements.length + stats.length });
+    },
+
     async resetAll() {
       await wait(500, 900);
       achievements = achievements.map((a) => ({ ...a, unlocked: false, unlockTime: null }));
@@ -169,177 +256,58 @@ export const mockApi: AtreusApi = {
     },
   },
 
-  trainer: {
-    async definitions(gameId) {
-      await wait(100, 200);
-      const g = games.find((x) => x.id === gameId);
-      if (!g?.hasDefinition) return ok([]);
-      return ok(MOCK_CHEATS);
+  achievements: {
+    async list(gameId) {
+      await wait(300, 700);
+      const game = games.find((g) => g.id === gameId);
+      if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
+      const steam = game.platform === 'steam';
+      return ok({
+        gameId,
+        tracking: steam ? ('steam' as const) : ('manual' as const),
+        writable: steam,
+        source: steam ? 'Cliente de Steam' : 'Catálogo público de Steam (AppID 000000)',
+        note: steam
+          ? null
+          : 'Esta plataforma no publica tus logros sin iniciar sesión, así que la lista es la de la versión de Steam y el progreso lo marcas tú.',
+        items: steam ? achievements : achievements.map((a) => ({ ...a, unlocked: manualMarks.has(`${gameId}|${a.apiName}`) })),
+      });
     },
 
-    async attach(gameId) {
-      const g = games.find((x) => x.id === gameId);
-      if (g?.multiplayer) {
-        const blocked: TrainerSession = {
-          gameId, state: 'blocked', pid: null, moduleBase: null,
-          error: 'Título multijugador: el motor de cheats está bloqueado de forma permanente.',
-        };
-        sessions.set(gameId, blocked);
-        emit('trainer:session', blocked);
-        return ok(blocked);
+    async mark(gameId, patches) {
+      await wait(120, 260);
+      for (const patch of patches) {
+        const key = `${gameId}|${patch.apiName}`;
+        if (patch.unlocked) manualMarks.add(key);
+        else manualMarks.delete(key);
       }
-      emit('trainer:session', { gameId, state: 'searching', pid: null, moduleBase: null, error: null });
-      await wait(600, 1200);
-      const session: TrainerSession = {
-        gameId, state: 'attached',
-        pid: 1000 + Math.floor(Math.random() * 60000),
-        moduleBase: '0x7FF6A2C10000', error: null,
-      };
-      sessions.set(gameId, session);
-      emit('trainer:session', session);
-      return ok(session);
-    },
-
-    async detach(gameId) {
-      await wait(60, 120);
-      const s: TrainerSession = { gameId, state: 'detached', pid: null, moduleBase: null, error: null };
-      sessions.set(gameId, s);
-      for (const c of MOCK_CHEATS) cheatStates.delete(`${gameId}|${c.id}`);
-      emit('trainer:session', s);
-      return ok(undefined);
-    },
-
-    async session(gameId) { await wait(30, 60); return ok(sessions.get(gameId) ?? null); },
-
-    async toggle(gameId, cheatId, enabled) {
-      await wait(80, 180);
-      const s = stateOf(gameId, cheatId);
-      s.enabled = enabled;
-      s.resolved = true;
-      emit('trainer:state', { gameId, state: { ...s } });
-      return ok({ ...s });
-    },
-
-    async setValue(gameId, cheatId, value) {
-      await wait(60, 120);
-      const s = stateOf(gameId, cheatId);
-      s.value = value;
-      s.resolved = true;
-      emit('trainer:state', { gameId, state: { ...s } });
-      return ok({ ...s });
-    },
-
-    async trigger(gameId, cheatId) {
-      await wait(60, 120);
-      emit('toast', { level: 'success', message: `Ejecutado: ${cheatId}` });
-      return ok(undefined);
-    },
-
-    async states(gameId) {
-      await wait(40, 90);
-      return ok(MOCK_CHEATS.map((c) => stateOf(gameId, c.id)));
+      return mockApi.achievements.list(gameId);
     },
   },
 
-  scanner: {
-    async attach(gameId) {
-      await wait(300, 600);
-      const g = games.find((x) => x.id === gameId);
-      if (g?.multiplayer) {
-        const blocked = {
-          gameId, state: 'blocked' as const, pid: null, type: 'i32' as const,
-          summary: null,
-          error: 'Título multijugador: el buscador de memoria está bloqueado igual que los cheats.',
+  platinum: {
+    async report(gameId) {
+      await wait(300, 700);
+      const game = games.find((g) => g.id === gameId);
+      if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
+      return ok(buildMockReport(game));
+    },
+
+    async summaries() {
+      await wait(80, 200);
+      return ok(games.map((game): PlatinumSummary => {
+        const report = buildMockReport(game);
+        return {
+          gameId: game.id,
+          tracking: report.tracking,
+          unlocked: report.unlocked,
+          total: report.total,
+          percent: report.percent,
+          complete: report.complete,
+          playtimeMinutes: report.playtimeMinutes,
+          updatedAt: report.updatedAt,
         };
-        scanSession = blocked;
-        emit('scanner:session', blocked);
-        return ok(blocked);
-      }
-      scanSession = {
-        gameId, state: 'attached', pid: 1000 + Math.floor(Math.random() * 60000),
-        type: 'i32', summary: null, error: null,
-      };
-      scanCandidates = [];
-      emit('scanner:session', scanSession);
-      return ok(scanSession);
-    },
-
-    async detach(gameId) {
-      await wait(60, 120);
-      scanSession = { gameId, state: 'idle', pid: null, type: 'i32', summary: null, error: null };
-      scanCandidates = [];
-      emit('scanner:session', scanSession);
-      return ok(undefined);
-    },
-
-    async session() { await wait(30, 60); return ok(scanSession); },
-
-    async first(gameId, type, value) {
-      // Barrido simulado, para que la barra de progreso se vea de verdad.
-      const total = 2_400_000_000;
-      for (let i = 1; i <= 8; i++) {
-        await wait(80, 160);
-        emit('scanner:progress', {
-          gameId, scanned: Math.round((total * i) / 8), total, found: i * 1400,
-        });
-      }
-      scanCandidates = Array.from({ length: 11_237 }, (_, i) => ({
-        address: `0x${(0x7ff6a2c10000 + i * 0x48).toString(16).toUpperCase()}`,
-        value,
-        previous: value,
-        module: i % 400 === 0 ? 'Balatro.exe' : null,
       }));
-      const summary = { count: scanCandidates.length, truncated: false, elapsedMs: 1840, pass: 1 };
-      if (scanSession) scanSession = { ...scanSession, type, summary };
-      return ok(summary);
-    },
-
-    async next(_gameId, mode, value) {
-      await wait(150, 350);
-      // Cada filtro se queda con una fracción, como pasaría de verdad.
-      const factor = mode === 'eq' ? 0.002 : 0.08;
-      const keep = Math.max(1, Math.round(scanCandidates.length * factor));
-      scanCandidates = scanCandidates.slice(0, keep).map((c) => ({
-        ...c,
-        previous: c.value,
-        value: value ?? c.value + (mode === 'increased' ? 5 : mode === 'decreased' ? -5 : 0),
-      }));
-      const pass = (scanSession?.summary?.pass ?? 1) + 1;
-      const summary = { count: keep, truncated: false, elapsedMs: 60, pass };
-      if (scanSession) scanSession = { ...scanSession, summary };
-      return ok(summary);
-    },
-
-    async list(_gameId, limit = 200) {
-      await wait(60, 120);
-      return ok(scanCandidates.slice(0, limit));
-    },
-
-    async poke(_gameId, address, value) {
-      await wait(60, 120);
-      scanCandidates = scanCandidates.map((c) => (c.address === address ? { ...c, value } : c));
-      emit('toast', { level: 'success', message: `Escrito ${value} en ${address}` });
-      return ok(undefined);
-    },
-
-    async derive(_gameId, address) {
-      await wait(500, 900);
-      return ok([
-        {
-          kind: 'pointer',
-          resolve: { kind: 'pointer', module: 'Balatro.exe', base: 0x2f4a10, offsets: [0] },
-          explanation:
-            `Un puntero en Balatro.exe+0x2f4a10 apunta a ${address}. ` +
-            'Funciona entre partidas siempre que el juego siga guardando el dato ahí.',
-        },
-      ]);
-    },
-
-    async reset() {
-      await wait(40, 80);
-      scanCandidates = [];
-      if (scanSession) scanSession = { ...scanSession, summary: null };
-      return ok(undefined);
     },
   },
 
@@ -477,6 +445,69 @@ export const mockApi: AtreusApi = {
     },
   },
 
+  guides: {
+    async list(gameId, category, query) {
+      await wait(400, 900);
+      const game = games.find((g) => g.id === gameId);
+      const name = game?.name ?? 'el juego';
+      return ok(MOCK_GUIDES.map((entry) => ({
+        ...entry,
+        title: entry.title.replace('Balatro', name) + (query ? ` · ${query}` : ''),
+        snippet: `${entry.snippet} (categoría: ${category})`,
+      })));
+    },
+
+    async read(entry) {
+      await wait(500, 1100);
+      return ok({
+        title: entry.title,
+        url: entry.url,
+        source: entry.source,
+        provider: entry.provider,
+        author: entry.author,
+        summary: entry.snippet,
+        partial: !entry.readable,
+        fetchedAt: Date.now(),
+        sections: entry.readable
+          ? [
+            {
+              heading: 'Antes de empezar',
+              body: ['Texto de ejemplo del modo mock.', '',
+                'En la aplicación real aquí va el contenido íntegro de la guía, sección a sección.'].join('\n'),
+              images: [],
+            },
+            {
+              heading: 'Logros fáciles',
+              body: ['· Primero los que salen jugando.',
+                '· Después los que piden un mazo concreto.'].join('\n'),
+              images: [],
+            },
+            { heading: 'Los que cuestan', body: 'Los dos o tres logros raros que deciden el platino, con la ruta recomendada.', images: [] },
+          ]
+          : [],
+      });
+    },
+  },
+
+  maps: {
+    async list(gameId) {
+      await wait(300, 700);
+      const game = games.find((g) => g.id === gameId);
+      if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
+      return ok(MOCK_MAPS.map((map) => ({ ...map, title: `${game.name} · mapa interactivo` })));
+    },
+  },
+
+  progress: {
+    async get(gameId) { await wait(40, 90); return ok(structuredClone(completionProgress.get(gameId) ?? defaultProgress(gameId))); },
+    async save(value) {
+      await wait(40, 90);
+      const saved = { ...structuredClone(value), updatedAt: Date.now() };
+      completionProgress.set(saved.gameId, saved);
+      return ok(structuredClone(saved));
+    },
+  },
+
   settings: {
     async get() { await wait(40, 80); return ok(settings); },
     async set(patch) { await wait(60, 120); settings = { ...settings, ...patch }; return ok(settings); },
@@ -493,10 +524,17 @@ export const mockApi: AtreusApi = {
   app: {
     async version() { await wait(20, 40); return ok('0.1.0-mock'); },
     async checkForUpdates() { await wait(400, 800); return ok({ available: false, version: null }); },
+    async downloadUpdate() { await wait(400, 800); return ok(undefined); },
     async openLogs() { await wait(40, 80); return ok(undefined); },
     minimize() { /* sin ventana real en modo mock */ },
     maximize() { /* sin ventana real en modo mock */ },
     close() { /* sin ventana real en modo mock */ },
+  },
+
+  license: {
+    async get() { await wait(); return ok(license); },
+    async activate(key) { await wait(); license = { active: true, tier: 'lifetime', licenseKey: key, ownerName: 'Usuario de prueba', expiresAt: null, issuedAt: Math.floor(Date.now() / 1000), features: ['guides', 'maps', 'mods', 'platinum'] }; emit('license:updated', license); return ok(license); },
+    async deactivate() { await wait(); license = { active: false, tier: 'none', licenseKey: null, ownerName: null, expiresAt: null, issuedAt: null, features: ['guides_preview', 'mods_preview'] }; emit('license:updated', license); return ok(undefined); },
   },
 
   on(channel, handler) {

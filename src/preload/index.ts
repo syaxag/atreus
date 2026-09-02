@@ -28,30 +28,19 @@ const api: AtreusApi = {
     achievements: (appId) => invoke('steam.achievements', appId),
     stats: (appId) => invoke('steam.stats', appId),
     commit: (appId, patch) => invoke('steam.commit', appId, patch),
+    backups: (appId) => invoke('steam.backups', appId),
+    restore: (appId, snapshotId) => invoke('steam.restore', appId, snapshotId),
     resetAll: (appId) => invoke('steam.resetAll', appId),
   },
 
-  trainer: {
-    definitions: (gameId) => invoke('trainer.definitions', gameId),
-    attach: (gameId) => invoke('trainer.attach', gameId),
-    detach: (gameId) => invoke('trainer.detach', gameId),
-    session: (gameId) => invoke('trainer.session', gameId),
-    toggle: (gameId, cheatId, enabled) => invoke('trainer.toggle', gameId, cheatId, enabled),
-    setValue: (gameId, cheatId, value) => invoke('trainer.setValue', gameId, cheatId, value),
-    trigger: (gameId, cheatId) => invoke('trainer.trigger', gameId, cheatId),
-    states: (gameId) => invoke('trainer.states', gameId),
+  achievements: {
+    list: (gameId) => invoke('achievements.list', gameId),
+    mark: (gameId, patches) => invoke('achievements.mark', gameId, patches),
   },
 
-  scanner: {
-    attach: (gameId) => invoke('scanner.attach', gameId),
-    detach: (gameId) => invoke('scanner.detach', gameId),
-    session: (gameId) => invoke('scanner.session', gameId),
-    first: (gameId, type, value) => invoke('scanner.first', gameId, type, value),
-    next: (gameId, mode, value) => invoke('scanner.next', gameId, mode, value),
-    list: (gameId, limit) => invoke('scanner.list', gameId, limit),
-    poke: (gameId, address, value) => invoke('scanner.poke', gameId, address, value),
-    derive: (gameId, address) => invoke('scanner.derive', gameId, address),
-    reset: (gameId) => invoke('scanner.reset', gameId),
+  platinum: {
+    report: (gameId, refresh) => invoke('platinum.report', gameId, refresh),
+    summaries: () => invoke('platinum.summaries'),
   },
 
   mods: {
@@ -70,6 +59,20 @@ const api: AtreusApi = {
     installRemote: (gameId, mod) => invoke('mods.installRemote', gameId, mod),
   },
 
+  guides: {
+    list: (gameId, category, query) => invoke('guides.list', gameId, category, query),
+    read: (entry) => invoke('guides.read', entry),
+  },
+
+  maps: {
+    list: (gameId) => invoke('maps.list', gameId),
+  },
+
+  progress: {
+    get: (gameId) => invoke('progress.get', gameId),
+    save: (progress) => invoke('progress.save', progress),
+  },
+
   settings: {
     get: () => invoke('settings.get'),
     set: (patch) => invoke('settings.set', patch),
@@ -86,10 +89,17 @@ const api: AtreusApi = {
   app: {
     version: () => invoke('app.version'),
     checkForUpdates: () => invoke('app.checkForUpdates'),
+    downloadUpdate: () => invoke('app.downloadUpdate'),
     openLogs: () => invoke('app.openLogs'),
     minimize: () => ipcRenderer.send('window.minimize'),
     maximize: () => ipcRenderer.send('window.maximize'),
     close: () => ipcRenderer.send('window.close'),
+  },
+
+  license: {
+    get: () => invoke('license.get'),
+    activate: (key) => invoke('license.activate', key),
+    deactivate: () => invoke('license.deactivate'),
   },
 
   on: (channel, handler) => {

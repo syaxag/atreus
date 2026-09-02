@@ -9,7 +9,7 @@
 | Build | **electron-vite** | HMR en el renderer, bundling de main/preload, un solo comando |
 | UI | **React 18 + Tailwind 3.4** | Control total del diseño minimalista; sin librería de componentes pesada |
 | Estado | **Zustand** | Mínimo, sin boilerplate |
-| FFI nativo | **koffi** | Llama Win32 y `steamclient.dll` sin compilar addons C++ |
+| FFI nativo | **koffi** | Llama a `steamclient.dll` y a Toolhelp32 sin compilar addons C++ |
 | Empaquetado | **electron-builder** (NSIS) | Auto-update integrado |
 | Persistencia | JSON en `%APPDATA%/Atreus` | Sin base de datos; simple e inspeccionable |
 
@@ -22,23 +22,23 @@ instalar el SDK de .NET y mantener dos runtimes. Reimplementamos su interop con 
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Proceso MAIN de Electron  (Node)          ← Lado A      │
+│  Proceso MAIN de Electron  (Node)                          │
 │                                                            │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
-│  │ catalog  │ │  steam   │ │ trainer  │ │     mods     │   │
-│  │ scanner  │ │  service │ │  engine  │ │   manager    │   │
+│  │ catalog  │ │  steam   │ │ platinum │ │ guides/maps  │   │
+│  │ playtime │ │  service │ │  report  │ │    mods      │   │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘   │
 │       │            │            │              │           │
 │       └────────────┴──── IPC router ───────────┘           │
 └──────────────────────────┬─────────────────────────────────┘
                            │ contextBridge (preload, typed)
 ┌──────────────────────────┴─────────────────────────────────┐
-│  Proceso RENDERER (Chromium)                ← Lado B     │
-│  React + Tailwind — Biblioteca · Logros · Mods · Ajustes   │
+│  Proceso RENDERER (Chromium)                               │
+│  React + Tailwind — Ficha · Logros · Guías · Mapas · Mods  │
 └────────────────────────────────────────────────────────────┘
                            │ fork()
 ┌──────────────────────────┴─────────────────────────────────┐
-│  steam-worker.js  (1 proceso POR AppID)     ← Lado A     │
+│  steam-worker.js  (1 proceso POR AppID)                    │
 │  SteamAppId=<id> → steamclient.dll → logros/stats          │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -69,17 +69,81 @@ Cada juego se enriquece con la definición de `data/games/<id>.json` si existe.
   2. **Web API**: `ISteamUserStats/GetSchemaForGame` con la API key del usuario.
 - API expuesta: listar logros, alternar, escribir stats, `StoreStats`.
 
-### `services/trainer` — motor de cheats
-- `process.ts` — `OpenProcess`, `EnumProcessModules`, listado de procesos.
-- `memory.ts` — `ReadProcessMemory` / `WriteProcessMemory`, tipos i8..f64.
-- `scanner.ts` — escaneo de patrones AoB con máscara `??`, sobre regiones
-  obtenidas de `VirtualQueryEx`.
-- `pointer.ts` — resolución de punteros multinivel (`base + off1 -> off2 -> …`).
-- `freezer.ts` — bucle a 60 ms que reescribe los valores congelados.
-- `hotkeys.ts` — `globalShortcut` de Electron por cheat.
-- `guard.ts` — **lista de bloqueo** de títulos multijugador/anti-cheat.
+### `services/achievements` — los logros, venga tu copia de donde venga
+`index.ts` es la puerta única: devuelve un `AchievementSet` que dice siempre de dónde
+sale lo que trae. Hay dos caminos.
 
-Las definiciones de cheats viven en `data/games/<id>.json` → actualizables sin recompilar.
+Con el **cliente de Steam** disponible manda él: estado real, fechas reales, y Atreus
+puede escribirlo.
+
+Sin él —un juego de Xbox, de Epic, de EA, o uno de Steam con el cliente cerrado— entra
+`catalog.ts`. Steam publica en `steamcommunity.com/stats/<appid>/achievements/` la lista
+completa de cualquier juego, con nombre, descripción, icono y rareza, **sin clave y sin
+exigir que lo poseas**; y casi todo lo que hay en las otras tiendas está también en
+Steam. Para un juego que no es de Steam se busca su AppID por el nombre en
+`storesearch` y se lee esa lista. El AppID se recuerda en disco, también cuando la
+búsqueda no encuentra nada: un juego que no está en Steam no lo va a estar mañana.
+
+Lo que esa vía **no** puede saber es cuáles tienes tú: eso vive en la cuenta de cada
+plataforma y no se consulta sin autenticarse. Ahí entra `manual.ts`, que guarda tus
+marcas en `manual-achievements.json`. Marcar no toca la plataforma; es tu cuaderno.
+
+`parse-stats.ts` es puro y lleva las dos decisiones delicadas: de dónde sale el
+identificador estable de un logro —del hash de su icono, porque el nombre se traduce— y
+cuándo un resultado de la tienda es de verdad el juego que buscas. Equivocarse ahí es
+peor que no encontrar nada: enseñaría los logros de un DLC como si fueran los tuyos.
+
+### `services/achievements/rarity.ts` — rareza global
+`rarity.ts` consulta `GetGlobalAchievementPercentagesForApp`, que es pública y no
+lleva clave. Devuelve qué porcentaje de los jugadores del mundo tiene cada logro, y se
+cachea doce horas. Es el único dato objetivo que existe para hablar de dificultad, así
+que sostiene todo el informe de platino. Si Steam no responde, el informe sale igual
+con `globalPercent: null` y lo dice.
+
+### `services/playtime` — cuánto has jugado
+Dos fuentes, ninguna obligatoria:
+- **Steam local** — `userdata/<cuenta>/config/localconfig.vdf` guarda los minutos de
+  cada AppID. Es el dato oficial y está en disco: ni clave ni conexión.
+- **Sesiones propias** — el monitor de actividad apunta cuánto ha estado abierto cada
+  juego en `sessions.json`. Cubre Xbox, EA y Epic, que no publican horas.
+
+### `services/platinum` — el informe
+Cruza logros, rareza, horas y sesiones y responde a la única pregunta que importa:
+*¿qué me queda?*. `estimate.ts` va aparte y es **puro** —sin red ni disco— porque es la
+parte que más fácil miente: un número en pantalla parece un hecho aunque sea una
+corazonada. Cada logro pesa según su rareza; lo que falta se mide contra el ritmo real
+del jugador, y cuando no hay ritmo con el que medir, el informe lo dice en vez de
+inventarlo.
+
+`summaries()` sirve a la biblioteca entera desde una caché en disco: pedirle al cliente
+de Steam los logros de ciento cincuenta juegos abriría ciento cincuenta procesos.
+
+### `services/guides` — guías con texto
+Tres fuentes en paralelo, ordenadas poniendo delante las que se pueden leer enteras
+dentro de la aplicación:
+- `steam.ts` — guías de la comunidad. `browsefilter=trend` es lo que convierte la
+  página en un buscador de verdad; sin ella Steam devuelve siempre el escaparate y
+  `searchText` se ignora, que era por lo que las búsquedas no traían nada.
+- `wiki.ts` — API de MediaWiki de wiki.gg y Fandom. JSON limpio, sin clave. El host se
+  adivina del nombre del juego (`wiki-host.ts`, puro) y se comprueba una vez.
+- `web.ts` — buscador genérico, solo como último recurso. Sus resultados se marcan
+  como *no legibles*: prometer un texto que sale en blanco es peor que avisar.
+
+`parse-steam.ts` y `wiki-host.ts` son puros y tienen pruebas con HTML real recortado:
+si Steam cambia su plantilla, caen las pruebas antes que la aplicación.
+
+### `services/maps` — mapas interactivos
+Atreus **no dibuja el mapa**: abre el del proveedor en un `<webview>` aislado, con sus
+marcadores y sus filtros. Tres fuentes, en orden: lo que declare el catálogo, el
+directorio público de MapGenie (leído de su portada una vez al día) y, si no hay nada,
+la página de mapas de la wiki del juego. `match.ts` es puro y empareja el nombre de la
+tienda con el del directorio; solo acorta en una dirección, para que "Halo" no se lleve
+el mapa de "Halo Infinite".
+
+### `services/system` — procesos
+`processes.ts` enumera los procesos con Toolhelp32. Es lo único que Atreus necesita
+saber del sistema: qué juego está abierto, para contar el tiempo de sesión. No abre
+procesos ajenos ni lee su memoria.
 
 ### `services/mods` — gestor de mods
 - Perfiles por juego, con orden de carga.
@@ -107,20 +171,23 @@ Es **el** punto de extensión. Ver `data/games/_schema.json` y el ejemplo
   "exe": "Balatro.exe",
   "multiplayer": false,
   "achievements": { "source": "steam" },
-  "cheats": [
-    {
-      "id": "inf-money",
-      "name": "Dinero infinito",
-      "type": "toggle",
-      "hotkey": "F1",
-      "resolve": { "kind": "aob", "module": "Balatro.exe",
-                   "pattern": "48 8B ?? ?? ?? 00 00 89", "offset": 12 },
-      "write": { "type": "i32", "value": 999999, "freeze": true }
-    }
-  ],
+  "guides": {
+    "maps": [
+      {
+        "id": "balatro-wiki",
+        "title": "Balatro · comodines y mazos",
+        "description": "Referencia de comodines, mazos y desbloqueos.",
+        "url": "https://balatrogame.fandom.com/wiki/Jokers",
+        "provider": "Wiki de Balatro"
+      }
+    ]
+  },
   "mods": { "root": "Mods", "loader": "lovely" }
 }
 ```
+
+`guides.maps` solo hace falta cuando MapGenie no cubre el juego o cuando hay un mapa
+mejor que el suyo: es una **dirección**, no un dibujo.
 
 ---
 
@@ -128,7 +195,7 @@ Es **el** punto de extensión. Ver `data/games/_schema.json` y el ejemplo
 
 > Resumen práctico de qué se actualiza por dónde: [UPDATING.md](UPDATING.md).
 
-Los juegos, cheats y listas viven **fuera** del código, en dos capas:
+Los juegos, sus mapas y sus proveedores de mods viven **fuera** del código, en dos capas:
 
 | Capa | Dónde | Quién la toca |
 |---|---|---|
@@ -143,8 +210,7 @@ Va como `extraResources`, no dentro del `.asar`: dentro no se podría leer ni
 sustituir sin reempaquetar, que es justo lo que queremos evitar.
 
 **Las carpetas se vigilan.** Dejar un JSON nuevo en `%APPDATA%/Atreus/data/games`
-se nota al momento: se recarga, se revalida y la biblioteca actualiza qué juegos
-tienen cheats. Sin reiniciar.
+se nota al momento: se recarga, se revalida y la biblioteca lo recoge. Sin reiniciar.
 
 ### Añadir un juego
 
@@ -161,12 +227,6 @@ tienen cheats. Sin reiniciar.
   (`.../archive/refs/heads/main.zip`), y se recogen los `*.json` a cualquier
   profundidad;
 - una **URL a un `.json`** suelto.
-
-### Lo que no se puede sobrescribir
-
-La lista de bloqueo y los módulos anti-cheat **se suman** entre capas: se pueden
-añadir títulos, nunca quitar los de fábrica. Es una barrera de alcance, no una
-preferencia. Ver [SCOPE.md](SCOPE.md).
 
 ### Descubrimiento automático de mods
 
@@ -211,41 +271,16 @@ Instalar desde el catálogo baja el archivo a un temporal y lo pasa por el mismo
 `install` de siempre, así que hereda la protección contra zip slip, la lectura
 del manifiesto y la decisión de extraer o dejar el paquete entero.
 
-### En muchos juegos, los cheats SON mods
+### Algunos mods son en realidad menús de trucos
 
-El hallazgo que cambió el planteamiento: no hace falta un catálogo de cheats que
-no existe, hace falta **reconocerlos entre los mods** que ya se descargan.
-
-Geometry Dash no tiene trainers de memoria; tiene menús de mods —QOLMod con 8,4
-millones de descargas, Eclipse con 7,2— publicados junto a las texturas. PEAK
-tiene diez menús de tipo "all-in-one". Balatro tiene DebugPlus.
+Atreus ya no trae motor de cheats, pero sí dice de qué tipo es cada cosa antes de
+instalarla: algunos catálogos publican como mod lo que es un menú de trucos o un modo
+debug, y quien va a por un platino merece saberlo.
 
 `mods/classify.ts` los separa por señales en el nombre, la descripción y las
-categorías: una señal fuerte (`mod menu`, `trainer`, `god mode`) basta; dos
-medias también; y cualquier desmentido (`texture`, `skin`, `anti-cheat`) lo
-tumba, porque prefiero dejar un cheat entre los mods que anunciar un paquete de
-texturas como cheat.
-
-Cobertura medida:
-
-| Juego | Cheats encontrados |
-|---|---|
-| Geometry Dash | 8 · QOLMod, Eclipse, Prism Menu, GDH, OpenHack |
-| PEAK | 10 · PEAK AIO, Everything, Admin Menu, So Fly |
-| Balatro | 2 · ZokersModMenu, DebugPlus |
-| Resident Evil 4 | 0 · sus mods de GameBanana son todos skins |
-
-### Lo que sigue sin poder venir de un catálogo
-
-Los cheats **de memoria**, con hotkey y congelado. Un patrón AoB es de una
-compilación concreta y no hay catálogo público legible por máquina que los
-publique: se comprobó Thunderstore, Geode, GameBanana, la API de GitHub y los
-repositorios de tablas de Cheat Engine. Las tablas existen (918 en un solo
-repositorio) pero sus nombres no permiten mapearlas a un juego y su contenido es
-ensamblador inyectado, que este modelo no representa.
-
-Para esos está el buscador de memoria, y el catálogo de definiciones para
-compartirlos una vez encontrados.
+categorías: una señal fuerte (`mod menu`, `trainer`, `god mode`) basta; dos medias
+también; y cualquier desmentido (`texture`, `skin`, `anti-cheat`) lo tumba, porque es
+preferible etiquetar de menos que anunciar un paquete de texturas como truco.
 
 ### Mods
 
@@ -260,11 +295,15 @@ nuevo nunca ha requerido reempaquetar nada.
 ```
 settings.json          preferencias, API key de Steam, rutas
 library.json           caché del escaneo de juegos
-data/games/*.json      definiciones del usuario — mandan sobre las de fábrica
-data/blocklist.json    añadidos a la lista de bloqueo (solo suma)
+data/games/*.json      fichas de juego del usuario — mandan sobre las de fábrica
 data/catalog.json      marca de la última sincronización
-profiles/<id>.json     perfiles de mods y estado de cheats por juego
+sessions.json          minutos que Atreus ha visto abierto cada juego
+progress/<id>.json     checklist y notas locales por juego
+backups/<appid>/       copias del estado de logros antes de cada escritura
+profiles/<id>.json     perfiles de mods por juego
 mods/<id>/             staging de mods
+cache/platinum.json    último informe de cada juego, para la biblioteca
+cache/mapgenie.json    directorio de juegos con mapa, refrescado a diario
 cache/icons/<appid>/   iconos de logros convertidos a PNG
 logs/
 ```

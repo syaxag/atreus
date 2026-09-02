@@ -1,0 +1,26 @@
+{
+  "id": "steam:588650",
+  "name": "Dead Cells",
+  "exe": "deadcells.exe",
+  "multiplayer": false,
+  "achievements": {
+    "source": "steam"
+  },
+  "mods": {
+    "provider": {
+      "kind": "workshop",
+      "appId": "588650"
+    }
+  },
+  "guides": {
+    "maps": [
+      {
+        "id": "deadcells-wiki",
+        "title": "Dead Cells · mapa de biomas",
+        "description": "Rutas entre biomas, runas y jefes, con las condiciones de cada conexión.",
+        "url": "https://deadcells.wiki.gg/wiki/Biomes",
+        "provider": "Wiki de Dead Cells"
+      }
+    ]
+  }
+}

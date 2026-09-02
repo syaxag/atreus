@@ -5,5 +5,6 @@
   "achievements": {
     "source": "steam"
   },
+  "mods": { "provider": { "kind": "workshop" } },
   "notes": "Se incluye solo por los logros; los fondos se gestionan desde el propio Wallpaper Engine. Sin campo \"exe\": no hace falta y no lo he verificado. SIN catalogo de mods: Steam Workshop, igual."
 }

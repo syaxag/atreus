@@ -3,9 +3,13 @@ import {
 } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { net } from 'electron';
 import { paths } from '../../paths';
 import { log } from '../../logger';
+import { getSettings } from '../settings';
+import { refreshDefinitions } from './index';
+import { emit } from '../../ipc/emit';
 import { extract, listFiles } from '../mods/archive';
 import { reloadDefinitions } from './definitions';
 
@@ -35,6 +39,15 @@ export interface CatalogMeta {
   source: string;
   updatedAt: number;
   count: number;
+  version?: string;
+  publishedAt?: number;
+}
+
+interface CatalogManifest {
+  schema: 'atreus.catalog/v1';
+  version: string;
+  publishedAt: number;
+  definitions: { file: string; url: string; sha256?: string }[];
 }
 
 function readMeta(): CatalogMeta | null {
@@ -95,15 +108,53 @@ async function download(url: string, destination: string): Promise<void> {
   writeFileSync(destination, buffer);
 }
 
-async function syncFromUrl(url: string): Promise<number> {
+async function downloadBuffer(url: string): Promise<Buffer> {
+  const response = await net.fetch(url, { redirect: 'follow' });
+  if (!response.ok) throw new Error(`HTTP ${response.status} al descargar el catálogo`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function manifest(value: unknown): value is CatalogManifest {
+  const item = value as Partial<CatalogManifest>;
+  return item?.schema === 'atreus.catalog/v1' && typeof item.version === 'string' &&
+    typeof item.publishedAt === 'number' && Array.isArray(item.definitions);
+}
+
+function adoptBuffer(file: string, content: Buffer, expectedHash?: string): boolean {
+  const name = basename(file);
+  if (!name.endsWith('.json') || name.startsWith('_')) return false;
+  if (expectedHash) {
+    const actual = createHash('sha256').update(content).digest('hex');
+    if (actual.toLowerCase() !== expectedHash.toLowerCase()) throw new Error(`${name}: SHA-256 no coincide`);
+  }
+  const temp = join(tmpdir(), `atreus-definition-${Date.now().toString(36)}-${name}`);
+  try { writeFileSync(temp, content); return adoptFile(temp); } finally { rmSync(temp, { force: true }); }
+}
+
+async function syncManifest(source: string, value: CatalogManifest): Promise<{ updated: number; meta: CatalogMeta }> {
+  const base = new URL(source);
+  let updated = 0;
+  for (const definition of value.definitions) {
+    if (!definition || typeof definition.file !== 'string' || typeof definition.url !== 'string') continue;
+    const url = new URL(definition.url, base);
+    if (url.protocol !== 'https:') throw new Error('El catálogo solo admite definiciones por HTTPS');
+    if (adoptBuffer(definition.file, await downloadBuffer(url.href), definition.sha256)) updated++;
+  }
+  return { updated, meta: { source, updatedAt: Math.floor(Date.now() / 1000), count: countUserDefs(), version: value.version, publishedAt: value.publishedAt } };
+}
+
+async function syncFromUrl(url: string): Promise<{ updated: number; meta?: CatalogMeta }> {
   const work = join(tmpdir(), `atreus-catalog-${Date.now().toString(36)}`);
   mkdirSync(work, { recursive: true });
 
   try {
     if (url.toLowerCase().endsWith('.json')) {
       const file = join(work, basename(new URL(url).pathname) || 'catalog.json');
-      await download(url, file);
-      return adoptFile(file) ? 1 : 0;
+      const content = await downloadBuffer(url);
+      writeFileSync(file, content);
+      const parsed = JSON.parse(content.toString('utf8')) as unknown;
+      if (manifest(parsed)) return syncManifest(url, parsed);
+      return { updated: adoptFile(file) ? 1 : 0 };
     }
 
     const archive = join(work, 'catalog.zip');
@@ -118,7 +169,7 @@ async function syncFromUrl(url: string): Promise<number> {
     for (const relative of listFiles(extracted)) {
       if (adoptFile(join(extracted, relative))) updated++;
     }
-    return updated;
+    return { updated };
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -152,12 +203,11 @@ export async function sync(source: string): Promise<SyncResult> {
   mkdirSync(paths.userGameDefs, { recursive: true });
   logger.info(`sincronizando desde ${trimmed}`);
 
-  const updated = /^https?:\/\//i.test(trimmed)
-    ? await syncFromUrl(trimmed)
-    : syncFromFolder(trimmed);
+  const remote = /^https?:\/\//i.test(trimmed) ? await syncFromUrl(trimmed) : null;
+  const updated = remote ? remote.updated : syncFromFolder(trimmed);
 
   const total = countUserDefs();
-  writeMeta({ source: trimmed, updatedAt: Math.floor(Date.now() / 1000), count: total });
+  writeMeta(remote?.meta ?? { source: trimmed, updatedAt: Math.floor(Date.now() / 1000), count: total });
 
   // Las definiciones ya en memoria se quedarían obsoletas.
   reloadDefinitions();
@@ -170,7 +220,42 @@ export function version(): { version: string; updatedAt: number } {
   const meta = readMeta();
   const count = countUserDefs();
   return {
-    version: meta ? `${count} definiciones` : `${count} definiciones (sin sincronizar)`,
+    version: meta?.version ? `catálogo ${meta.version} · ${count} definiciones` : meta ? `${count} definiciones` : `${count} definiciones (sin sincronizar)`,
     updatedAt: meta?.updatedAt ?? 0,
   };
+}
+
+const AUTO_SYNC_MS = 6 * 60 * 60_000;
+let autoSyncTimer: NodeJS.Timeout | null = null;
+
+async function automaticSync(): Promise<void> {
+  const settings = getSettings();
+  if (!settings.autoSyncCatalog || !settings.catalogSource.trim()) return;
+  try {
+    const result = await sync(settings.catalogSource);
+    const games = refreshDefinitions();
+    emit('library:updated', games);
+    if (result.updated > 0) {
+      emit('toast', {
+        level: 'success',
+        message: `Contenido actualizado: ${result.updated} definiciones nuevas`,
+      });
+    }
+  } catch (error) {
+    // El contenido remoto es opcional: una red caída no debe bloquear Atreus.
+    logger.warn('sincronización automática falló:', error);
+  }
+}
+
+/** Sincroniza al arrancar y luego cada seis horas. Es idempotente. */
+export function startAutomaticSync(): void {
+  if (autoSyncTimer) return;
+  void automaticSync();
+  autoSyncTimer = setInterval(() => void automaticSync(), AUTO_SYNC_MS);
+  logger.info('sincronización automática del catálogo iniciada');
+}
+
+export function stopAutomaticSync(): void {
+  if (autoSyncTimer) clearInterval(autoSyncTimer);
+  autoSyncTimer = null;
 }

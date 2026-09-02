@@ -6,5 +6,18 @@
   "achievements": {
     "source": "steam"
   },
-  "notes": "Exe verificado. SIN raíz de mods a propósito: no he confirmado dónde los carga idTech. Atreus dirá que no sabe dónde desplegar en vez de escribir en un sitio equivocado. SIN catalogo de mods: 0 mods en GameBanana, aun no hay escena."
+  "mods": {
+    "root": "mods",
+    "loader": "atlan",
+    "packaged": [
+      ".zip"
+    ],
+    "provider": [
+      {
+        "kind": "gamebanana",
+        "gameId": 23726
+      }
+    ]
+  },
+  "notes": "idTech 8. Comprobado sobre la instalación real (build 20260724, DLC1 hf2): la carpeta 'base' solo contiene .resources y .streamdb; no existe 'base\\mods' y el juego no carga mods sueltos por sí mismo. El camino real de la comunidad es el Atlan Mod Loader (AtlanModLoader.exe junto a DOOMTheDarkAges.exe), que lee archivos .zip SIN extraer desde la carpeta 'mods' de la raíz del juego: por eso Atreus despliega ahí y marca .zip como paquete. El catálogo grande está en Nexus Mods (nexusmods.com/doomthedarkages), que exige clave de API; la página de GameBanana (id 23726) existe pero hoy está vacía. Los cheats están DECLARADOS pero sin resolver: son la lista de lo que tiene sentido para este juego, no direcciones verificadas. Cada uno se completa una vez con el Buscador, con el juego abierto, y queda guardado en la capa de usuario junto a la huella SHA-256 de la build."
 }

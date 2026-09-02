@@ -1,0 +1,18 @@
+{
+  "schema": "atreus.catalog/v1",
+  "version": "2026.09.02",
+  "publishedAt": 1788336000,
+  "definitions": [
+    {
+      "file": "steam.2379780.json",
+      "url": "https://updates.example.com/atreus/games/steam.2379780.json",
+      "sha256": "reemplazar-por-el-sha256-en-hexadecimal"
+    }
+  ],
+  "withdrawnCheats": [
+    {
+      "gameId": "steam:2379780",
+      "cheatIds": ["id-del-cheat-retirado"]
+    }
+  ]
+}

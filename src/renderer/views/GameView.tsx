@@ -1,0 +1,279 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  BookOpen, Clock, Gamepad2, Gauge, Hourglass, Map, NotebookPen, Package, Play, RefreshCw,
+  Sparkles, Target, Trophy,
+} from 'lucide-react';
+import type { PlatinumReport } from '@shared/types';
+import { api } from '@/lib/api';
+import { useStore } from '@/store';
+import { duration, hours, PLATFORM_LABEL, percent, rarity, relative, span } from '@/lib/format';
+import {
+  Badge, Button, Card, DifficultyMeter, Empty, Progress, Skeleton, ViewHeader,
+} from '@/components/ui';
+
+/**
+ * La ficha del juego: la pantalla para la que existe la aplicación.
+ *
+ * Responde de un vistazo a las cuatro preguntas de quien caza un platino:
+ * cuánto llevas, cuánto tiempo te ha costado ya, cuánto te queda y cómo de duro
+ * es lo que falta. Todo lo demás son atajos a las otras vistas.
+ */
+
+const SHORTCUTS = [
+  { section: 'achievements' as const, label: 'Logros', hint: 'Progreso, rareza y desbloqueo', icon: Trophy },
+  { section: 'guides' as const, label: 'Guías', hint: 'Texto completo dentro de Atreus', icon: BookOpen },
+  { section: 'maps' as const, label: 'Mapas', hint: 'Mapa interactivo del juego', icon: Map },
+  { section: 'mods' as const, label: 'Mods', hint: 'Workshop y catálogos públicos', icon: Package },
+];
+
+export function GameView() {
+  const game = useStore((state) => state.selected());
+  const isRunning = useStore((state) => (game ? state.activeGameIds.includes(game.id) : false));
+  const go = useStore((state) => state.go);
+  const pushToast = useStore((state) => state.pushToast);
+  const loadPlatinum = useStore((state) => state.loadPlatinum);
+  const gameId = game?.id;
+
+  const [report, setReport] = useState<PlatinumReport | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (refresh = false) => {
+    if (!gameId) return;
+    setLoading(true);
+    const response = await api.platinum.report(gameId, refresh);
+    setLoading(false);
+    if (!response.ok) {
+      setReport(null);
+      pushToast('error', response.error);
+      return;
+    }
+    setReport(response.data);
+    void loadPlatinum();
+  }, [gameId, pushToast, loadPlatinum]);
+
+  useEffect(() => { setReport(null); void load(); }, [load]);
+
+  if (!game) {
+    return <Empty
+      icon={<Gamepad2 size={40} strokeWidth={1.25} />}
+      title="Ningún juego seleccionado"
+      hint="Elige un juego en la Biblioteca para ver cuánto te falta para su platino." />;
+  }
+
+  async function play() {
+    const current = useStore.getState().selected();
+    if (!current) return;
+    const response = await api.library.launch(current.id);
+    if (!response.ok) return pushToast('error', response.error);
+    pushToast('info', `${current.name} iniciado`);
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ViewHeader
+        title={game.name}
+        subtitle={`${PLATFORM_LABEL[game.platform] ?? game.platform} · última partida ${relative(game.lastPlayed)}`}
+        actions={<>
+          {isRunning && <Badge tone="success">En ejecución</Badge>}
+          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)} title="Volver a calcular el informe">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Actualizar
+          </Button>
+          <Button variant="primary" onClick={() => void play()}><Play size={14} fill="currentColor" /> Jugar</Button>
+        </>}
+      />
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        {loading && !report ? <ReportSkeleton /> : report ? <Report report={report} /> : null}
+
+        <section className="mt-6">
+          <h2 className="mb-2 text-[13px] font-semibold">Seguir desde aquí</h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+            {SHORTCUTS.map(({ section, label, hint, icon: Icon }) => (
+              <Card key={section} className="p-4">
+                <Icon size={18} className="text-accent" />
+                <h3 className="mt-3 text-[14px] font-semibold">{label}</h3>
+                <p className="mt-1 min-h-8 text-[12px] text-muted">{hint}</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => go(section)}>Abrir</Button>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function Report({ report }: { report: PlatinumReport }) {
+  const go = useStore((state) => state.go);
+  const hasAchievements = report.total > 0;
+
+  return <>
+    <Card className="p-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Trophy size={16} className={report.complete ? 'text-success' : 'text-accent'} />
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">
+              {report.complete ? 'Platino conseguido' : 'Camino al platino'}
+            </h2>
+          </div>
+          <p className="mt-2 text-[40px] font-semibold leading-none">
+            {hasAchievements ? `${report.percent.toFixed(1).replace('.', ',')} %` : '—'}
+          </p>
+          <p className="mt-1 text-[13px] text-muted">
+            {hasAchievements
+              ? `${report.unlocked} de ${report.total} logros · faltan ${report.total - report.unlocked}`
+              : 'Sin datos de logros para este juego'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Decir de dónde sale el progreso no es un detalle: un 40 % medido
+              por Steam y un 40 % que has marcado tú no valen lo mismo. */}
+          {report.tracking === 'manual' && (
+            <Badge tone="accent"><NotebookPen size={11} className="mr-1" /> Progreso marcado por ti</Badge>
+          )}
+          {report.complete && <Badge tone="success">100 % completado</Badge>}
+        </div>
+      </div>
+      {hasAchievements && (
+        <Progress
+          value={report.percent}
+          tone={report.complete ? 'success' : 'accent'}
+          className="mt-4 h-2"
+          label={`${report.unlocked} de ${report.total} logros`}
+        />
+      )}
+      {report.warning && (
+        <p className="mt-3 rounded-sm border border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] px-3 py-2 text-[12px] leading-5 text-warn">
+          {report.warning}
+        </p>
+      )}
+    </Card>
+
+    <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+      <Metric
+        icon={<Clock size={15} />}
+        label="Tiempo jugado"
+        value={duration(report.playtimeMinutes)}
+        hint={report.trackedMinutes > 0
+          ? `${duration(report.trackedMinutes)} observados por Atreus`
+          : 'Según tu cuenta de la plataforma'}
+      />
+      <Metric
+        icon={<Hourglass size={15} />}
+        label={report.complete ? 'Te costó' : 'Persiguiéndolo'}
+        value={report.firstUnlockAt ? span(report.firstUnlockAt) : '—'}
+        hint={report.firstUnlockAt
+          ? `Desde tu primer logro${report.lastUnlockAt ? `, último ${relative(report.lastUnlockAt)}` : ''}`
+          : 'Aún no has desbloqueado ningún logro'}
+      />
+      <Metric
+        icon={<Target size={15} />}
+        label={report.complete ? 'Tiempo total' : 'Te queda'}
+        value={report.estimate ? hours(report.complete ? report.estimate.totalHours : report.estimate.remainingHours) : '—'}
+        hint={report.estimate
+          ? report.complete
+            ? 'Horas invertidas hasta el 100 %'
+            : `De unas ${hours(report.estimate.totalHours)} en total · ${CONFIDENCE[report.estimate.confidence]}`
+          : 'Hace falta al menos un logro para estimar'}
+      />
+      <Metric
+        icon={<Gauge size={15} />}
+        label="Dificultad del platino"
+        value={report.difficulty ? `${format(report.difficulty.score)}/10` : '—'}
+        hint={report.difficulty?.label ?? 'Steam no publica la rareza de este juego'}
+        extra={report.difficulty ? <DifficultyMeter score={report.difficulty.score} className="mt-2" /> : undefined}
+      />
+    </div>
+
+    {(report.estimate || report.difficulty) && (
+      <Card className="mt-3 p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-accent" />
+          <h3 className="text-[13px] font-semibold">Cómo salen estos números</h3>
+        </div>
+        <ul className="mt-2 flex flex-col gap-1.5 text-[12px] leading-5 text-muted">
+          {report.estimate && <li>· {report.estimate.explanation}</li>}
+          {report.difficulty && <li>· {report.difficulty.explanation}</li>}
+        </ul>
+        {report.sources.length > 0 && (
+          <p className="mt-3 border-t border-line pt-2 text-[11px] text-faint">
+            Fuentes: {report.sources.join(' · ')}
+          </p>
+        )}
+      </Card>
+    )}
+
+    {report.remaining.length > 0 && (
+      <section className="mt-6">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-[13px] font-semibold">
+            Lo que te falta · empieza por arriba
+          </h2>
+          <Button size="sm" variant="outline" onClick={() => go('achievements')}>
+            Ver los {report.remaining.length}
+          </Button>
+        </div>
+        <Card className="divide-y divide-line">
+          {report.remaining.slice(0, 8).map((item) => (
+            <div key={item.apiName} className="flex items-center gap-3 px-4 py-2.5">
+              {item.iconUrl
+                ? <img src={item.iconUrl} alt="" className="h-8 w-8 shrink-0 rounded-sm opacity-70" />
+                : <div className="h-8 w-8 shrink-0 rounded-sm bg-inset" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium">
+                  {item.hidden && !item.displayName ? 'Logro oculto' : item.displayName}
+                </p>
+                <p className="truncate text-[12px] text-muted">{item.description || 'Sin descripción'}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[12px] font-medium tabular-nums">{percent(item.globalPercent)}</p>
+                <p className="text-[11px] text-faint">{rarity(item.globalPercent)}</p>
+              </div>
+            </div>
+          ))}
+        </Card>
+        {report.remaining.length > 8 && (
+          <p className="mt-2 text-[12px] text-faint">
+            Ordenados del más común al más raro: los de abajo son los que deciden el platino.
+          </p>
+        )}
+      </section>
+    )}
+  </>;
+}
+
+const CONFIDENCE: Record<'low' | 'medium' | 'high', string> = {
+  low: 'estimación gruesa',
+  medium: 'estimación razonable',
+  high: 'estimación fiable',
+};
+
+function format(score: number): string {
+  return Number.isInteger(score) ? String(score) : score.toFixed(1).replace('.', ',');
+}
+
+function Metric({
+  icon, label, value, hint, extra,
+}: { icon: React.ReactNode; label: string; value: string; hint: string; extra?: React.ReactNode }) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-1.5 text-faint">
+        {icon}
+        <p className="text-[11px] font-medium uppercase tracking-wide">{label}</p>
+      </div>
+      <p className="mt-1.5 text-[22px] font-semibold leading-tight">{value}</p>
+      {extra}
+      <p className="mt-1 text-[11px] leading-4 text-muted">{hint}</p>
+    </Card>
+  );
+}
+
+function ReportSkeleton() {
+  return <>
+    <Skeleton className="h-40" />
+    <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+      {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28" />)}
+    </div>
+  </>;
+}

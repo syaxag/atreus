@@ -1,14 +1,18 @@
 import { app, dialog, ipcMain, shell, BrowserWindow } from 'electron';
-import type { MemType, Result, ScanMode, Settings } from '@shared/types';
+import type { CompletionProgress, GuideCategory, GuideEntry, Result, Settings } from '@shared/types';
 import { IPC_CHANNELS, ok, err, type IpcChannel } from '@shared/ipc';
 import { getSettings, setSettings } from '../services/settings';
 import * as catalog from '../services/catalog';
 import * as steam from '../services/steam/session';
-import * as trainer from '../services/trainer';
-import * as scanner from '../services/trainer/scan-session';
 import * as mods from '../services/mods';
 import * as catalogSync from '../services/catalog/sync';
 import * as updater from '../services/updater';
+import * as guides from '../services/guides';
+import * as progress from '../services/progress';
+import * as achievements from '../services/achievements';
+import * as license from '../services/license';
+import * as maps from '../services/maps';
+import * as platinum from '../services/platinum';
 import { paths, OPENABLE, type OpenableKey } from '../paths';
 import { log } from '../logger';
 
@@ -39,11 +43,6 @@ function handle<T>(
       return err(message);
     }
   });
-}
-
-/** Marcador para los canales cuyo servicio aún no existe. Ver docs/ROADMAP.md. */
-function pending(channel: IpcChannel, phase: string): void {
-  handle(channel, () => err(`Pendiente de la ${phase}`, 'NOT_IMPLEMENTED'));
 }
 
 export function registerIpc(): void {
@@ -100,6 +99,10 @@ export function registerIpc(): void {
   // ── App ────────────────────────────────────────────────────
   handle('app.version', () => ok(app.getVersion()));
   handle('app.checkForUpdates', async () => ok(await updater.checkForUpdates()));
+  handle('app.downloadUpdate', async () => {
+    await updater.downloadAndInstall();
+    return ok(undefined);
+  });
   handle('app.openLogs', async () => {
     const error = await shell.openPath(paths.logs);
     return error ? err(error) : ok(undefined);
@@ -140,43 +143,23 @@ export function registerIpc(): void {
     appId: string,
     patch: { achievements: { apiName: string; unlocked: boolean }[];
              stats: { apiName: string; value: number }[] },
-  ) => ok(await steam.commit(appId, patch)));
+  ) => {
+    const result = await steam.commit(appId, patch);
+    // El informe cacheado acaba de quedarse viejo por nuestra propia mano.
+    platinum.invalidate(`steam:${appId}`);
+    return ok(result);
+  });
+  handle('steam.backups', (appId: string) => ok(steam.backups(appId)));
+  handle('steam.restore', async (appId: string, snapshotId: string) => {
+    const result = await steam.restore(appId, snapshotId);
+    platinum.invalidate(`steam:${appId}`);
+    return ok(result);
+  });
   handle('steam.resetAll', async (appId: string) => {
     await steam.resetAll(appId);
+    platinum.invalidate(`steam:${appId}`);
     return ok(undefined);
   });
-
-  // ── Motor de cheats ────────────────────────────────────────
-  handle('trainer.definitions', (gameId: string) => ok(trainer.definitions(gameId)));
-  handle('trainer.attach', (gameId: string) => ok(trainer.attach(gameId)));
-  handle('trainer.detach', (gameId: string) => { trainer.detach(gameId); return ok(undefined); });
-  handle('trainer.session', (gameId: string) => ok(trainer.session(gameId)));
-  handle('trainer.toggle', (gameId: string, cheatId: string, enabled: boolean) =>
-    ok(trainer.toggle(gameId, cheatId, enabled)));
-  handle('trainer.setValue', (gameId: string, cheatId: string, value: number) =>
-    ok(trainer.setValue(gameId, cheatId, value)));
-  handle('trainer.trigger', (gameId: string, cheatId: string) => {
-    trainer.trigger(gameId, cheatId);
-    return ok(undefined);
-  });
-  handle('trainer.states', (gameId: string) => ok(trainer.states(gameId)));
-
-  // ── Buscador de memoria ────────────────────────────────────
-  handle('scanner.attach', (gameId: string) => ok(scanner.attach(gameId)));
-  handle('scanner.detach', (gameId: string) => { scanner.detach(gameId); return ok(undefined); });
-  handle('scanner.session', (gameId: string) => ok(scanner.session(gameId)));
-  handle('scanner.first', (gameId: string, type: MemType, value: number) =>
-    ok(scanner.first(gameId, type, value)));
-  handle('scanner.next', (gameId: string, mode: ScanMode, value?: number) =>
-    ok(scanner.next(gameId, mode, value)));
-  handle('scanner.list', (gameId: string, limit?: number) => ok(scanner.list(gameId, limit)));
-  handle('scanner.poke', (gameId: string, address: string, value: number) => {
-    scanner.poke(gameId, address, value);
-    return ok(undefined);
-  });
-  handle('scanner.derive', (gameId: string, address: string) =>
-    ok(scanner.derive(gameId, address)));
-  handle('scanner.reset', (gameId: string) => { scanner.reset(gameId); return ok(undefined); });
 
   // ── Gestor de mods ─────────────────────────────────────────
   handle('mods.list', (gameId: string) => ok(mods.list(gameId)));
@@ -209,13 +192,40 @@ export function registerIpc(): void {
     mod: Parameters<typeof mods.installRemote>[1],
   ) => ok(await mods.installRemote(gameId, mod)));
 
+  // ── Logros de cualquier plataforma ─────────────────────────
+  handle('achievements.list', (gameId: string) => achievements.list(gameId).then(ok));
+  handle('achievements.mark', async (gameId: string, patches: { apiName: string; unlocked: boolean }[]) => {
+    const set = await achievements.mark(gameId, patches);
+    // El informe cacheado acaba de quedarse viejo por nuestra propia mano.
+    platinum.invalidate(gameId);
+    return ok(set);
+  });
+
+  // ── Informe de platino ─────────────────────────────────────
+  handle('platinum.report', (gameId: string, refresh?: boolean) =>
+    platinum.report(gameId, refresh === true).then(ok));
+  handle('platinum.summaries', () => ok(platinum.summariesFor()));
+
+  // ── Guías con texto completo ───────────────────────────────
+  handle('guides.list', (gameId: string, category: GuideCategory, query?: string) =>
+    guides.list(gameId, category, query).then(ok));
+  handle('guides.read', (entry: GuideEntry) => guides.read(entry).then(ok));
+
+  // ── Mapas interactivos ─────────────────────────────────────
+  handle('maps.list', (gameId: string) => maps.list(gameId).then(ok));
+
+  // ── Progreso de completado local ───────────────────────────
+  handle('progress.get', (gameId: string) => ok(progress.get(gameId)));
+  handle('progress.save', (value: CompletionProgress) => ok(progress.save(value)));
+
   // ── Catálogo de definiciones ───────────────────────────────
   handle('catalog.sync', async () => ok(await catalogSync.sync(getSettings().catalogSource)));
   handle('catalog.version', () => ok(catalogSync.version()));
 
-  // ── Pendientes por fase ────────────────────────────────────
-  // Cada canal responde con un error explícito en lugar de no existir, para que
-  // la interfaz pueda desarrollarse contra el backend real desde ya.
+  // ── Licencias ──────────────────────────────────────────────
+  handle('license.get', () => ok(license.getLicense()));
+  handle('license.activate', (key: string) => license.activateLicense(key));
+  handle('license.deactivate', () => license.deactivateLicense());
 
   // Red de seguridad: si el contrato añade un canal y nadie lo registra, se detecta
   // aquí en el arranque y no en un fallo silencioso en tiempo de ejecución.

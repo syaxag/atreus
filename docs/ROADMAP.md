@@ -1,5 +1,12 @@
 # Atreus — Roadmap de construcción (dos sesiones en paralelo)
 
+> **Documento histórico.** Describe el proyecto tal como era antes de la
+> reestructuración de septiembre de 2026, cuando Atreus dejó de ser un launcher con
+> trainer y pasó a ser una aplicación dedicada a los platinos. El motor de cheats y el
+> buscador de memoria que se mencionan aquí ya no existen; el historial de git los
+> conserva. El estado actual está en [SCOPE.md](SCOPE.md), [README](../README.md) y
+> [ARCHITECTURE.md](ARCHITECTURE.md).
+
 > **Nota:** «Lado A» y «Lado B» son solo un reparto de carpetas para construir la app
 > más rápido con dos sesiones a la vez. **La app en sí no tiene agentes ni IA dentro**:
 > es un launcher de escritorio normal.

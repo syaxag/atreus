@@ -1,15 +1,23 @@
 # Alcance y límites del proyecto
 
-Atreus es una herramienta **de uso personal** para aprender programación de sistemas en
-Windows (interop nativo, memoria de procesos, IPC, empaquetado de escritorio) usando
-videojuegos como banco de pruebas.
+Atreus es una herramienta **de uso personal** para cazar platinos: llevar la cuenta de
+lo que falta para el 100 % de logros de cada juego, leer las guías que explican cómo
+conseguirlo y abrir los mapas donde está cada cosa, sin salir de la aplicación.
 
 ## Lo que sí hace
 
-- **Logros y estadísticas de Steam** — reimplementación propia de la lógica de SAM,
-  que es zlib y por tanto libre de reimplementar. Solo sobre juegos que tú posees.
-- **Trainer de memoria** en juegos **single-player / offline**: leer y escribir
-  valores en tu propia máquina, en tu propia partida.
+- **Informe de platino** — cuántos logros llevas, cuánto tiempo has jugado, cuánto
+  llevas persiguiendo el platino, cuánto te queda y cómo de duro es. Se calcula
+  cruzando los logros del cliente de Steam, la rareza global publicada por Steam y
+  las horas de tu cuenta local.
+- **Logros de cualquier plataforma** — en Steam, del cliente, con reimplementación
+  propia de la lógica de SAM (zlib, libre de reimplementar) y sobre juegos que posees.
+  En Epic, EA, Xbox o GOG la lista sale del catálogo público de Steam y el progreso lo
+  marca el usuario, porque ninguna de esas plataformas lo publica sin iniciar sesión.
+- **Guías con texto completo** — de la comunidad de Steam y de las wikis del juego,
+  mostradas dentro de Atreus con atribución y enlace a la fuente.
+- **Mapas interactivos** — se abre el mapa real del proveedor (MapGenie, wikis) en una
+  pestaña integrada. Atreus no redibuja el mapa ni copia sus marcadores.
 - **Gestor de mods** genérico: instalar, ordenar, desplegar y revertir mods locales.
 - **Launcher**: detección de juegos, favoritos, lanzamiento con argumentos.
 
@@ -17,42 +25,52 @@ videojuegos como banco de pruebas.
 
 | No | Por qué |
 |---|---|
-| Trainer en juegos multijugador competitivos | Perjudica a otros jugadores. Hay una lista de bloqueo en el código |
+| Leer o escribir la memoria de un juego | Se retiró en septiembre de 2026. No aporta nada a un platino y era la única parte que tocaba procesos ajenos |
+| Trainers, cheats o buscador de valores | Lo mismo. El historial de git conserva el motor si alguna vez hiciera falta |
 | Evasión de anti-cheat (EAC, BattlEye, VAC) | Fuera de alcance. Ninguna técnica de ocultación |
-| Desempaquetar, descompilar o reutilizar código de WeMod | Es software propietario |
-| Consumir el catálogo de trainers de WeMod | Es su propiedad intelectual, y requiere su autenticación |
-| Redistribuir binarios de terceros | Reimplementamos, no reempaquetamos |
+| Alojar o republicar guías | Se muestra el texto con su fuente y un enlace para abrirla fuera; nunca se copia sin atribuir |
+| Pedir la contraseña de Xbox, Epic o EA | Sus logros solo se consultan autenticándose. Antes que pedir credenciales, Atreus enseña la lista y deja que marques tú el progreso |
+| Desempaquetar, descompilar o reutilizar código de terceros | Reimplementamos, no reempaquetamos |
 | Cualquier forma de distribución pública | Es una app personal |
 
-## La lista de bloqueo
+## Sobre desbloquear logros a mano
 
-`src/main/services/trainer/guard.ts` mantiene la lista. Un juego queda bloqueado si:
+Atreus puede marcar logros como conseguidos, porque el cliente de Steam lo permite: es
+la misma llamada que hace cualquier juego. No es baneable y no altera archivos.
 
-1. Su definición trae `"multiplayer": true`.
-2. Su AppID está en la lista dura de títulos competitivos.
-3. Se detecta un servicio de anti-cheat cargado en el proceso.
+Aun así, la aplicación **avisa antes de la primera vez** con un diálogo que explica los
+tres puntos que importan —que no es baneable, que sí puede arruinar la experiencia del
+juego, y que no hay vuelta atrás limpia— y no deja tocar nada hasta que se acepta. El
+aviso se guarda en `settings.achievementRiskAccepted` y se puede reactivar en Ajustes.
 
-Cuando está bloqueado, `trainer.attach` devuelve `state: 'blocked'` y la UI explica el
-motivo. **Esta comprobación no es configurable desde ajustes.**
+Antes de cada escritura se guarda una copia del estado en el Historial. `resetAll`
+lleva un diálogo destructivo aparte.
 
-En la biblioteca actual de esta máquina eso afecta a Apex Legends (1172470),
-Rocket League (252950) y PEAK (3527290).
+Modificar logros afecta a tu propio perfil público: es un cambio real y visible en tu
+cuenta, y algunos juegos con marcadores online pueden invalidar estadísticas alteradas.
 
-## Sobre los logros
+## Datos de terceros
 
-Modificar logros de Steam afecta a tu propio perfil público. No rompe nada de otros
-jugadores, pero conviene saberlo: es un cambio real y visible en tu cuenta, y algunos
-juegos con marcadores online pueden invalidar estadísticas manipuladas.
+Todo lo que Atreus consulta es público y sin autenticar:
 
-La app pide confirmación explícita antes de escribir, y `resetAll` lleva un diálogo
-destructivo aparte.
+| Fuente | Qué se saca | Clave |
+|---|---|---|
+| `localconfig.vdf` de Steam | Minutos jugados de cada AppID | No, es un archivo local |
+| `ISteamUserStats/GetGlobalAchievementPercentagesForApp` | Rareza global de cada logro | No, es pública |
+| `steamcommunity.com/stats/<id>/achievements/` | Lista de logros con nombre, descripción, icono y rareza | No, y no hace falta poseer el juego |
+| `store.steampowered.com/api/storesearch/` | AppID de un juego a partir de su nombre | No |
+| `steamcommunity.com/app/<id>/guides/` | Listado y texto de las guías | No |
+| `api.php` de wiki.gg y Fandom | Búsqueda y texto de páginas de wiki | No |
+| Portada de `mapgenie.io` | Directorio de juegos con mapa | No |
+
+La clave de la Steam Web API que hay en Ajustes es **opcional**: enriquece, no hace
+falta para nada de lo anterior.
 
 ## Licencias de origen
 
 | Origen | Licencia | Qué tomamos |
 |---|---|---|
 | SAM (Rick Gibbed) | zlib | El **enfoque técnico**: interfaces de `steamclient.dll`, flujo de callbacks, proceso por AppID. Código escrito de cero |
-| WeMod | Propietaria | Nada de código. Solo la **forma del producto** como referencia de UX |
 
 Si alguna vez se redistribuye este proyecto, se acredita a Rick Gibbed por SAM en el
 README, como sugiere la cláusula 1 de la zlib.

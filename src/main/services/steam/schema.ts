@@ -56,6 +56,8 @@ export interface SchemaAchievement {
   displayName: string;
   description: string;
   hidden: boolean;
+  icon?: string;
+  iconGray?: string;
 }
 
 export interface GameSchema {
@@ -146,6 +148,8 @@ export function readSchema(
           displayName: localized(display, 'name', language) ?? apiName,
           description: localized(display, 'desc', language) ?? '',
           hidden: isTrue(display?.['hidden']),
+          icon: asString(display?.['icon']) ?? undefined,
+          iconGray: asString(display?.['icon_gray']) ?? asString(display?.['icongray']) ?? undefined,
         });
       }
       continue;

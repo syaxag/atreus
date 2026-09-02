@@ -29,7 +29,9 @@ export function Button({
     <button
       className={cn(
         'inline-flex items-center justify-center rounded-sm font-medium whitespace-nowrap',
-        'transition-colors duration-[120ms] ease-atreus',
+        'transition-[color,background-color,border-color,transform] duration-[120ms] ease-atreus',
+        // Un hundimiento de un 2 % al pulsar: no se ve, se nota.
+        'active:scale-[0.98]',
         // 40% hacía que las acciones deshabilitadas prácticamente desaparecieran
         // sobre el fondo oscuro. Se mantienen inactivas, pero siguen siendo legibles.
         'disabled:opacity-55 disabled:pointer-events-none',
@@ -64,9 +66,16 @@ export function Toggle({
         checked ? 'bg-accent' : 'bg-line-strong',
       )}
     >
+      {/*
+        `left-0` no sobra: un <button> trae `text-align: center` del navegador y
+        Tailwind no lo resetea, así que un hijo `absolute` sin ancla horizontal
+        toma como posición estática el **centro** del botón, no su borde. Sin
+        esta línea el pulgar salía a media pista estando apagado y se desbordaba
+        por la derecha al encenderse, que es justo lo que se veía.
+      */}
       <span
         className={cn(
-          'absolute top-0.5 h-4 w-4 rounded-full bg-white',
+          'absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white',
           'transition-transform duration-[120ms] ease-atreus',
           checked ? 'translate-x-[18px]' : 'translate-x-0.5',
         )}
@@ -152,7 +161,7 @@ export function Badge({
 
 // ── Skeleton ──────────────────────────────────────────────────
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-sm bg-elevated', className)} />;
+  return <div className={cn('skeleton rounded-sm', className)} />;
 }
 
 // ── Empty ─────────────────────────────────────────────────────
@@ -183,5 +192,103 @@ export function ViewHeader({
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
     </header>
+  );
+}
+
+// ── Barra de progreso ─────────────────────────────────────────
+/**
+ * Progreso hacia el 100 %. Es el elemento que más se repite en la aplicación,
+ * así que lleva el valor accesible puesto: un lector de pantalla lee el
+ * porcentaje sin depender del texto que haya al lado.
+ */
+export function Progress({
+  value, tone = 'accent', className, label,
+}: { value: number; tone?: 'accent' | 'success'; className?: string; label?: string }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <div
+      role="progressbar"
+      aria-valuenow={Math.round(clamped)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label ?? 'Progreso de logros'}
+      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-inset', className)}
+    >
+      <div
+        className={cn(
+          'h-full rounded-full transition-[width] duration-500 ease-atreus',
+          tone === 'success' ? 'bg-success' : 'bg-accent',
+        )}
+        style={{ width: `${clamped}%` }}
+      />
+    </div>
+  );
+}
+
+// ── Medidor de dificultad ─────────────────────────────────────
+/** Diez muescas, de 1 a 10. Es la escala con la que ya cuenta la gente. */
+export function DifficultyMeter({ score, className }: { score: number; className?: string }) {
+  const filled = Math.round(score);
+  return (
+    <div className={cn('flex items-center gap-[3px]', className)} aria-label={`Dificultad ${score} de 10`}>
+      {Array.from({ length: 10 }, (_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'h-3.5 w-1.5 rounded-[1px]',
+            i < filled
+              ? filled >= 8 ? 'bg-danger' : filled >= 6 ? 'bg-warn' : 'bg-accent'
+              : 'bg-inset',
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Diálogo modal ─────────────────────────────────────────────
+/**
+ * Ventana emergente bloqueante.
+ *
+ * Cierra con Escape y con clic fuera, pero el consumidor decide si el botón de
+ * confirmar existe: el aviso de logros, por ejemplo, exige una acción explícita.
+ */
+export function Modal({
+  open, title, icon, onClose, children, footer, wide,
+}: {
+  open: boolean;
+  title: string;
+  icon?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  wide?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      role="presentation"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm animate-view"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}
+        className={cn(
+          'flex max-h-full w-full flex-col overflow-hidden rounded-md border border-line bg-surface shadow-2xl',
+          wide ? 'max-w-3xl' : 'max-w-lg',
+        )}
+      >
+        <div className="flex items-center gap-2.5 border-b border-line px-5 py-3.5">
+          {icon}
+          <h2 className="text-[15px] font-semibold">{title}</h2>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+      </div>
+    </div>
   );
 }

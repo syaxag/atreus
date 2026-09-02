@@ -159,3 +159,154 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Transiciones de vistas y microinteracciones */
+@keyframes atreus-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes atreus-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(139, 92, 246, 0.25);
+  }
+}
+
+.animate-view {
+  animation: atreus-fade-in 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+.gpu-layer {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.glow-accent {
+  box-shadow: 0 0 16px -2px rgba(139, 92, 246, 0.3);
+}
+
+.glow-accent-hover:hover {
+  box-shadow: 0 0 20px 0 rgba(139, 92, 246, 0.45);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Movimiento y rendimiento de listas
+   ──────────────────────────────────────────────────────────── */
+
+/*
+ * Filas y tarjetas de listas largas.
+ *
+ * `content-visibility: auto` le dice al motor que se salte el diseño y el
+ * pintado de lo que está fuera de la pantalla. En un juego con 547 logros o en
+ * un catálogo de 230 mods, eso es la diferencia entre un desplazamiento que se
+ * arrastra y uno fluido, y a diferencia de virtualizar la lista a mano no rompe
+ * la búsqueda del navegador ni el orden de tabulación.
+ *
+ * El nombre importa: esto se llamó `.list-item` durante un rato y **rompió el
+ * diseño de todas las filas**, porque `list-item` es una utilidad de Tailwind
+ * que significa `display: list-item`. Ganaba ella, las filas dejaban de ser
+ * flex, y el icono, el texto y el interruptor se apilaban en vertical. Al
+ * inventar una clase propia hay que comprobar que el nombre no exista ya.
+ *
+ * La altura se reserva para que la barra de desplazamiento no dé saltos; el
+ * ancho se deja libre a propósito (`none`), porque fijarlo también estrecharía
+ * las filas mientras están fuera de pantalla.
+ */
+.defer-render {
+  content-visibility: auto;
+  contain-intrinsic-width: none;
+  contain-intrinsic-height: auto 80px;
+}
+
+.defer-render-lg {
+  content-visibility: auto;
+  contain-intrinsic-width: none;
+  contain-intrinsic-height: auto 132px;
+}
+
+/* Entrada escalonada de las tarjetas: el retardo lo pone quien las pinta. */
+@keyframes atreus-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: atreus-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Salida de los toasts, para que no desaparezcan de golpe. */
+@keyframes atreus-toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(12px) scale(0.97);
+  }
+}
+
+.animate-toast-in {
+  animation: atreus-toast 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-toast-out {
+  animation: atreus-toast-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/*
+ * Esqueletos con brillo en vez de parpadeo.
+ *
+ * El `animate-pulse` de Tailwind anima la opacidad de todo el bloque, que en
+ * una rejilla de doce cuadros llama más la atención que el contenido que va a
+ * llegar. Un reflejo que cruza se lee como "cargando" sin pelearse con la vista.
+ */
+@keyframes atreus-shimmer {
+  from { background-position: -180% 0; }
+  to { background-position: 180% 0; }
+}
+
+.skeleton {
+  background-color: var(--bg-elevated);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.045) 45%,
+    rgba(255, 255, 255, 0.045) 55%,
+    transparent 100%
+  );
+  background-size: 180% 100%;
+  background-repeat: no-repeat;
+  animation: atreus-shimmer 1.4s linear infinite;
+}
+
+/* Barra indeterminada para procesos sin porcentaje conocido. */
+@keyframes atreus-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(400%); }
+}
+
+.animate-sweep {
+  animation: atreus-sweep 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/*
+ * El desplazamiento no debe arrastrar la ventana entera cuando una lista llega
+ * a su final; sin esto, seguir rodando la rueda mueve el contenedor de detrás.
+ */
+.overflow-y-auto {
+  overscroll-behavior: contain;
+}

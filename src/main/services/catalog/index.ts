@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, existsSync, statSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { spawn } from 'node:child_process';
 import { shell } from 'electron';
@@ -8,9 +8,11 @@ import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 import { setCoverPaths } from '../../protocol';
 import { getSettings, setSettings } from '../settings';
-import { findSteamPath, scanSteam, guessExe } from './steam';
-import { scanEpic, scanGog, scanXbox } from './others';
+import { findSteamPath, scanSteam, guessExe, isSteamGameAppId } from './steam';
+import { readUninstallEntries, scanBattleNet, scanEa, scanEpic, scanGog, scanXbox } from './others';
+import { forgetSteamPlaytime, recordSession, steamPlaytimeIndex, trackedMinutes } from '../playtime';
 import { applyDefinitions } from './definitions';
+import { completeCovers, localCovers } from './covers';
 import { splitArgs } from './args';
 
 const logger = log('catalog');
@@ -54,14 +56,89 @@ function load(): void {
   }
 }
 
-/** Aplica favoritos y definiciones a una lista recién escaneada. */
+/**
+ * Aplica favoritos, definiciones y horas jugadas a una lista recién escaneada.
+ *
+ * Las horas de Steam salen del `localconfig.vdf` de la cuenta local, así que no
+ * cuestan una petición ni una clave de API: se pueden refrescar en cada pasada.
+ */
 function decorate(games: Game[]): Game[] {
   const favs = new Set(state.favorites);
-  return applyDefinitions(games).map((g) => ({ ...g, favorite: favs.has(g.id) }));
+  const played = steamPlaytimeIndex();
+  return applyDefinitions(games).map((g) => ({
+    ...g,
+    favorite: favs.has(g.id),
+    playtimeMinutes: g.platform === 'steam'
+      ? played.get(g.nativeId) ?? g.playtimeMinutes ?? null
+      : g.playtimeMinutes ?? (trackedMinutes(g.id) || null),
+  }));
+}
+
+/** El caché puede venir de una versión anterior: se limpia también sin reescaneo. */
+function onlyGames(games: Game[]): Game[] {
+  return games.filter((game) => {
+    if (game.platform === 'steam') return isSteamGameAppId(game.nativeId);
+    // Minecraft Launcher es sólo el punto de entrada; Minecraft Java conserva
+    // su ficha propia, detectada como paquete separado.
+    if (game.platform === 'xbox' && /^Microsoft\.4297127D64EC6_/i.test(game.nativeId)) return false;
+    return true;
+  });
+}
+
+/**
+ * Une las carátulas que ya se conocen: las que devolvió el escaneo de Steam y
+ * las que estén en disco o en la caché propia para el resto de plataformas.
+ */
+function collectCovers(
+  games: Game[],
+  fromSteam: Map<string, string>,
+  steamPath: string | null,
+): Map<string, string> {
+  const covers = localCovers(games, steamPath);
+  for (const [id, file] of fromSteam) covers.set(id, file);
+  setCoverPaths(covers);
+  return covers;
+}
+
+/**
+ * Apunta cada juego a su carátula local.
+ *
+ * El sello de tiempo del archivo va en la URL a propósito: sin él, una imagen
+ * que llega después de pintar la biblioteca no se recargaría, porque para el
+ * navegador la dirección no habría cambiado.
+ */
+function withCovers(games: Game[], covers: Map<string, string>): Game[] {
+  return games.map((game) => {
+    const file = covers.get(game.id);
+    if (!file) return game;
+    let stamp = 0;
+    try { stamp = Math.floor(statSync(file).mtimeMs); } catch { stamp = 0; }
+    return { ...game, headerUrl: `atreus://cover/${game.id.replace(':', '.')}?v=${stamp}` };
+  });
+}
+
+/** Descarga en segundo plano lo que no estaba en disco y avisa si algo cambió. */
+async function fillMissingCovers(steamPath: string | null): Promise<void> {
+  try {
+    const covers = await completeCovers(state.games, steamPath);
+    if (!covers) return;
+    setCoverPaths(covers);
+    state.games = withCovers(state.games, covers);
+    persist();
+    emit('library:updated', state.games);
+  } catch (e) {
+    logger.warn('no se pudieron completar las carátulas:', e);
+  }
 }
 
 export function listGames(): Game[] {
   load();
+  const filtered = onlyGames(state.games);
+  if (filtered.length !== state.games.length) {
+    state.games = filtered;
+    state.manual = onlyGames(state.manual);
+    persist();
+  }
   return state.games;
 }
 
@@ -87,6 +164,9 @@ export function getGame(id: GameId): Game | null {
 /** Escaneo completo de todas las plataformas. Emite `library:scan-progress`. */
 export async function scan(): Promise<Game[]> {
   load();
+  // Las horas se releen del disco en cada escaneo: si no, un juego recién
+  // jugado seguiría saliendo con las de la última vez que se abrió Atreus.
+  forgetSteamPlaytime();
   const covers = new Map<string, string>();
   let found: Game[] = [];
 
@@ -120,19 +200,32 @@ export async function scan(): Promise<Game[]> {
   step('xbox', 'Enumerando paquetes de Xbox…');
   try { found = found.concat(scanXbox()); } catch (e) { logger.error('Xbox:', e); }
 
+  // EA App y Battle.net comparten la lista de programas instalados: se lee una
+  // sola vez, que es la parte lenta (PowerShell), y se reparte entre los dos.
+  step('ea', 'Consultando instalaciones de EA App…');
+  const uninstall = readUninstallEntries();
+  try { found = found.concat(scanEa(uninstall)); } catch (e) { logger.error('EA App:', e); }
+
+  step('battlenet', 'Consultando instalaciones de Battle.net…');
+  try { found = found.concat(scanBattleNet(uninstall)); } catch (e) { logger.error('Battle.net:', e); }
+
   // ── Consolidar ──
   step('enrich', 'Aplicando definiciones…');
   const manualIds = new Set(state.manual.map((g) => g.id));
-  const merged = [...found.filter((g) => !manualIds.has(g.id)), ...state.manual];
+  const merged = onlyGames([...found.filter((g) => !manualIds.has(g.id)), ...state.manual]);
 
   // Qué juegos son nuevos respecto al escaneo anterior. Se calcula antes de
   // pisar el estado, y es lo que dispara la búsqueda automática de mods.
   const known = new Set(state.games.map((g) => g.id));
 
-  state.games = decorate(merged);
+  const decorated = decorate(merged);
+  state.games = withCovers(decorated, collectCovers(decorated, covers, steamPath));
   state.scannedAt = Math.floor(Date.now() / 1000);
-  setCoverPaths(covers);
   persist();
+
+  // Lo que falte se resuelve en segundo plano: la biblioteca ya está pintada y
+  // las imágenes que lleguen después se anuncian con `library:updated`.
+  void fillMissingCovers(steamPath);
 
   const fresh = state.games.filter((g) => !known.has(g.id));
   if (fresh.length > 0 && known.size > 0) {
@@ -160,15 +253,26 @@ export async function scan(): Promise<Game[]> {
  */
 async function announceNewGames(fresh: Game[]): Promise<void> {
   const { hasProvider, discover } = await import('../mods/providers');
-  const found: { gameId: GameId; name: string; count: number }[] = [];
+  const { list: listGuides } = await import('../guides');
+  const found: { gameId: GameId; name: string; count: number; guides: number }[] = [];
 
   for (const game of fresh) {
-    if (!hasProvider(game.id)) continue;
+    // Se calienta también la búsqueda de guías: cuando el usuario abre el
+    // juego, los resultados ya están en la caché local de Atreus.
+    let guideCount = 0;
+    try {
+      guideCount = (await listGuides(game.id, 'platinum')).length;
+    } catch (e) {
+      logger.warn(`no se pudieron preparar guías para ${game.name}:`, e);
+    }
+
+    if (!hasProvider(game.id)) {
+      if (guideCount > 0) found.push({ gameId: game.id, name: game.name, count: 0, guides: guideCount });
+      continue;
+    }
     try {
       const available = await discover(game.id);
-      if (available.length > 0) {
-        found.push({ gameId: game.id, name: game.name, count: available.length });
-      }
+      if (available.length > 0 || guideCount > 0) found.push({ gameId: game.id, name: game.name, count: available.length, guides: guideCount });
     } catch (e) {
       logger.warn(`no se pudo consultar el catálogo de ${game.name}:`, e);
     }
@@ -179,20 +283,27 @@ async function announceNewGames(fresh: Game[]): Promise<void> {
   emit('toast', {
     level: 'info',
     message: found.length === 1
-      ? `${found[0]!.name}: ${found[0]!.count} mods disponibles`
-      : `${found.length} juegos nuevos con mods disponibles`,
+      ? `${found[0]!.name}: ${found[0]!.count} mods y ${found[0]!.guides} guías preparadas`
+      : `${found.length} juegos nuevos con contenido preparado`,
   });
-  logger.info(`catálogo: ${found.map((f) => `${f.name} (${f.count})`).join(', ')}`);
+  logger.info(`catálogo: ${found.map((f) => `${f.name} (${f.count} mods, ${f.guides} guías)`).join(', ')}`);
 }
 
-/** Restablece el mapa de carátulas desde la caché, sin reescanear. */
+/**
+ * Restablece el mapa de carátulas sin reescanear las bibliotecas.
+ *
+ * Antes esto llamaba a `scanSteam()`, que vuelve a leer todos los `.acf` de
+ * todas las bibliotecas solo para quedarse con las rutas de imagen: en el
+ * arranque sin escaneo era el trabajo más caro que se hacía, y para nada.
+ */
 export function rehydrateCovers(): void {
   load();
   const steamPath = findSteamPath(getSettings().steamPath);
-  if (!steamPath) return;
   try {
-    const { covers } = scanSteam(steamPath);
+    const covers = localCovers(state.games, steamPath);
     setCoverPaths(covers);
+    state.games = withCovers(state.games, covers);
+    void fillMissingCovers(steamPath);
   } catch (e) {
     logger.warn('no se pudieron rehidratar las carátulas:', e);
   }
@@ -220,6 +331,7 @@ export function addManual(exePath: string): Game {
     headerUrl: null,
     sizeBytes: null,
     lastPlayed: null,
+    playtimeMinutes: null,
     hasDefinition: false,
     multiplayer: false,
     favorite: false,
@@ -283,6 +395,12 @@ export async function launch(id: GameId, args?: string): Promise<{ pid: number }
 
   const pid = child.pid ?? 0;
   emit('game:started', { gameId: id, pid });
-  child.on('exit', () => emit('game:stopped', { gameId: id }));
+  const startedAt = Date.now();
+  child.on('exit', () => {
+    // El monitor de actividad también vería el cierre, pero puede tardar hasta
+    // dos segundos y medio; aquí se sabe en el momento exacto.
+    const minutes = recordSession(id, startedAt, Date.now());
+    emit('game:stopped', { gameId: id, minutes });
+  });
   return { pid };
 }

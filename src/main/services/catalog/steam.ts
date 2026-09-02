@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import type { Game } from '@shared/types';
 import { parseVdf, dig, str, num } from './vdf';
 import { log } from '../../logger';
+import { localSteamCover } from './covers';
 
 const logger = log('catalog:steam');
 
@@ -13,7 +14,16 @@ const NOT_GAMES = new Set([
   '1070560', // Steam Linux Runtime
   '1391110', // Steam Linux Runtime - Soldier
   '1628350', // Steam Linux Runtime - Sniper
+  // Utilidades detectadas en esta biblioteca. No son títulos que Atreus deba
+  // mandar a los flujos de mods, logros ni cheats.
+  '280680', // Krita
+  '993090', // Lossless Scaling
+  '431960', // Wallpaper Engine
 ]);
+
+export function isSteamGameAppId(appId: string): boolean {
+  return !NOT_GAMES.has(appId);
+}
 
 /** Localiza la instalación de Steam: registro primero, rutas típicas después. */
 export function findSteamPath(override?: string | null): string | null {
@@ -67,20 +77,21 @@ export function readLibraryFolders(steamPath: string): string[] {
   return [...folders];
 }
 
-/** Busca la carátula: primero la caché local, si no la CDN de Steam. */
+/**
+ * Busca la carátula: primero la caché local del cliente, si no la CDN.
+ *
+ * La búsqueda en disco vive en `covers.ts` porque Steam ha cambiado dos veces
+ * la disposición de `librarycache` y esa lógica la necesitan también las demás
+ * plataformas.
+ */
 function resolveCover(steamPath: string, appId: string): {
   cover: string | null;
   local: string | null;
 } {
-  const dir = join(steamPath, 'appcache', 'librarycache', appId);
-  // Steam guarda unos juegos con nombre legible y otros con hash sin extensión;
-  // solo sirven los primeros.
-  for (const name of ['library_600x900.jpg', 'library_header.jpg', 'header.jpg']) {
-    const file = join(dir, name);
-    if (existsSync(file)) return { cover: `atreus://cover/steam.${appId}`, local: file };
-  }
+  const local = localSteamCover(steamPath, appId);
+  if (local) return { cover: `atreus://cover/steam.${appId}`, local };
   return {
-    cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+    cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`,
     local: null,
   };
 }
@@ -113,7 +124,7 @@ export function scanSteam(steamPath: string): SteamScanResult {
         const acf = parseVdf(readFileSync(join(appsDir, entry), 'utf8'));
         const appId = str(acf, 'AppState', 'appid');
         const name = str(acf, 'AppState', 'name');
-        if (!appId || !name || NOT_GAMES.has(appId) || seen.has(appId)) continue;
+        if (!appId || !name || !isSteamGameAppId(appId) || seen.has(appId)) continue;
         seen.add(appId);
 
         const installDirName = str(acf, 'AppState', 'installdir');
@@ -136,6 +147,7 @@ export function scanSteam(steamPath: string): SteamScanResult {
           headerUrl: cover,
           sizeBytes: num(acf, 'AppState', 'SizeOnDisk'),
           lastPlayed: num(acf, 'AppState', 'LastPlayed'),
+          playtimeMinutes: null, // Lo rellena decorate() con localconfig.vdf
           hasDefinition: false, // Lo rellena definitions.ts
           multiplayer: false,
           favorite: false,

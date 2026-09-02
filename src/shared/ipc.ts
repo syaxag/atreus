@@ -1,18 +1,15 @@
 /**
  * Atreus — contrato IPC entre el proceso main y el renderer.
  *
- * ══════════════════════════════════════════════════════════════
- *  CONTRATO CONGELADO — coordinar cualquier cambio entre agentes.
- *  Agente A implementa `AtreusApi` en main/ipc/register.ts
- *  Agente B consume `window.atreus` (tipado por `AtreusApi`)
- * ══════════════════════════════════════════════════════════════
+ * Todo devuelve `Result<T>`: ningún handler lanza a través del puente.
+ * Ver docs/CONTRACT.md.
  */
 
 import type {
-  Achievement, AchievementPatch, CheatDef, CheatState, DerivedResolve, Game, GameId,
-  GameStat, MemType, Mod, ModProfile, RemoteMod, Result, ScanCandidate, ScanMode, ScanProgress,
-  ScanProgressEvent, ScanSession, ScanSummary, Settings,
-  StatPatch, SteamSession, TrainerSession,
+  Achievement, AchievementPatch, AchievementSet, CompletionProgress, Game, GameId, GameStat,
+  GuideCategory, GuideDocument, GuideEntry, InteractiveMap, LicenseInfo, Mod,
+  ModProfile, PlatinumReport, PlatinumSummary, RemoteMod, Result, ScanProgress,
+  Settings, StatPatch, SteamSession, SteamSnapshot,
 } from './types';
 
 /** Superficie completa expuesta en `window.atreus`. */
@@ -41,46 +38,51 @@ export interface AtreusApi {
       appId: string,
       patch: { achievements: AchievementPatch[]; stats: StatPatch[] },
     ): Promise<Result<{ applied: number }>>;
+    backups(appId: string): Promise<Result<SteamSnapshot[]>>;
+    restore(appId: string, snapshotId: string): Promise<Result<{ applied: number }>>;
     /** Restablece TODOS los logros y stats del juego. Destructivo. */
     resetAll(appId: string): Promise<Result<void>>;
   };
 
-  trainer: {
-    /** Definiciones de cheats de `data/games/<id>.json`. */
-    definitions(gameId: GameId): Promise<Result<CheatDef[]>>;
-    /** Busca el proceso y engancha. Falla si el juego está bloqueado. */
-    attach(gameId: GameId): Promise<Result<TrainerSession>>;
-    detach(gameId: GameId): Promise<Result<void>>;
-    session(gameId: GameId): Promise<Result<TrainerSession | null>>;
-    toggle(gameId: GameId, cheatId: string, enabled: boolean): Promise<Result<CheatState>>;
-    setValue(gameId: GameId, cheatId: string, value: number): Promise<Result<CheatState>>;
-    /** Dispara un cheat de tipo `button`. */
-    trigger(gameId: GameId, cheatId: string): Promise<Result<void>>;
-    states(gameId: GameId): Promise<Result<CheatState[]>>;
+  /**
+   * Logros de cualquier juego, de la tienda que sea.
+   *
+   * En Steam el estado sale del cliente y se puede escribir. En Epic, EA, Xbox
+   * o GOG la lista sale del catálogo público de Steam y el progreso lo marca el
+   * usuario: ninguna de esas plataformas lo publica sin iniciar sesión.
+   */
+  achievements: {
+    list(gameId: GameId): Promise<Result<AchievementSet>>;
+    /** Marca logros en el registro manual. Falla si la plataforma los da sola. */
+    mark(gameId: GameId, patches: AchievementPatch[]): Promise<Result<AchievementSet>>;
   };
 
   /**
-   * Buscador de memoria — el taller donde se sacan los cheats.
+   * El corazón de la aplicación: cuánto falta para el platino de un juego.
    *
-   * Flujo: `attach` → `first` con un valor conocido → cambiarlo en el juego →
-   * `next` para filtrar → repetir hasta que queden pocas → `derive` para
-   * convertir la dirección en algo reutilizable entre partidas.
+   * Junta los logros de Steam, la rareza global de cada uno, las horas jugadas
+   * de la cuenta local y el tiempo que Atreus ha visto el juego abierto.
    */
-  scanner: {
-    attach(gameId: GameId): Promise<Result<ScanSession>>;
-    detach(gameId: GameId): Promise<Result<void>>;
-    session(gameId: GameId): Promise<Result<ScanSession | null>>;
-    /** Primera pasada: busca un valor exacto por toda la memoria legible. */
-    first(gameId: GameId, type: MemType, value: number): Promise<Result<ScanSummary>>;
-    /** Refina lo que ya hay. `value` solo hace falta en modo 'eq'. */
-    next(gameId: GameId, mode: ScanMode, value?: number): Promise<Result<ScanSummary>>;
-    /** Relee los candidatos actuales. */
-    list(gameId: GameId, limit?: number): Promise<Result<ScanCandidate[]>>;
-    /** Escribe en una dirección concreta, para confirmar que es la buena. */
-    poke(gameId: GameId, address: string, value: number): Promise<Result<void>>;
-    /** Convierte una dirección en un `resolve` que sobreviva a reiniciar. */
-    derive(gameId: GameId, address: string): Promise<Result<DerivedResolve[]>>;
-    reset(gameId: GameId): Promise<Result<void>>;
+  platinum: {
+    /** Informe completo. `refresh` fuerza a ignorar la caché de 30 minutos. */
+    report(gameId: GameId, refresh?: boolean): Promise<Result<PlatinumReport>>;
+    /** Resumen de toda la biblioteca, para ordenar y filtrar. Usa caché. */
+    summaries(): Promise<Result<PlatinumSummary[]>>;
+  };
+
+  guides: {
+    /**
+     * Guías del juego, ya buscadas por Atreus: no hay que teclear nada.
+     * Devuelve primero las que se pueden leer enteras dentro de la aplicación.
+     */
+    list(gameId: GameId, category: GuideCategory, query?: string): Promise<Result<GuideEntry[]>>;
+    /** Texto completo de una guía, en secciones. */
+    read(entry: GuideEntry): Promise<Result<GuideDocument>>;
+  };
+
+  maps: {
+    /** Mapas interactivos disponibles para el juego, buscados automáticamente. */
+    list(gameId: GameId): Promise<Result<InteractiveMap[]>>;
   };
 
   mods: {
@@ -99,14 +101,14 @@ export interface AtreusApi {
     saveProfile(profile: ModProfile): Promise<Result<ModProfile>>;
     activateProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
     deleteProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
-
-    /**
-     * Consulta el catálogo público del juego y devuelve lo que hay disponible.
-     * Falla si el juego no declara proveedor en su definición.
-     */
+    /** Catálogo público del juego. Falla si no declara proveedor. */
     discover(gameId: GameId): Promise<Result<RemoteMod[]>>;
-    /** Descarga e instala uno de los mods devueltos por `discover`. */
     installRemote(gameId: GameId, mod: RemoteMod): Promise<Result<Mod>>;
+  };
+
+  progress: {
+    get(gameId: GameId): Promise<Result<CompletionProgress>>;
+    save(progress: CompletionProgress): Promise<Result<CompletionProgress>>;
   };
 
   settings: {
@@ -127,10 +129,17 @@ export interface AtreusApi {
   app: {
     version(): Promise<Result<string>>;
     checkForUpdates(): Promise<Result<{ available: boolean; version: string | null }>>;
+    downloadUpdate(): Promise<Result<void>>;
     minimize(): void;
     maximize(): void;
     close(): void;
     openLogs(): Promise<Result<void>>;
+  };
+
+  license: {
+    get(): Promise<Result<LicenseInfo>>;
+    activate(key: string): Promise<Result<LicenseInfo>>;
+    deactivate(): Promise<Result<void>>;
   };
 
   /** Suscripción a eventos push del main. Devuelve la función de baja. */
@@ -145,17 +154,17 @@ export interface AtreusEvents {
   'library:scan-progress': ScanProgress;
   'library:updated': Game[];
   'steam:session': SteamSession;
-  'trainer:session': TrainerSession;
-  'trainer:state': { gameId: GameId; state: CheatState };
-  'scanner:progress': ScanProgressEvent;
-  'scanner:session': ScanSession;
   'mods:updated': { gameId: GameId; mods: Mod[] };
   /** Juegos nuevos detectados en un escaneo, con cuántos mods hay para ellos. */
   'mods:available': { games: { gameId: GameId; name: string; count: number }[] };
   'game:started': { gameId: GameId; pid: number };
-  'game:stopped': { gameId: GameId };
+  /** Al cerrarse, se informa de cuántos minutos duró la sesión. */
+  'game:stopped': { gameId: GameId; minutes: number };
   'toast': { level: 'info' | 'success' | 'warn' | 'error'; message: string };
   'update:available': { version: string };
+  'update:progress': { percent: number; bytesPerSecond: number; transferred: number; total: number };
+  'update:downloaded': { version: string };
+  'license:updated': LicenseInfo;
 }
 
 /**
@@ -167,34 +176,39 @@ export const IPC_CHANNELS = [
   'library.remove', 'library.setFavorite', 'library.launch',
 
   'steam.open', 'steam.close', 'steam.achievements', 'steam.stats',
-  'steam.commit', 'steam.resetAll',
+  'steam.commit', 'steam.backups', 'steam.restore', 'steam.resetAll',
 
-  'trainer.definitions', 'trainer.attach', 'trainer.detach', 'trainer.session',
-  'trainer.toggle', 'trainer.setValue', 'trainer.trigger', 'trainer.states',
+  'achievements.list', 'achievements.mark',
 
-  'scanner.attach', 'scanner.detach', 'scanner.session', 'scanner.first',
-  'scanner.next', 'scanner.list', 'scanner.poke', 'scanner.derive', 'scanner.reset',
+  'platinum.report', 'platinum.summaries',
+
+  'guides.list', 'guides.read',
+  'maps.list',
 
   'mods.list', 'mods.install', 'mods.uninstall', 'mods.setEnabled',
   'mods.reorder', 'mods.deploy', 'mods.purge', 'mods.profiles',
   'mods.saveProfile', 'mods.activateProfile', 'mods.deleteProfile',
   'mods.discover', 'mods.installRemote',
 
+  'progress.get', 'progress.save',
+
   'settings.get', 'settings.set', 'settings.pickFolder', 'settings.pickFile',
   'settings.openPath',
 
   'catalog.sync', 'catalog.version',
 
-  'app.version', 'app.checkForUpdates', 'app.openLogs',
+  'license.get', 'license.activate', 'license.deactivate',
+
+  'app.version', 'app.checkForUpdates', 'app.downloadUpdate', 'app.openLogs',
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 export const EVENT_CHANNELS = [
   'library:scan-progress', 'library:updated', 'steam:session',
-  'trainer:session', 'trainer:state', 'scanner:progress', 'scanner:session',
   'mods:updated', 'mods:available',
   'game:started', 'game:stopped', 'toast', 'update:available',
+  'update:progress', 'update:downloaded', 'license:updated',
 ] as const;
 
 /** Helpers para construir `Result<T>` sin repetir literales. */

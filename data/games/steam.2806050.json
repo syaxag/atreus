@@ -15,5 +15,16 @@
       ".utoc"
     ]
   },
-  "notes": "Unreal Engine; el proyecto se llama Meteorite. Los mods son .pak (con sus .ucas/.utoc si los traen) y van en Content/Paks/~mods, que Unreal carga después del pak base. La carpeta ~mods la crea Atreus al desplegar. Ruta verificada: Meteorite/Content/Paks existe. SIN catalogo de mods: no esta en ningun catalogo con API."
+  "guides": {
+    "maps": [
+      {
+        "id": "halopedia-campaign",
+        "title": "Halo: Campaign Evolved · misiones y coleccionables",
+        "description": "Recorrido de la campaña con las calaveras y terminales de cada misión.",
+        "url": "https://www.halopedia.org/Halo:_Combat_Evolved",
+        "provider": "Halopedia"
+      }
+    ]
+  },
+  "notes": "Unreal Engine; el proyecto se llama Meteorite. Los mods son .pak (con sus .ucas/.utoc si los traen) y van en Content/Paks/~mods, que Unreal carga después del pak base. La carpeta ~mods la crea Atreus al desplegar. Atreus consulta Steam Workshop automáticamente; las fuentes Nexus que exigen una cuenta o API se muestran como guía, no se descargan sin autorización."
 }

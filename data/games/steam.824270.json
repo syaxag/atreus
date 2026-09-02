@@ -9,6 +9,7 @@
   "mods": {
     "root": "FPSAimTrainer\\Content\\Paks\\~mods",
     "loader": "unreal-pak",
+    "provider": { "kind": "workshop" },
     "packaged": [
       ".pak",
       ".ucas",

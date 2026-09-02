@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Search, RefreshCw, Star, Play, LibraryBig, Zap, ShieldOff, Plus,
+  Search, RefreshCw, Star, Play, LibraryBig, Plus, Trophy, Users,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { bytes, PLATFORM_LABEL, relative } from '@/lib/format';
-import { Badge, Button, Empty, Input, Skeleton, ViewHeader } from '@/components/ui';
-import type { Game } from '@shared/types';
+import { duration, PLATFORM_LABEL, relative } from '@/lib/format';
+import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
+import type { Game, PlatinumSummary } from '@shared/types';
 
-type Filter = 'all' | 'favorites' | 'cheats' | 'installed';
+/**
+ * Los filtros de una biblioteca de cazador de platinos: qué estoy persiguiendo,
+ * qué ya conseguí y qué ni he empezado.
+ */
+type Filter = 'all' | 'favorites' | 'in-progress' | 'complete' | 'untouched';
+type Sort = 'progress' | 'name' | 'played';
 
 /** Orden de las fases del escaneo, para traducirlas a un porcentaje. */
 const SCAN_PHASES = ['steam', 'epic', 'gog', 'xbox', 'enrich', 'done'] as const;
@@ -23,9 +28,16 @@ function scanPercent(progress: { phase: string } | null): number {
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'Todos' },
+  { id: 'in-progress', label: 'En curso' },
+  { id: 'complete', label: 'Al 100 %' },
+  { id: 'untouched', label: 'Sin empezar' },
   { id: 'favorites', label: 'Favoritos' },
-  { id: 'cheats', label: 'Con cheats' },
-  { id: 'installed', label: 'Instalados' },
+];
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'progress', label: 'Más cerca del platino' },
+  { id: 'played', label: 'Más jugados' },
+  { id: 'name', label: 'Nombre' },
 ];
 
 export function LibraryView() {
@@ -36,24 +48,38 @@ export function LibraryView() {
   const scan = useStore((s) => s.scan);
   const pushToast = useStore((s) => s.pushToast);
 
+  const platinum = useStore((s) => s.platinum);
+
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('progress');
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return games
       .filter((g) => (q ? g.name.toLowerCase().includes(q) : true))
       .filter((g) => {
+        const summary = platinum[g.id];
         if (filter === 'favorites') return g.favorite;
-        if (filter === 'cheats') return g.hasDefinition && !g.multiplayer;
-        if (filter === 'installed') return g.installDir !== null;
+        if (filter === 'complete') return summary?.complete === true;
+        if (filter === 'in-progress') {
+          return summary !== undefined && summary.total > 0 && summary.unlocked > 0 && !summary.complete;
+        }
+        if (filter === 'untouched') return !summary || summary.unlocked === 0;
         return true;
       })
       .sort((a, b) => {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
-        return a.name.localeCompare(b.name, 'es');
+        if (sort === 'name') return a.name.localeCompare(b.name, 'es');
+        if (sort === 'played') return (b.playtimeMinutes ?? 0) - (a.playtimeMinutes ?? 0);
+        /*
+         * "Más cerca del platino" no es simplemente el porcentaje más alto: un
+         * juego al 100 % ya está hecho y estorba arriba, y uno al 0 % ni se ha
+         * empezado. Lo que interesa es lo que está a medias y casi terminado.
+         */
+        return score(platinum[b.id]) - score(platinum[a.id]);
       });
-  }, [games, query, filter]);
+  }, [games, query, filter, sort, platinum]);
 
   async function addManual() {
     const picked = await api.settings.pickFile('Elige el ejecutable del juego', [
@@ -73,7 +99,7 @@ export function LibraryView() {
         subtitle={
           scanning && progress
             ? progress.message
-            : `${games.length} juegos · ${games.filter((g) => g.hasDefinition).length} con definición`
+            : summarize(games, platinum)
         }
         actions={
           <>
@@ -121,13 +147,25 @@ export function LibraryView() {
             </Button>
           ))}
         </div>
+        <label className="ml-auto flex items-center gap-2 text-[12px] text-faint">
+          Ordenar por
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as Sort)}
+            className="h-7 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none"
+          >
+            {SORTS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {loading ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="aspect-[3/4] rounded-md" />
+              <Skeleton key={i} className="h-[186px] rounded-md" />
             ))}
           </div>
         ) : visible.length === 0 ? (
@@ -149,7 +187,7 @@ export function LibraryView() {
           />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
-            {visible.map((g) => <GameCard key={g.id} game={g} />)}
+            {visible.map((g, i) => <GameCard key={g.id} game={g} index={i} summary={platinum[g.id]} />)}
           </div>
         )}
       </div>
@@ -157,7 +195,81 @@ export function LibraryView() {
   );
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCoverImage({ game }: { game: Game }) {
+  const [fallbackIndex, setFallbackIndex] = useState(0);
+
+  const fallbacks = useMemo(() => {
+    const list: string[] = [];
+    if (game.headerUrl) list.push(game.headerUrl);
+    if (game.platform === 'steam' && game.nativeId) {
+      list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/header.jpg`);
+      list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/capsule_616x353.jpg`);
+      list.push(`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.nativeId}/header.jpg`);
+    }
+    return list;
+  }, [game.headerUrl, game.platform, game.nativeId]);
+
+  /**
+   * Las carátulas que no estaban en disco se descargan en segundo plano y
+   * llegan por `library:updated`. Guardar la URL en un estado inicial dejaba la
+   * tarjeta con las iniciales para siempre: el índice se reinicia cuando la
+   * lista de candidatas cambia, y la imagen aparece sola.
+   */
+  useEffect(() => { setFallbackIndex(0); }, [fallbacks]);
+
+  const imgSrc = fallbacks[fallbackIndex] ?? null;
+
+  if (imgSrc) {
+    return (
+      <img
+        src={imgSrc}
+        alt=""
+        onError={() => setFallbackIndex((value) => value + 1)}
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full object-cover transition-transform duration-500 ease-atreus group-hover:scale-[1.07]"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-elevated via-surface to-inset p-4 text-center">
+      <div className="flex flex-col items-center gap-1">
+        <span className="select-none text-2xl font-bold tracking-wider text-accent/70">
+          {game.name.slice(0, 2).toUpperCase()}
+        </span>
+        <span className="line-clamp-2 select-none text-[11px] font-medium text-faint">
+          {game.name}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Prioridad en el orden "más cerca del platino".
+ *
+ * Un juego a medio hacer va antes que uno terminado y que uno sin tocar,
+ * porque es el único donde queda algo que decidir hoy.
+ */
+function score(summary: PlatinumSummary | undefined): number {
+  if (!summary || summary.total === 0) return -1;
+  if (summary.complete) return -0.5;
+  if (summary.unlocked === 0) return 0;
+  return summary.percent;
+}
+
+function summarize(games: Game[], platinum: Record<string, PlatinumSummary>): string {
+  const known = games.map((game) => platinum[game.id]).filter((s): s is PlatinumSummary => !!s && s.total > 0);
+  const complete = known.filter((s) => s.complete).length;
+  const started = known.filter((s) => s.unlocked > 0 && !s.complete).length;
+  if (known.length === 0) return `${games.length} juegos · abre uno para calcular su progreso`;
+  return `${games.length} juegos · ${complete} al 100 % · ${started} en curso`;
+}
+
+function GameCard({
+  game, index, summary,
+}: { game: Game; index: number; summary: PlatinumSummary | undefined }) {
   const select = useStore((s) => s.select);
   const go = useStore((s) => s.go);
   const selectedId = useStore((s) => s.selectedId);
@@ -170,8 +282,6 @@ function GameCard({ game }: { game: Game }) {
     e.stopPropagation();
     const res = await api.library.launch(game.id);
     if (!res.ok) return pushToast('error', res.error);
-    // Steam, Epic y Xbox se lanzan por URL y no devuelven pid; enseñar "pid 0"
-    // solo confunde.
     pushToast('info', res.data.pid
       ? `${game.name} lanzado (pid ${res.data.pid})`
       : `${game.name} lanzado`);
@@ -179,12 +289,9 @@ function GameCard({ game }: { game: Game }) {
 
   function open() {
     select(game.id);
-    go('achievements');
+    go('game');
   }
 
-  // La tarjeta es un <div> con rol de botón, no un <button>: dentro lleva
-  // acciones propias (favorito, lanzar) y anidar botones es HTML inválido,
-  // además de dejar el foco por teclado inservible.
   return (
     <div
       role="button"
@@ -196,27 +303,24 @@ function GameCard({ game }: { game: Game }) {
       aria-label={game.name}
       className={cn(
         'group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left',
-        'transition-[transform,border-color] duration-[180ms] ease-atreus',
-        'hover:-translate-y-0.5 hover:border-accent',
-        active ? 'border-accent' : 'border-line',
+        'defer-render-lg animate-rise',
+        'transition-[transform,border-color,box-shadow] duration-[180ms] ease-atreus',
+        'hover:-translate-y-1 hover:border-accent hover:shadow-lg hover:shadow-accent/15',
+        active ? 'border-accent shadow-md shadow-accent/20' : 'border-line',
       )}
+      // El escalonado se corta pronto: con veinte tarjetas ya se ha leído el
+      // gesto, y esperar a la número cuarenta solo sería lentitud disfrazada.
+      style={{ animationDelay: `${Math.min(index, 14) * 22}ms` }}
     >
-      {/* Carátula: mientras no haya imágenes reales, la inicial sobre un degradado. */}
-      <div className="relative flex aspect-[3/4] items-center justify-center bg-inset">
-        {game.headerUrl ? (
-          <img src={game.headerUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="select-none text-[44px] font-semibold text-faint">
-            {game.name.charAt(0).toUpperCase()}
-          </span>
-        )}
+      <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-inset">
+        <GameCoverImage game={game} />
 
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); void toggleFavorite(game.id); }}
           aria-label={game.favorite ? 'Quitar de favoritos' : 'Marcar favorito'}
           className={cn(
-            'absolute right-2 top-2 rounded-sm p-1.5 transition-opacity duration-[120ms]',
+            'absolute right-2 top-2 rounded-sm bg-surface/80 p-1.5 backdrop-blur-sm transition-all duration-[120ms]',
             'focus-visible:opacity-100',
             game.favorite
               ? 'text-accent opacity-100'
@@ -230,7 +334,7 @@ function GameCard({ game }: { game: Game }) {
           type="button"
           onClick={launch}
           aria-label={`Lanzar ${game.name}`}
-          className="absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 transition-opacity duration-[120ms] hover:bg-accent-hover focus-visible:opacity-100 group-hover:opacity-100"
+          className="absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Play size={13} fill="currentColor" />
         </button>
@@ -238,17 +342,30 @@ function GameCard({ game }: { game: Game }) {
 
       <div className="flex flex-col gap-1.5 p-3">
         <p className="truncate text-[13px] font-medium" title={game.name}>{game.name}</p>
-        <div className="flex items-center gap-1.5">
-          <Badge>{PLATFORM_LABEL[game.platform] ?? game.platform}</Badge>
-          {game.multiplayer ? (
-            <Badge tone="warn"><ShieldOff size={10} className="mr-1" /> MP</Badge>
-          ) : game.hasDefinition ? (
-            <Badge tone="accent"><Zap size={10} className="mr-1" /> Cheats</Badge>
-          ) : null}
-        </div>
-        <p className="text-[11px] text-faint">
-          {bytes(game.sizeBytes)} · {relative(game.lastPlayed)}
-        </p>
+
+        {/* El progreso hacia el platino es lo primero que se mira en esta
+            aplicación, así que ocupa el sitio que antes tenían las etiquetas. */}
+        {summary && summary.total > 0 ? <>
+          <Progress
+            value={summary.percent}
+            tone={summary.complete ? 'success' : 'accent'}
+            className="h-1"
+            label={`${game.name}: ${summary.unlocked} de ${summary.total} logros`} />
+          <p className="flex items-center gap-1 text-[11px] text-faint">
+            <Trophy size={10} className={summary.complete ? 'text-success' : 'text-accent'} />
+            {summary.unlocked}/{summary.total}
+            <span className="tabular-nums">· {summary.percent.toFixed(0)} %</span>
+            {summary.playtimeMinutes ? <span>· {duration(summary.playtimeMinutes)}</span> : null}
+          </p>
+        </> : <>
+          <div className="flex items-center gap-1.5">
+            <Badge>{PLATFORM_LABEL[game.platform] ?? game.platform}</Badge>
+            {game.multiplayer && <Badge tone="warn"><Users size={10} className="mr-1" /> Multijugador</Badge>}
+          </div>
+          <p className="text-[11px] text-faint">
+            {game.playtimeMinutes ? `${duration(game.playtimeMinutes)} · ` : ''}{relative(game.lastPlayed)}
+          </p>
+        </>}
       </div>
     </div>
   );

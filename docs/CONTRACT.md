@@ -1,103 +1,108 @@
-# Contrato IPC — reglas de reparto entre las dos sesiones de construcción
+# Contrato IPC
 
-El contrato son dos archivos, y están **congelados**:
+El contrato son dos archivos:
 
-- `src/shared/types.ts` — tipos de dominio (`Game`, `Achievement`, `CheatDef`, …).
+- `src/shared/types.ts` — tipos de dominio (`Game`, `Achievement`, `PlatinumReport`, …).
 - `src/shared/ipc.ts` — `AtreusApi`, `AtreusEvents`, `IPC_CHANNELS`, `ok()`, `err()`.
-
-## Historial de cambios del contrato
-
-Estaba congelado desde la FASE 0. Se ha ampliado una vez:
-
-| Cuándo | Qué | Por qué |
-|---|---|---|
-| Buscador de memoria | `+scanner.*` (9 canales), `+scanner:progress`, `+scanner:session` | Los patrones AoB no se pueden inventar: hay que sacarlos del proceso en marcha, y eso necesitaba superficie nueva |
-
-Ampliar es seguro; **cambiar o quitar** lo existente no. Al añadir `scanner`,
-`npm run typecheck` señaló al momento que el mock no lo implementaba — que es
-exactamente para lo que sirve tener el contrato tipado.
 
 ## Reglas
 
-1. **Nadie edita `src/shared/` sin acuerdo previo.** Si una sesión necesita un campo
-   nuevo, se detiene y lo pide. Es la única dependencia dura entre las dos.
-2. **Todo método devuelve `Result<T>`.** Nunca se lanza una excepción a través del IPC.
-   El main captura y devuelve `err(mensaje)`.
-3. **Los nombres de canal se derivan de la forma `dominio.metodo`.**
+1. **Todo método devuelve `Result<T>`.** Nunca se lanza una excepción a través del IPC.
+   `register.ts` envuelve cada handler y devuelve `err(mensaje)` si algo revienta.
+2. **Los nombres de canal se derivan de la forma `dominio.metodo`.**
    `library.scan` → `ipcMain.handle('library.scan', …)`.
-4. **Los eventos push usan `dominio:evento`** (dos puntos, no punto) para no
+3. **Los eventos push usan `dominio:evento`** (dos puntos, no punto) para no
    confundirlos con los canales de invocación.
-5. El renderer **nunca** importa nada de `src/main/`. Solo `src/shared/` y su propio árbol.
+4. El renderer **nunca** importa nada de `src/main/`. Solo `src/shared/` y su propio árbol.
+5. Al añadir un canal hay que tocar cuatro sitios: `IPC_CHANNELS`, la interfaz
+   `AtreusApi`, `main/ipc/register.ts` y `preload/index.ts`. El arranque avisa en el
+   registro si alguno queda sin cubrir, y `npm run typecheck` caza el resto.
 
-## Cómo lo implementa el Lado A (backend)
+## Dominios
+
+| Dominio | Para qué |
+|---|---|
+| `library` | Detectar, listar, marcar y lanzar juegos |
+| `steam` | Leer y escribir logros y estadísticas por el cliente de Steam |
+| `achievements` | Logros de cualquier juego, de la tienda que sea, y el registro manual |
+| `platinum` | Informe de cuánto falta para el 100 %, y resumen de toda la biblioteca |
+| `guides` | Buscar guías y traer su texto completo |
+| `maps` | Localizar el mapa interactivo del juego |
+| `mods` | Instalar, ordenar y desplegar mods |
+| `progress` | Checklist y notas locales por juego |
+| `settings`, `catalog`, `app`, `license` | Infraestructura |
+
+## Reescritura de septiembre de 2026
+
+El contrato dejó de estar congelado y se rehízo alrededor del platino. Lo que cambió:
+
+**Fuera** — `trainer.*` (8 canales), `scanner.*` (10), y los eventos
+`trainer:session`, `trainer:state`, `scanner:progress`, `scanner:session`. Con ellos
+se fueron los tipos `CheatDef`, `CheatState`, `CheatResolve`, `MemType`,
+`ScanCandidate`, `ScanSession`, `TrainerSession`, `DerivedResolve` y `AtlasMap`.
+
+**Dentro** — `achievements.list`, `achievements.mark`, `platinum.report`,
+`platinum.summaries`, `maps.list`, y `guides.list` / `guides.read` en lugar de
+`guides.search` / `guides.read` / `guides.maps`.
+
+`achievements.list` es la puerta única a los logros de un juego, y devuelve un
+`AchievementSet` que dice de dónde sale lo que trae: `tracking: 'steam'` cuando manda
+el cliente (y entonces `writable` es true), `'manual'` cuando la lista es la del
+catálogo público de Steam y el progreso lo pone el usuario, y `'none'` cuando no hay
+lista. La interfaz se apoya en ese campo en vez de mirar la plataforma, porque un juego
+de Steam con el cliente cerrado cae también en `'manual'`.
+
+**Cambios de forma en lo que se quedó:**
+
+- `Game` gana `playtimeMinutes`. `hasDefinition` ya no significa "tiene cheats
+  utilizables" sino "Atreus tiene una ficha propia de este juego".
+- `Achievement` gana `globalPercent`: el porcentaje de jugadores del mundo que lo
+  tiene. Lo rellena `steam/session.ts` cruzando con la API pública de rareza.
+- `PlatinumReport` y `PlatinumSummary` ganan `tracking`, para que la interfaz nunca
+  presente como medido un progreso que puso el usuario a mano.
+- `game:stopped` lleva ahora los `minutes` que duró la sesión.
+- `Settings` pierde `hotkeysEnabled` y `confirmBeforeCheats`, y gana
+  `achievementRiskAccepted`.
+
+## Cómo se implementa
 
 ```ts
 // src/main/ipc/register.ts
-import { ipcMain } from 'electron';
-import { ok, err } from '../../shared/ipc';
-
-ipcMain.handle('library.scan', async () => {
-  try {
-    return ok(await catalog.scan());
-  } catch (e) {
-    return err(e instanceof Error ? e.message : String(e));
-  }
-});
+handle('platinum.report', (gameId: string, refresh?: boolean) =>
+  platinum.report(gameId, refresh === true).then(ok));
 ```
-
-Y el preload lo reexpone con la forma anidada de `AtreusApi`:
 
 ```ts
 // src/preload/index.ts
-contextBridge.exposeInMainWorld('atreus', {
-  library: {
-    scan: () => ipcRenderer.invoke('library.scan'),
-    // …
-  },
-  on: (channel, handler) => {
-    const wrapped = (_e, payload) => handler(payload);
-    ipcRenderer.on(channel, wrapped);
-    return () => ipcRenderer.off(channel, wrapped);
-  },
-});
+platinum: {
+  report: (gameId, refresh) => invoke('platinum.report', gameId, refresh),
+  summaries: () => invoke('platinum.summaries'),
+},
 ```
-
-## Cómo lo consume el Lado B (interfaz)
 
 ```ts
-// src/renderer/lib/api.ts
-import type { AtreusApi } from '../../shared/ipc';
-import { mockApi } from '../mock/api';
-
-const USE_MOCK = import.meta.env.VITE_MOCK === '1';
-export const api: AtreusApi = USE_MOCK ? mockApi : (window as any).atreus;
+// en un componente, siempre comprobando `ok`
+const res = await api.platinum.report(gameId);
+if (!res.ok) { pushToast('error', res.error); return; }
+setReport(res.data);
 ```
 
-Uso en un componente, siempre comprobando `ok`:
-
-```ts
-const res = await api.library.scan();
-if (!res.ok) { toast.error(res.error); return; }
-setGames(res.data);
-```
-
-## El mock es responsabilidad del Lado B
+## El mock
 
 `src/renderer/mock/api.ts` implementa `AtreusApi` entero con datos falsos y latencia
-simulada (150-400 ms) para que la UI de carga sea realista. Debe cubrir:
+simulada (150-400 ms), para levantar la interfaz sin Steam ni juegos abiertos
+(`npm run dev:mock`). Cubre:
 
-- ~10 juegos, incluyendo uno multijugador (para probar el estado `blocked`)
-  y uno sin definición de cheats.
-- ~40 logros de ejemplo, con ocultos y con fechas de desbloqueo.
-- ~8 estadísticas, alguna increment-only.
-- ~6 cheats repartidos en 2 grupos, de los tres tipos.
-- ~5 mods, uno con conflicto y otro en error.
-- Emisión periódica de eventos para probar los suscriptores.
+- 13 juegos de varias plataformas, con horas jugadas y con uno multijugador.
+- ~10 logros con rareza, ocultos y fechas de desbloqueo.
+- Informes de platino calculados igual que en el backend real.
+- Guías legibles y no legibles, para probar las dos ramas del lector.
+- Un mapa interactivo, ~5 mods (uno con conflicto y otro en error) y perfiles.
 
-Mientras `VITE_MOCK=1`, `npm run dev` levanta la UI sin depender del backend.
+Si el mock miente, la interfaz parece rota donde no lo está: cuando se añade un canal,
+se añade también aquí.
 
-## Verificación del contrato
+## Verificación
 
-`npm run typecheck` compila los tres árboles contra `src/shared/`. Si una sesión rompe
-el contrato, falla ahí antes que en tiempo de ejecución. **Ejecutarlo antes de cada
-punto de sincronía.**
+`npm run typecheck` compila los dos árboles contra `src/shared/`. Es lo que caza que el
+mock, el preload o una vista se hayan quedado atrás. **Ejecutarlo antes de cada commit.**

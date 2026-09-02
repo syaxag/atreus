@@ -40,18 +40,20 @@ export const paths = {
   profiles: join(root, 'profiles'),
   mods: join(root, 'mods'),
   cache: join(root, 'cache'),
+  backups: join(root, 'backups'),
+  progress: join(root, 'progress'),
+  /** Minutos que Atreus ha visto cada juego abierto. */
+  sessions: join(root, 'sessions.json'),
   logs: join(root, 'logs'),
   logFile: join(root, 'logs', 'main.log'),
 
   // ── Capa de fábrica ──
   builtinData,
   builtinGameDefs: join(builtinData, 'games'),
-  builtinBlocklist: join(builtinData, 'blocklist.json'),
 
   // ── Capa del usuario ──
   userData,
   userGameDefs: join(userData, 'games'),
-  userBlocklist: join(userData, 'blocklist.json'),
   /** Marca de la última sincronización del catálogo. */
   catalogMeta: join(userData, 'catalog.json'),
 } as const;
@@ -69,7 +71,7 @@ export type OpenableKey = keyof typeof OPENABLE;
 /** Crea el árbol de carpetas. Idempotente; llamar una vez al arrancar. */
 export function ensurePaths(): void {
   for (const dir of [
-    root, paths.profiles, paths.mods, paths.cache, paths.logs,
+    root, paths.profiles, paths.mods, paths.cache, paths.backups, paths.progress, paths.logs,
     paths.userData, paths.userGameDefs,
   ]) {
     mkdirSync(dir, { recursive: true });

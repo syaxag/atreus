@@ -8,3 +8,6 @@ dist/
 .env.local
 release/
 .preview/
+
+# Cachés de compilación de TypeScript: se regeneran solas.
+*.tsbuildinfo

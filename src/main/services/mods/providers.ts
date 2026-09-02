@@ -2,7 +2,12 @@ import { net } from 'electron';
 import type { GameId, RemoteMod } from '@shared/types';
 import { log } from '../../logger';
 import { getDefinition } from '../catalog/definitions';
+import { findSteamPath, readLibraryFolders } from '../catalog/steam';
+import { getSettings } from '../settings';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { classify } from './classify';
+import { detectMinecraftRuntime } from './minecraft';
 
 const logger = log('mods:providers');
 
@@ -161,6 +166,159 @@ async function listGeode(): Promise<RemoteMod[]> {
   return out.sort((a, b) => b.downloads - a.downloads);
 }
 
+// ── Modrinth (Minecraft Java) ────────────────────────────────
+interface ModrinthHit {
+  project_id: string;
+  title: string;
+  description: string;
+  author: string;
+  downloads: number;
+  icon_url: string | null;
+  versions: string[];
+  latest_version?: string;
+  categories: string[];
+}
+
+interface ModrinthSearch { hits: ModrinthHit[]; }
+interface ModrinthVersion {
+  version_number: string;
+  files: { url: string; filename: string; size: number; primary?: boolean }[];
+  dependencies?: unknown[];
+}
+
+function minecraftFacets(loader: string, gameVersion: string): string {
+  return JSON.stringify([
+    [`categories:${loader}`],
+    [`versions:${gameVersion}`],
+    ['project_type:mod'],
+  ]);
+}
+
+async function listModrinthMinecraft(): Promise<RemoteMod[]> {
+  const runtime = detectMinecraftRuntime();
+  if (!runtime) return [];
+  const url = new URL('https://api.modrinth.com/v2/search');
+  url.searchParams.set('query', '');
+  url.searchParams.set('facets', minecraftFacets(runtime.loader, runtime.gameVersion));
+  url.searchParams.set('index', 'downloads');
+  url.searchParams.set('limit', '50');
+  const body = await fetchJson<ModrinthSearch>(url.toString());
+  return body.hits.map((hit) => ({
+    // Se guarda la combinación usada para obtener una descarga compatible al
+    // instalar. El proyecto nunca se descarga hasta que el usuario lo elige.
+    id: `${hit.project_id}|${runtime.loader}|${runtime.gameVersion}`,
+    name: hit.title,
+    author: hit.author,
+    version: hit.latest_version ?? hit.versions.at(-1) ?? '',
+    description: hit.description,
+    downloads: hit.downloads,
+    sizeBytes: null,
+    iconUrl: hit.icon_url,
+    pageUrl: `https://modrinth.com/mod/${hit.project_id}`,
+    downloadUrl: '',
+    fileName: '',
+    categories: hit.categories,
+    dependencies: 0,
+    source: `Modrinth · ${runtime.loader} ${runtime.gameVersion}`,
+    metric: 'descargas',
+    kind: 'mod' as const,
+    deferred: true,
+  }));
+}
+
+async function resolveModrinth(mod: RemoteMod): Promise<RemoteMod> {
+  const [projectId, loader, gameVersion] = mod.id.split('|');
+  if (!projectId || !loader || !gameVersion) throw new Error('Ficha de Modrinth incompleta');
+  const url = new URL(`https://api.modrinth.com/v2/project/${encodeURIComponent(projectId)}/version`);
+  url.searchParams.set('loaders', JSON.stringify([loader]));
+  url.searchParams.set('game_versions', JSON.stringify([gameVersion]));
+  url.searchParams.set('include_changelog', 'false');
+  const versions = await fetchJson<ModrinthVersion[]>(url.toString());
+  const version = versions[0];
+  const file = version?.files.find((item) => item.primary) ?? version?.files[0];
+  if (!version || !file?.url) throw new Error(`No hay una versión compatible de "${mod.name}"`);
+  return {
+    ...mod,
+    version: version.version_number,
+    downloadUrl: file.url,
+    fileName: file.filename,
+    sizeBytes: file.size,
+    dependencies: version.dependencies?.length ?? 0,
+    deferred: false,
+  };
+}
+
+// ── Steam Workshop ───────────────────────────────────────────
+/**
+ * Steam descarga los Workshop items dentro de cada biblioteca. No se intenta
+ * suscribir ni bajar archivos desde Atreus: Steam es la fuente de verdad y
+ * maneja tanto actualizaciones como dependencias propias del juego.
+ */
+function listWorkshopLocal(appId: string): RemoteMod[] {
+  const steam = findSteamPath(getSettings().steamPath);
+  if (!steam) return [];
+  const ids = new Set<string>();
+  for (const library of readLibraryFolders(steam)) {
+    const folder = join(library, 'steamapps', 'workshop', 'content', appId);
+    if (!existsSync(folder)) continue;
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      if (entry.isDirectory() && /^\d+$/.test(entry.name)) ids.add(entry.name);
+    }
+  }
+  return [...ids].sort().map((id) => ({
+    id, name: `Workshop item ${id}`, author: 'Steam Workshop', version: '',
+    description: 'Suscrito y descargado localmente. Steam gestiona su actualización.',
+    downloads: 0, sizeBytes: null, iconUrl: null,
+    pageUrl: `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`,
+    downloadUrl: '', fileName: '', categories: [], dependencies: 0,
+    source: 'Steam Workshop', metric: 'suscrito', kind: 'mod' as const,
+    deferred: false, installable: false,
+  }));
+}
+
+/** Quita las pocas etiquetas HTML que Steam deja dentro de los títulos. */
+function plainHtml(value: string): string {
+  return value.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Muestra también el catálogo público del Workshop, pero nunca intenta
+ * suscribir, descargar ni desplegar desde Atreus: esas acciones siguen siendo
+ * responsabilidad del cliente de Steam.
+ */
+async function listWorkshop(appId: string): Promise<RemoteMod[]> {
+  const local = listWorkshopLocal(appId);
+  const known = new Set(local.map((item) => item.id));
+  const url = `https://steamcommunity.com/workshop/browse/?appid=${encodeURIComponent(appId)}&section=readytouseitems&browsesort=toprated`;
+  try {
+    const response = await net.fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Atreus/0.1' } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = await response.text();
+    const remote: RemoteMod[] = [];
+    // Steam cambió las clases CSS de la página, pero conserva las fichas y el
+    // título como enlaces. Esta forma no depende del nombre CSS minificado.
+    const links = html.matchAll(/<a href="https:\/\/steamcommunity\.com\/sharedfiles\/filedetails\/\?id=(\d+)">([\s\S]*?)<\/a>/g);
+    for (const match of links) {
+      const id = match[1];
+      const title = match[2];
+      if (!id || !title || known.has(id)) continue;
+      remote.push({
+        id, name: plainHtml(title), author: 'Steam Workshop', version: '',
+        description: 'Disponible en Steam Workshop. Steam gestiona la suscripción, descarga y actualización.',
+        downloads: 0, sizeBytes: null, iconUrl: null,
+        pageUrl: `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`,
+        downloadUrl: '', fileName: '', categories: [], dependencies: 0,
+        source: 'Steam Workshop', metric: 'Workshop', kind: 'mod', deferred: false, installable: false,
+      });
+      if (remote.length >= 30) break;
+    }
+    return [...local, ...remote];
+  } catch (e) {
+    logger.warn(`${appId}: no se pudo leer el catálogo público de Workshop:`, e);
+    return local;
+  }
+}
+
 // ── GameBanana ────────────────────────────────────────────────
 interface GbRecord {
   _idRow: number;
@@ -272,19 +430,26 @@ async function resolveGameBanana(mod: RemoteMod): Promise<RemoteMod> {
 /** Los catálogos de un juego. Uno, varios o ninguno. */
 export function providersOf(gameId: GameId): ModProvider[] {
   const spec = getDefinition(gameId)?.mods?.provider;
-  if (!spec) return [];
-  return Array.isArray(spec) ? spec : [spec];
+  if (spec) return Array.isArray(spec) ? spec : [spec];
+
+  // Workshop no requiere una definición manual: cuando Steam identifica un
+  // juego por appId, Atreus puede consultar automáticamente si su comunidad
+  // publicó contenido. Steam sigue siendo quien suscribe y actualiza archivos.
+  const appId = /^steam:(\d+)$/.exec(gameId)?.[1];
+  return appId ? [{ kind: 'workshop', appId }] : [];
 }
 
 export function hasProvider(gameId: GameId): boolean {
   return providersOf(gameId).length > 0;
 }
 
-function listOne(provider: ModProvider): Promise<RemoteMod[]> {
+function listOne(provider: ModProvider, gameId: GameId): Promise<RemoteMod[]> {
   switch (provider.kind) {
     case 'geode': return listGeode();
     case 'thunderstore': return listThunderstore(provider.community);
     case 'gamebanana': return listGameBanana(provider.gameId);
+    case 'modrinth': return listModrinthMinecraft();
+    case 'workshop': return listWorkshop(provider.appId ?? gameId.replace(/^steam:/, ''));
   }
 }
 
@@ -299,17 +464,52 @@ function clasificar(mods: RemoteMod[]): RemoteMod[] {
  * Si uno falla, se sigue con los demás: que GameBanana esté caído no debe
  * dejar sin ver los mods de Thunderstore.
  */
+/**
+ * Resultados recordados por juego.
+ *
+ * La ficha del juego, Cheats y Mods piden el catálogo cada una por su cuenta, y
+ * con `key={section}` en el App cada ida y vuelta remontaba la vista: abrir un
+ * juego y pasear por sus tres pestañas eran nueve consultas a Thunderstore y
+ * GameBanana, con su espera correspondiente. Ahora la primera paga y las demás
+ * leen de aquí.
+ */
+const CACHE_TTL_MS = 10 * 60_000;
+const cache = new Map<GameId, { at: number; mods: RemoteMod[] }>();
+/** Consultas en vuelo, para que tres vistas a la vez no disparen tres peticiones. */
+const inFlight = new Map<GameId, Promise<RemoteMod[]>>();
+
+/** Olvida lo cacheado de un juego. Se usa tras instalar o cambiar definiciones. */
+export function forgetDiscovery(gameId?: GameId): void {
+  if (gameId) { cache.delete(gameId); inFlight.delete(gameId); }
+  else { cache.clear(); inFlight.clear(); }
+}
+
 export async function discover(gameId: GameId): Promise<RemoteMod[]> {
+  const cached = cache.get(gameId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.mods;
+
+  const flying = inFlight.get(gameId);
+  if (flying) return flying;
+
+  const request = discoverFresh(gameId)
+    .then((mods) => {
+      cache.set(gameId, { at: Date.now(), mods });
+      return mods;
+    })
+    .finally(() => inFlight.delete(gameId));
+
+  inFlight.set(gameId, request);
+  return request;
+}
+
+async function discoverFresh(gameId: GameId): Promise<RemoteMod[]> {
   const providers = providersOf(gameId);
   if (providers.length === 0) {
-    throw new Error(
-      'Este juego no tiene un catálogo de mods configurado. Añade ' +
-      '"mods": { "provider": … } en su definición.',
-    );
+    return [];
   }
 
   const started = Date.now();
-  const results = await Promise.allSettled(providers.map(listOne));
+  const results = await Promise.allSettled(providers.map((provider) => listOne(provider, gameId)));
 
   const mods: RemoteMod[] = [];
   const fallos: string[] = [];
@@ -341,6 +541,7 @@ export async function discover(gameId: GameId): Promise<RemoteMod[]> {
 export async function resolve(mod: RemoteMod): Promise<RemoteMod> {
   if (!mod.deferred) return mod;
   if (mod.source === 'GameBanana') return resolveGameBanana(mod);
+  if (mod.source.startsWith('Modrinth')) return resolveModrinth(mod);
   throw new Error(`No se sabe resolver la descarga de ${mod.source}`);
 }
 

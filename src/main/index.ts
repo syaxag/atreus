@@ -8,9 +8,11 @@ import { getSettings } from './services/settings';
 import { scan, rehydrateCovers, listGames, refreshDefinitions } from './services/catalog';
 import { watchDefinitions, stopWatching } from './services/catalog/definitions';
 import { closeAll as closeSteamSessions } from './services/steam/session';
-import { detachAll as detachTrainers } from './services/trainer';
-import { detachAll as detachScanners } from './services/trainer/scan-session';
 import { emit } from './ipc/emit';
+import { startActivityMonitor, stopActivityMonitor } from './services/catalog/activity';
+import { startAutomaticSync, stopAutomaticSync } from './services/catalog/sync';
+import { startAutomaticUpdates } from './services/updater';
+import { forgetDiscovery } from './services/mods/providers';
 
 const logger = log('main');
 
@@ -18,6 +20,16 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 /** Cerrar la ventana solo oculta; salir de verdad requiere pasar por el tray. */
 let quitting = false;
+
+/**
+ * El mismo icono se usa para la ventana y la bandeja. En desarrollo vive en
+ * el repositorio; al empaquetar electron-builder lo copia a resources.
+ */
+function appIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(process.cwd(), 'resources', 'icon.ico');
+}
 
 // El esquema propio debe declararse antes de que la app esté lista.
 registerSchemes();
@@ -45,11 +57,18 @@ function createWindow(): void {
     frame: false, // La barra de título la dibuja el renderer. Ver docs/DESIGN.md.
     backgroundColor: '#0a0a0d',
     title: 'Atreus',
+    icon: appIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // koffi necesita cargar en el preload/main, no en el renderer.
+      sandbox: false, // koffi necesita cargar en el proceso main, no en el renderer.
+      /*
+       * Los mapas interactivos se abren dentro de la aplicación, en un
+       * <webview> aislado. Es un contexto separado del renderer: no ve el
+       * puente `window.atreus` ni puede tocar el sistema de archivos.
+       */
+      webviewTag: true,
     },
   });
 
@@ -108,8 +127,10 @@ function createWindow(): void {
 }
 
 function createTray(): void {
-  // El icono real llega en la FASE 6; de momento uno vacío para no romper el arranque.
-  const icon = nativeImage.createEmpty();
+  const icon = nativeImage.createFromPath(appIconPath());
+  // Un ICO ausente no debe impedir que la app arranque; sí queda registrado
+  // para que se pueda corregir en una instalación mal empaquetada.
+  if (icon.isEmpty()) logger.warn(`no se pudo cargar el icono de bandeja: ${appIconPath()}`);
   tray = new Tray(icon);
   tray.setToolTip('Atreus');
   tray.setContextMenu(
@@ -131,11 +152,17 @@ app.whenReady().then(() => {
 
   registerProtocolHandlers();
   registerIpc();
+  // Datos y programa siguen rutas separadas: el contenido se refresca en
+  // segundo plano; la actualización de Atreus solo actúa si hay un feed HTTPS.
+  startAutomaticSync();
+  void startAutomaticUpdates();
 
   // Las definiciones del usuario se vigilan: dejar un JSON nuevo en
   // %APPDATA%/Atreus/data/games aparece en la app sin reiniciarla.
   watchDefinitions(() => {
     const games = refreshDefinitions();
+    // Si cambió el proveedor de mods de un juego, lo cacheado ya no vale.
+    forgetDiscovery();
     emit('library:updated', games);
     emit('toast', { level: 'info', message: 'Definiciones recargadas' });
   });
@@ -146,11 +173,15 @@ app.whenReady().then(() => {
     // El escaneo ya deja el mapa de carátulas puesto; rehidratar además sería
     // recorrer las bibliotecas de Steam dos veces.
     void scan()
-      .then((games) => emit('library:updated', games))
+      .then((games) => {
+        emit('library:updated', games);
+        startActivityMonitor();
+      })
       .catch((e) => logger.error('el escaneo de arranque falló:', e));
   } else {
     // Las rutas de carátula viven en memoria: sin escaneo hay que reconstruirlas.
     rehydrateCovers();
+    startActivityMonitor();
   }
 
   app.on('activate', () => {
@@ -161,11 +192,10 @@ app.whenReady().then(() => {
 app.on('before-quit', () => {
   quitting = true;
   stopWatching();
+  stopActivityMonitor();
+  stopAutomaticSync();
   // Cada sesión abierta es un proceso hijo: hay que cerrarlos o quedan huérfanos.
   closeSteamSessions();
-  // Y soltar los procesos enganchados, restaurando los parches que sigan puestos.
-  detachTrainers();
-  detachScanners();
 });
 
 // En Windows, cerrar todas las ventanas no debe matar la app si vive en el tray.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Package, Plus, Trash2, ArrowUp, ArrowDown, HardDriveDownload, Eraser, TriangleAlert,
-  Layers, Check, X, Upload, Globe, Download, Search, ExternalLink,
+  Layers, Check, X, Upload, Globe, Download, Search,
 } from 'lucide-react';
 import type { Mod, ModProfile, RemoteMod } from '@shared/types';
 import { api } from '@/lib/api';
@@ -184,6 +184,11 @@ export function ModsView() {
 
   async function deploy() {
     if (!game) return;
+    const conflicts = mods.filter((mod) => mod.enabled && mod.conflictsWith.length > 0);
+    if (conflicts.length > 0 && !window.confirm(
+      `${conflicts.length} mod${conflicts.length === 1 ? '' : 's'} activo${conflicts.length === 1 ? '' : 's'} comparte archivos con otro mod.\n\n` +
+      'Atreus hará una copia de los archivos del juego que vaya a sobrescribir. ¿Desplegar de todos modos?',
+    )) return;
     setBusy(true);
     const res = await api.mods.deploy(game.id);
     setBusy(false);
@@ -208,6 +213,7 @@ export function ModsView() {
 
   const active = profiles.find((p) => p.isActive);
   const enabledCount = mods.filter((m) => m.enabled).length;
+  const conflictingEnabled = mods.filter((m) => m.enabled && m.conflictsWith.length > 0).length;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -317,7 +323,18 @@ export function ModsView() {
           <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-16 rounded-md" />)}
           </div>
-        ) : mods.length === 0 ? (
+        ) : <>
+          <Card className="mb-3 border-accent/30 bg-accent-soft px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[13px] font-medium">Despliegue seguro</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-muted">Antes de sobrescribir archivos, Atreus crea un respaldo del juego. <strong>“Purgar”</strong> restaura esos archivos; las partidas guardadas no se tocan.</p>
+              </div>
+              {conflictingEnabled > 0 ? <Badge tone="warn"><TriangleAlert size={11} className="mr-1" />{conflictingEnabled} conflicto{conflictingEnabled === 1 ? '' : 's'}</Badge>
+                : <Badge tone="success"><Check size={11} className="mr-1" />sin conflictos activos</Badge>}
+            </div>
+          </Card>
+        {mods.length === 0 ? (
           <Empty
             icon={<Package size={40} strokeWidth={1.25} />}
             title="Sin mods instalados"
@@ -331,7 +348,7 @@ export function ModsView() {
         ) : (
           <div className="flex flex-col gap-2">
             {mods.map((mod, i) => (
-              <Card key={mod.id} className={cn('px-4 py-3', !mod.enabled && 'opacity-60')}>
+              <Card key={mod.id} className={cn('defer-render px-4 py-3', !mod.enabled && 'opacity-60')}>
                 <div className="flex items-center gap-3">
                   <span className="w-6 shrink-0 text-center font-mono text-[12px] text-faint">
                     {i + 1}
@@ -377,7 +394,7 @@ export function ModsView() {
               </Card>
             ))}
           </div>
-        )}
+        )}</>}
       </div>
     </div>
   );
@@ -386,8 +403,9 @@ export function ModsView() {
 /**
  * Catálogo público del juego: lo que hay disponible sin buscarlo a mano.
  *
- * Solo trae **mods**. Los cheats no salen de aquí: un patrón de memoria es de
- * una compilación concreta y no hay catálogo público que los publique.
+ * Cada mod dice de qué tipo es antes de instalarlo: algunos catálogos publican
+ * como mod lo que en realidad es un menú de trucos, y quien va a por un platino
+ * merece saberlo antes de descargarlo.
  */
 function DiscoverPanel({
   remote, loading, error, query, onQuery, installing, installedNames, onRetry, onInstall,
@@ -456,7 +474,7 @@ function DiscoverPanel({
       {visible.map((mod) => {
         const already = installedNames.has(mod.name.toLowerCase());
         return (
-          <Card key={mod.id} className="px-4 py-3">
+          <Card key={mod.id} className="defer-render px-4 py-3">
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -476,22 +494,19 @@ function DiscoverPanel({
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  size="sm"
-                  onClick={() => void api.settings.openPath(mod.pageUrl)}
-                  aria-label="Abrir la página del mod"
-                >
-                  <ExternalLink size={12} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={already ? 'outline' : 'primary'}
-                  onClick={() => onInstall(mod)}
-                  disabled={installing !== null}
-                >
-                  <Download size={12} />
-                  {installing === mod.id ? 'Instalando…' : already ? 'Reinstalar' : 'Instalar'}
-                </Button>
+                {mod.installable === false ? (
+                  <Badge tone="accent">Steam gestiona</Badge>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant={already ? 'outline' : 'primary'}
+                    onClick={() => onInstall(mod)}
+                    disabled={installing !== null}
+                  >
+                    <Download size={12} />
+                    {installing === mod.id ? 'Instalando…' : already ? 'Reinstalar' : 'Instalar'}
+                  </Button>
+                )}
               </div>
             </div>
           </Card>

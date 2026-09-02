@@ -82,8 +82,9 @@ literal en un componente** — siempre `var(--…)`.
 │          │                                               │
 │ Bibliot. │                                               │
 │ Logros   │                                               │
+│ Guías    │                                               │
+│ Mapas    │                                               │
 │ Mods     │                                               │
-│ Cheats   │                                               │
 │          │                                               │
 │ ──────── │                                               │
 │ Ajustes  │                                               │

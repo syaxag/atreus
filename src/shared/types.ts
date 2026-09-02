@@ -1,13 +1,13 @@
 /**
  * Atreus — tipos de dominio compartidos entre main y renderer.
  *
- * CONTRATO CONGELADO. Cambiar algo aquí obliga a avisar al otro agente.
- * Ver docs/CONTRACT.md.
+ * La aplicación tiene un único objetivo: llevar un juego al 100 % de logros.
+ * Todo lo que no sirva para eso no vive aquí. Ver docs/CONTRACT.md.
  */
 
 // ─────────────────────────── Juegos ───────────────────────────
 
-export type Platform = 'steam' | 'epic' | 'gog' | 'xbox' | 'manual';
+export type Platform = 'steam' | 'epic' | 'gog' | 'xbox' | 'ea' | 'battlenet' | 'manual';
 
 /** Identificador estable: `"steam:2379780"`, `"manual:a1b2c3"`. */
 export type GameId = string;
@@ -24,9 +24,14 @@ export interface Game {
   headerUrl: string | null;
   sizeBytes: number | null;
   lastPlayed: number | null;
-  /** true si hay `data/games/<id>.json` con cheats. */
+  /**
+   * Minutos jugados según la plataforma. En Steam se leen del `localconfig.vdf`
+   * de la cuenta local, así que no hace falta clave de API. null = se desconoce.
+   */
+  playtimeMinutes: number | null;
+  /** true si hay `data/games/<id>.json` con datos de catálogo. */
   hasDefinition: boolean;
-  /** true si el título es multijugador → trainer bloqueado. */
+  /** true si el título es principalmente multijugador. Solo informativo. */
   multiplayer: boolean;
   favorite: boolean;
 }
@@ -45,6 +50,11 @@ export interface Achievement {
   unlockTime: number | null;
   /** El logro está protegido por el servidor: no se puede escribir. */
   protected: boolean;
+  /**
+   * Porcentaje de jugadores del mundo que lo tienen (0–100), o null si Steam
+   * no lo publica. Es el dato que decide qué logros hacen difícil el platino.
+   */
+  globalPercent: number | null;
 }
 
 export type StatType = 'int' | 'float' | 'avgrate';
@@ -86,126 +96,199 @@ export interface StatPatch {
   value: number;
 }
 
-// ─────────────────────────── Cheats ───────────────────────────
+/**
+ * De dónde sale el estado de desbloqueo de los logros de un juego.
+ *
+ * - `steam`: del cliente de Steam, con fechas reales. Atreus puede escribirlo.
+ * - `manual`: la lista es la del catálogo público de Steam y el progreso lo
+ *   marca el usuario, porque su plataforma no lo publica sin iniciar sesión.
+ * - `none`: no hay lista de logros que enseñar.
+ */
+export type AchievementTracking = 'steam' | 'manual' | 'none';
 
-export type CheatType = 'toggle' | 'value' | 'button';
-export type MemType =
-  | 'i8' | 'u8' | 'i16' | 'u16' | 'i32' | 'u32'
-  | 'i64' | 'u64' | 'f32' | 'f64' | 'bytes';
+/** Los logros de un juego, con la verdad sobre de dónde salen. */
+export interface AchievementSet {
+  gameId: GameId;
+  tracking: AchievementTracking;
+  /** true si Atreus puede escribir el estado en la plataforma. */
+  writable: boolean;
+  /** Nombre legible de la fuente de la lista. */
+  source: string;
+  /** Por qué el progreso no es automático, cuando no lo es. */
+  note: string | null;
+  items: Achievement[];
+}
 
-/** Cómo se localiza la dirección objetivo en memoria. */
-export type CheatResolve =
-  | { kind: 'aob'; module: string; pattern: string; offset: number; deref?: boolean }
-  | { kind: 'pointer'; module: string; base: number; offsets: number[] }
-  | { kind: 'static'; module: string; offset: number };
-
-export interface CheatDef {
+/** Copia local del estado de Steam justo antes de una escritura. */
+export interface SteamSnapshot {
   id: string;
-  name: string;
-  description?: string;
-  type: CheatType;
-  /** Agrupación en la UI: "Jugador", "Recursos", "Armas"… */
-  group?: string;
-  hotkey?: string;
-  resolve: CheatResolve;
-  write: {
-    type: MemType;
-    /** Para `toggle`/`button`: el valor a escribir al activar. */
-    value?: number | string;
-    /** Para `value`: rango editable por el usuario. */
-    min?: number;
-    max?: number;
-    step?: number;
-    /** Reescribir en bucle para vencer al juego. */
-    freeze?: boolean;
-    /** Bytes originales a restaurar al desactivar (nop-patches). */
-    restore?: string;
-  };
-  /** Aviso a mostrar antes de activar. */
-  warning?: string;
+  appId: string;
+  createdAt: number;
+  achievements: Achievement[];
+  stats: GameStat[];
 }
 
-export interface CheatState {
-  id: string;
-  enabled: boolean;
-  /** Valor actual para cheats de tipo `value`. */
-  value: number | null;
-  /** null = aún no resuelto; false = patrón no encontrado. */
-  resolved: boolean | null;
-  error: string | null;
-}
+// ─────────────────────── Informe de platino ───────────────────────
 
-export type AttachState =
-  | 'detached'
-  | 'searching'
-  | 'attached'
-  | 'blocked'      // título en la lista de bloqueo
-  | 'error';
-
-export interface TrainerSession {
-  gameId: GameId;
-  state: AttachState;
-  pid: number | null;
-  moduleBase: string | null;
-  error: string | null;
-}
-
-// ─────────────────────── Buscador de memoria ───────────────────────
-
-/** Cómo se filtra una búsqueda de refinamiento. */
-export type ScanMode =
-  | 'eq'          // igual a un valor concreto
-  | 'changed'     // distinto de la lectura anterior
-  | 'unchanged'   // igual que la lectura anterior
-  | 'increased'
-  | 'decreased';
-
-export interface ScanCandidate {
-  /** Dirección en hexadecimal, p. ej. "0x7FF6A2C10000". */
-  address: string;
-  /** Valor leído ahora. */
-  value: number;
-  /** Valor de la pasada anterior, para ver qué se movió. */
-  previous: number;
-  /** Módulo que la contiene, si cae dentro de uno. */
-  module: string | null;
-}
-
-export interface ScanSummary {
-  /** Cuántas direcciones quedan tras el último filtro. */
-  count: number;
-  /** true si se llegó al tope y la lista está recortada. */
-  truncated: boolean;
-  elapsedMs: number;
-  /** Número de pasada: 1 es la primera búsqueda. */
-  pass: number;
-}
-
-export type ScanState = 'idle' | 'attached' | 'scanning' | 'blocked' | 'error';
-
-export interface ScanSession {
-  gameId: GameId;
-  state: ScanState;
-  pid: number | null;
-  type: MemType;
-  summary: ScanSummary | null;
-  error: string | null;
-}
-
-export interface ScanProgressEvent {
-  gameId: GameId;
-  /** Bytes ya examinados y bytes totales estimados. */
-  scanned: number;
-  total: number;
-  found: number;
-}
-
-/** Una forma estable de volver a esa dirección en la próxima partida. */
-export interface DerivedResolve {
-  resolve: CheatResolve;
-  /** Cómo de fiable es: "static" aguanta siempre; "pointer" casi siempre. */
-  kind: 'static' | 'pointer';
+/** Cuánto queda y a qué ritmo. */
+export interface PlatinumEstimate {
+  /** Horas totales estimadas para llegar al 100 %. */
+  totalHours: number;
+  /** Horas que faltan desde donde estás ahora. */
+  remainingHours: number;
+  /**
+   * De dónde sale el número:
+   * - `measured`: tus propias horas y tu propio ritmo de logros.
+   * - `projected`: tus horas, proyectadas por la rareza de lo que falta.
+   * - `community`: solo la rareza global, porque aún no has jugado bastante.
+   */
+  basis: 'measured' | 'projected' | 'community';
+  confidence: 'low' | 'medium' | 'high';
   explanation: string;
+}
+
+/** Cómo de duro es el platino, en la escala habitual de 1 a 10. */
+export interface PlatinumDifficulty {
+  score: number;
+  label: string;
+  /** % global del logro más raro del juego. */
+  rarestPercent: number | null;
+  /** Cuántos logros los tiene menos del 5 % de la gente. */
+  ultraRare: number;
+  explanation: string;
+}
+
+/** Un logro que falta, con su rareza. Son los que deciden el platino. */
+export interface RemainingAchievement {
+  apiName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  globalPercent: number | null;
+  hidden: boolean;
+}
+
+/** Retrato completo de "cuánto me falta para el platino de este juego". */
+export interface PlatinumReport {
+  gameId: GameId;
+  gameName: string;
+  unlocked: number;
+  total: number;
+  /** 0–100. */
+  percent: number;
+  /** true cuando hay logros y están todos. */
+  complete: boolean;
+  /** De dónde sale el progreso: del cliente de Steam o de tus propias marcas. */
+  tracking: AchievementTracking;
+  /** Minutos jugados totales según la plataforma. */
+  playtimeMinutes: number | null;
+  /** Minutos que Atreus ha visto el juego abierto desde que se instaló. */
+  trackedMinutes: number;
+  /** Epoch en segundos del primer y del último logro conseguido. */
+  firstUnlockAt: number | null;
+  lastUnlockAt: number | null;
+  estimate: PlatinumEstimate | null;
+  difficulty: PlatinumDifficulty | null;
+  /** Los que faltan, del más común al más raro. */
+  remaining: RemainingAchievement[];
+  /** De dónde salen los datos, para no vender humo. */
+  sources: string[];
+  /** Motivo por el que falta algo, si falta. */
+  warning: string | null;
+  updatedAt: number;
+}
+
+/** Fila del ranking de la Biblioteca: lo justo para ordenar y filtrar. */
+export interface PlatinumSummary {
+  gameId: GameId;
+  tracking: AchievementTracking;
+  unlocked: number;
+  total: number;
+  percent: number;
+  complete: boolean;
+  playtimeMinutes: number | null;
+  /** null mientras no se haya calculado nunca. */
+  updatedAt: number | null;
+}
+
+// ─────────────────────────── Guías ───────────────────────────
+
+export type GuideCategory = 'platinum' | 'achievements' | 'collectibles' | 'walkthrough' | 'bosses';
+
+/** Quién publica la guía. Decide si Atreus sabe leer su texto entero. */
+export type GuideProvider = 'steam' | 'wiki' | 'web';
+
+export interface GuideEntry {
+  /** Clave estable dentro de su proveedor. */
+  id: string;
+  title: string;
+  snippet: string;
+  url: string;
+  /** Dominio o nombre legible de la fuente. */
+  source: string;
+  provider: GuideProvider;
+  author: string | null;
+  /** Valoración de la comunidad, cuando la fuente la publica. */
+  rating: number | null;
+  /** Código de idioma detectado: 'es', 'en' u 'otro'. */
+  language: string;
+  /** true si Atreus sabe extraer el texto completo, no solo un extracto. */
+  readable: boolean;
+}
+
+export interface GuideSection {
+  heading: string;
+  body: string;
+  /** Imágenes de la propia guía, en su orden. */
+  images: string[];
+}
+
+export interface GuideDocument {
+  title: string;
+  url: string;
+  source: string;
+  provider: GuideProvider;
+  author: string | null;
+  summary: string;
+  sections: GuideSection[];
+  /** true cuando la fuente solo dejó sacar un extracto. */
+  partial: boolean;
+  fetchedAt: number;
+}
+
+// ─────────────────────── Mapas interactivos ───────────────────────
+
+/**
+ * Un mapa interactivo real, que se abre dentro de Atreus.
+ *
+ * No se replica el mapa: se abre la web del proveedor en una pestaña integrada,
+ * con sus marcadores, sus filtros y su progreso.
+ */
+export interface InteractiveMap {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  /** "MapGenie", "Wiki del juego", "Catálogo de Atreus"… */
+  provider: string;
+}
+
+/** Lista de progreso local: no modifica logros ni partidas del juego. */
+export type CompletionItemKind = 'achievement' | 'collectible' | 'mission' | 'boss' | 'note';
+
+export interface CompletionItem {
+  id: string;
+  label: string;
+  kind: CompletionItemKind;
+  done: boolean;
+}
+
+/** Checklist y notas que Atreus conserva por juego entre actualizaciones. */
+export interface CompletionProgress {
+  gameId: GameId;
+  updatedAt: number;
+  items: CompletionItem[];
+  notes: string;
 }
 
 // ──────────────────────────── Mods ────────────────────────────
@@ -231,12 +314,7 @@ export interface Mod {
   error: string | null;
 }
 
-/**
- * Un mod disponible en un catálogo público, todavía no instalado.
- *
- * Sale de los proveedores (Thunderstore, Geode). Los **cheats** no aparecen
- * aquí: no existe catálogo público legible por máquina que los publique.
- */
+/** Un mod disponible en un catálogo público, todavía no instalado. */
 export interface RemoteMod {
   /** Identificador dentro de su catálogo. */
   id: string;
@@ -264,9 +342,9 @@ export interface RemoteMod {
    */
   metric: string;
   /**
-   * "cheat" si el catálogo lo publica como mod pero funciona como cheat:
-   * menús de mods, trainers, modos debug. En muchos juegos es la única forma
-   * de cheat que existe, porque nadie escribe trainers de memoria para ellos.
+   * "cheat" si el catálogo lo publica como mod pero funciona como truco:
+   * menús de mods, modos debug. Atreus ya no incluye motor de cheats, pero sí
+   * dice de qué tipo es cada cosa antes de instalarla.
    */
   kind: 'mod' | 'cheat';
   /**
@@ -276,6 +354,8 @@ export interface RemoteMod {
    * serían 148 peticiones, así que se resuelve solo la del que se instala.
    */
   deferred: boolean;
+  /** false cuando el proveedor (Steam Workshop) conserva la instalación. */
+  installable?: boolean;
 }
 
 export interface ModProfile {
@@ -294,14 +374,27 @@ export interface Settings {
   theme: 'dark';
   accent: string;
   steamPath: string | null;
-  /** Clave de la Steam Web API, para esquemas de logros. Opcional. */
+  /** Clave de la Steam Web API. Opcional: enriquece, no hace falta. */
   steamWebApiKey: string | null;
   scanOnStart: boolean;
   minimizeToTray: boolean;
-  hotkeysEnabled: boolean;
   /** Origen del catálogo de definiciones: carpeta local o URL de repo. */
   catalogSource: string;
-  confirmBeforeCheats: boolean;
+  /** Sincroniza el catálogo remoto al arrancar y después cada seis horas. */
+  autoSyncCatalog: boolean;
+  /** Carpeta HTTPS que contiene latest.yml y los instaladores. */
+  updateSource: string;
+  /** Busca nuevas versiones de Atreus al arrancar. */
+  checkForAppUpdates: boolean;
+  /** Descarga en segundo plano las actualizaciones encontradas. */
+  autoDownloadUpdates: boolean;
+  /**
+   * El usuario ya leyó y aceptó el aviso sobre desbloquear logros a mano.
+   *
+   * Se guarda para no repetirlo en cada juego, pero se puede volver a activar
+   * desde Ajustes. Mientras sea false, Logros no deja guardar nada.
+   */
+  achievementRiskAccepted: boolean;
   language: 'es' | 'en';
 }
 
@@ -312,7 +405,21 @@ export type Result<T> =
   | { ok: false; error: string; code?: string };
 
 export interface ScanProgress {
-  phase: 'steam' | 'epic' | 'gog' | 'xbox' | 'enrich' | 'done';
+  phase: 'steam' | 'epic' | 'gog' | 'xbox' | 'ea' | 'battlenet' | 'enrich' | 'done';
   found: number;
   message: string;
+}
+
+// ────────────────────────── Licencia ──────────────────────────
+
+export type LicenseTier = 'lifetime' | 'friends' | 'pro' | 'trial' | 'none';
+
+export interface LicenseInfo {
+  active: boolean;
+  tier: LicenseTier;
+  licenseKey: string | null;
+  ownerName: string | null;
+  expiresAt: number | null; // Epoch segundos, null = permanente
+  issuedAt: number | null;
+  features: string[];
 }

@@ -1,5 +1,5 @@
 import type {
-  Achievement, CheatDef, Game, GameStat, Mod, ModProfile, RemoteMod,
+  Achievement, Game, GameStat, GuideEntry, InteractiveMap, Mod, ModProfile, RemoteMod,
 } from '@shared/types';
 
 /**
@@ -26,6 +26,7 @@ function game(
     headerUrl: null,
     sizeBytes: null,
     lastPlayed: null,
+    playtimeMinutes: null,
     hasDefinition: false,
     multiplayer: false,
     favorite: false,
@@ -86,6 +87,8 @@ export const MOCK_ACHIEVEMENTS: Achievement[] = [
   unlocked: unlocked as boolean,
   unlockTime: unlockTime as number | null,
   protected: false,
+  // Rareza inventada pero verosímil: cuanto más raro, más abajo en la lista.
+  globalPercent: Math.round((90 / (1 + (apiName as string).length % 9)) * 10) / 10,
 }));
 
 export const MOCK_STATS: GameStat[] = [
@@ -97,41 +100,6 @@ export const MOCK_STATS: GameStat[] = [
   { apiName: 'jokers_found', displayName: 'Comodines descubiertos', type: 'int', value: 131, originalValue: 131, incrementOnly: true, permission: 0 },
   { apiName: 'win_rate', displayName: 'Tasa de victoria', type: 'avgrate', value: 0.271, originalValue: 0.271, incrementOnly: false, permission: 2 },
   { apiName: 'cards_played', displayName: 'Cartas jugadas', type: 'int', value: 48_902, originalValue: 48_902, incrementOnly: true, permission: 0 },
-];
-
-export const MOCK_CHEATS: CheatDef[] = [
-  {
-    id: 'inf-money', name: 'Dinero infinito', group: 'Recursos', type: 'value', hotkey: 'F1',
-    description: 'Congela el contador de dólares del run actual.',
-    resolve: { kind: 'aob', module: 'Balatro.exe', pattern: '48 8B ?? ?? 00 89', offset: 12 },
-    write: { type: 'i32', min: 0, max: 999_999, step: 1, freeze: true },
-  },
-  {
-    id: 'inf-hands', name: 'Manos infinitas', group: 'Run', type: 'toggle', hotkey: 'F2',
-    resolve: { kind: 'aob', module: 'Balatro.exe', pattern: '8B 4? ?? 85 C0', offset: 4 },
-    write: { type: 'i32', value: 99, freeze: true },
-  },
-  {
-    id: 'inf-discards', name: 'Descartes infinitos', group: 'Run', type: 'toggle', hotkey: 'F3',
-    resolve: { kind: 'aob', module: 'Balatro.exe', pattern: '8B 4? ?? 83 F8', offset: 4 },
-    write: { type: 'i32', value: 99, freeze: true },
-  },
-  {
-    id: 'set-ante', name: 'Fijar ante', group: 'Run', type: 'value',
-    resolve: { kind: 'pointer', module: 'Balatro.exe', base: 0x2f4a10, offsets: [0x18, 0x40] },
-    write: { type: 'i32', min: 1, max: 39, step: 1 },
-  },
-  {
-    id: 'score-mult', name: 'Multiplicador de puntuación', group: 'Recursos', type: 'value',
-    warning: 'Puntuaciones alteradas pueden invalidar tus estadísticas del perfil.',
-    resolve: { kind: 'aob', module: 'Balatro.exe', pattern: 'F3 0F 10 ?? ?? 00', offset: 6 },
-    write: { type: 'f32', min: 1, max: 100, step: 0.5, freeze: true },
-  },
-  {
-    id: 'reroll-free', name: 'Rerolls gratis', group: 'Tienda', type: 'button', hotkey: 'F4',
-    resolve: { kind: 'static', module: 'Balatro.exe', offset: 0x1a2b30 },
-    write: { type: 'i32', value: 0 },
-  },
 ];
 
 export const MOCK_MODS: Mod[] = [
@@ -176,3 +144,49 @@ export const MOCK_REMOTE: RemoteMod[] = [
   kind: (/debug|cheat|hack|menu/i.test(name as string) ? 'cheat' : 'mod') as 'mod' | 'cheat',
   deferred: false,
 }));
+
+/** Horas jugadas simuladas, para que la ficha del juego no salga vacía. */
+export const MOCK_PLAYTIME: Record<string, number> = {
+  'steam:2379780': 3_690,
+  'steam:3017860': 1_240,
+  'steam:2806050': 620,
+  'steam:2050650': 2_880,
+  'steam:322170': 15_400,
+};
+
+export const MOCK_GUIDES: GuideEntry[] = [
+  {
+    id: 'steam:1',
+    title: 'Balatro · guía completa de logros en español',
+    snippet: 'Cada logro explicado, con el mazo y la apuesta recomendados para sacarlo sin repetir partidas.',
+    url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=1',
+    source: 'Guías de la comunidad de Steam',
+    provider: 'steam', author: 'unjugador', rating: 5, language: 'es', readable: true,
+  },
+  {
+    id: 'steam:2',
+    title: '100% Achievement Guide',
+    snippet: 'Every achievement, ordered from easiest to hardest, with build suggestions.',
+    url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=2',
+    source: 'Guías de la comunidad de Steam',
+    provider: 'steam', author: 'someone', rating: 4, language: 'en', readable: true,
+  },
+  {
+    id: 'wiki:balatro.fandom.com:10',
+    title: 'Achievements',
+    snippet: 'Listado completo de logros con sus condiciones exactas.',
+    url: 'https://balatro.fandom.com/wiki/Achievements',
+    source: 'balatro · wiki',
+    provider: 'wiki', author: null, rating: null, language: 'en', readable: true,
+  },
+];
+
+export const MOCK_MAPS: InteractiveMap[] = [
+  {
+    id: 'mapgenie:demo',
+    title: 'Mapa interactivo del juego',
+    description: 'Mapa completo con coleccionables, secretos y filtros por categoría.',
+    url: 'https://mapgenie.io/',
+    provider: 'MapGenie',
+  },
+];

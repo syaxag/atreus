@@ -1,0 +1,20 @@
+{
+  "id": "xbox:Microsoft.MinecraftJavaEdition_8wekyb3d8bbwe",
+  "name": "Minecraft: Java Edition",
+  "multiplayer": false,
+  "achievements": {
+    "source": "none"
+  },
+  "mods": {
+    "root": "%APPDATA%\\.minecraft\\mods",
+    "loader": "fabric-forge-neoforge",
+    "packaged": [
+      ".jar"
+    ],
+    "provider": {
+      "kind": "modrinth",
+      "game": "minecraft"
+    }
+  },
+  "notes": "La edición Java no tiene logros de plataforma sino avances, que el juego guarda dentro de cada mundo. Atreus detecta un perfil Fabric, Forge o NeoForge en %APPDATA%/.minecraft/versions y muestra únicamente mods Modrinth compatibles con esa versión."
+}
