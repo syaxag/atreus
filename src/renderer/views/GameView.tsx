@@ -106,25 +106,27 @@ export function GameView() {
 
 function Report({ report }: { report: PlatinumReport }) {
   const go = useStore((state) => state.go);
+  const celebrate = useStore((state) => state.celebrate);
   const hasAchievements = report.total > 0;
 
   return <>
-    <Card className={report.complete ? 'relative overflow-hidden p-5' : 'p-5'}>
+    <Card className={report.complete ? 'relative min-h-[196px] overflow-hidden p-5' : 'p-5'}>
       {/*
-        Cuando el juego está al 100 %, el trofeo preside su propia tarjeta. Va
-        al fondo y a la derecha, sangrado, para que la cifra siga siendo lo
-        primero que se lee y el trofeo lo que remata.
+        Al 100 %, el trofeo preside su propia tarjeta. La tarjeta crece para que
+        quepa **entero**: sangrado por arriba y por abajo se veía cortado por la
+        mitad, que es peor que no ponerlo. Va centrado a la derecha, con su
+        resplandor, y la cifra sigue siendo lo primero que se lee.
       */}
       {report.complete && <>
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-10 -top-16 h-[190%] w-1/2 bg-[radial-gradient(circle_at_70%_40%,rgba(139,92,246,.22),transparent_62%)]"
+          className="pointer-events-none absolute -right-16 top-1/2 h-[240%] w-[46%] -translate-y-1/2 bg-[radial-gradient(circle_at_60%_50%,rgba(139,92,246,.26),transparent_65%)]"
         />
         <img
           src={trofeo}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-10 right-6 h-[165%] w-auto opacity-90 drop-shadow-[0_10px_30px_rgba(109,40,217,.5)]"
+          className="pointer-events-none absolute right-8 top-1/2 h-[84%] w-auto -translate-y-1/2 drop-shadow-[0_12px_34px_rgba(109,40,217,.55)]"
         />
       </>}
       <div className="relative flex flex-wrap items-end justify-between gap-4">
@@ -140,9 +142,18 @@ function Report({ report }: { report: PlatinumReport }) {
           </p>
           <p className="mt-1 text-[13px] text-muted">
             {hasAchievements
-              ? `${report.unlocked} de ${report.total} logros · faltan ${report.total - report.unlocked}`
+              ? report.complete
+                ? `${report.total} de ${report.total} logros · los tienes todos`
+                : `${report.unlocked} de ${report.total} logros · faltan ${report.total - report.unlocked}`
               : 'Sin datos de logros para este juego'}
           </p>
+          {/* Un platino se enseña. El botón deja revivir la celebración cuando
+              te apetezca, no solo el día que cayó. */}
+          {report.complete && (
+            <Button size="sm" variant="outline" className="mt-3" onClick={() => celebrate(report)}>
+              <Sparkles size={13} /> Ver la celebración
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Decir de dónde sale el progreso no es un detalle: un 40 % medido
@@ -158,7 +169,9 @@ function Report({ report }: { report: PlatinumReport }) {
         <Progress
           value={report.percent}
           tone={report.complete ? 'success' : 'accent'}
-          className="mt-4 h-2"
+          // Al 100 % la barra se queda corta a propósito: a lo ancho le cruzaba
+          // la base al trofeo, y la barra llena ya se lee de sobra.
+          className={report.complete ? 'relative mt-4 h-2 max-w-[58%]' : 'mt-4 h-2'}
           label={`${report.unlocked} de ${report.total} logros`}
         />
       )}
