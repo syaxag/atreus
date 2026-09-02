@@ -33,7 +33,10 @@ Nada de esto necesita clave de API ni cuenta:
 - **Guías** — de la comunidad de Steam y de las wikis del juego (wiki.gg, Fandom).
 - **Mapas** — del directorio público de MapGenie y, si el juego no está ahí, de su wiki.
 
-La clave de la Steam Web API que hay en Ajustes es opcional.
+La clave de la Steam Web API que hay en Ajustes es opcional, pero merece la pena: con
+ella Atreus lee el progreso de toda la biblioteca en una petición por juego, en vez de
+abrir un proceso de Steam por cada uno. Hay un botón para comprobarla, porque una clave
+mal pegada o un perfil privado fallan sin decir nada.
 
 ## Arrancar
 

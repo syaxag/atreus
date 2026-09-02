@@ -119,6 +119,11 @@ async function refreshLibrary(): Promise<void> {
   }
 }
 
+/** Juegos que ahora mismo están abiertos. Lo consulta el calentamiento. */
+export function runningGames(): GameId[] {
+  return [...active.keys()];
+}
+
 /** Inicia la detección automática. Es idempotente para que no cree dos timers. */
 export function startActivityMonitor(): void {
   if (processTimer || libraryTimer) return;

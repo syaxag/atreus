@@ -12,6 +12,8 @@ import { emit } from './ipc/emit';
 import { startActivityMonitor, stopActivityMonitor } from './services/catalog/activity';
 import { startAutomaticSync, stopAutomaticSync } from './services/catalog/sync';
 import { startAutomaticUpdates } from './services/updater';
+import { startWarmup, stopWarmup } from './services/platinum/warmup';
+import { flush as flushGuides } from './services/guides/store';
 import { forgetDiscovery } from './services/mods/providers';
 
 const logger = log('main');
@@ -176,12 +178,14 @@ app.whenReady().then(() => {
       .then((games) => {
         emit('library:updated', games);
         startActivityMonitor();
+        startWarmup();
       })
       .catch((e) => logger.error('el escaneo de arranque falló:', e));
   } else {
     // Las rutas de carátula viven en memoria: sin escaneo hay que reconstruirlas.
     rehydrateCovers();
     startActivityMonitor();
+    startWarmup();
   }
 
   app.on('activate', () => {
@@ -193,6 +197,9 @@ app.on('before-quit', () => {
   quitting = true;
   stopWatching();
   stopActivityMonitor();
+  stopWarmup();
+  // La caché de guías escribe con retardo: si no se vuelca, se pierde lo último.
+  flushGuides();
   stopAutomaticSync();
   // Cada sesión abierta es un proceso hijo: hay que cerrarlos o quedan huérfanos.
   closeSteamSessions();

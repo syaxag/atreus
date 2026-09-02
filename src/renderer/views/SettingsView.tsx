@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package, KeyRound } from 'lucide-react';
-import type { LicenseInfo } from '@shared/types';
+import { FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
 import { Badge, Button, Card, Input, Toggle, ViewHeader } from '@/components/ui';
 
+interface KeyCheck { ok: boolean; persona: string | null; publicProfile: boolean; message: string }
+
 export function SettingsView() {
   const settings = useStore((s) => s.settings);
+  const [checkingKey, setCheckingKey] = useState(false);
+  const [keyCheck, setKeyCheck] = useState<KeyCheck | null>(null);
   const patch = useStore((s) => s.patchSettings);
   const pushToast = useStore((s) => s.pushToast);
 
@@ -19,9 +22,6 @@ export function SettingsView() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<number | null>(null);
-  const [license, setLicense] = useState<LicenseInfo | null>(null);
-  const [licenseKey, setLicenseKey] = useState('');
-  const [activating, setActivating] = useState(false);
 
   const loadCatalog = useCallback(async () => {
     const res = await api.catalog.version();
@@ -31,7 +31,6 @@ export function SettingsView() {
   useEffect(() => {
     void api.app.version().then((r) => { if (r.ok) setVersion(r.data); });
     void loadCatalog();
-    void api.license.get().then((result) => { if (result.ok) setLicense(result.data); });
   }, [loadCatalog]);
 
   useEffect(() => {
@@ -42,7 +41,6 @@ export function SettingsView() {
     setUpdateVersion(nextVersion);
     pushToast('info', `Actualización disponible: Atreus ${nextVersion}`);
   }), [pushToast]);
-  useEffect(() => api.on('license:updated', setLicense), []);
   useEffect(() => api.on('update:progress', ({ percent }) => setUpdateProgress(percent)), []);
   useEffect(() => api.on('update:downloaded', () => { setUpdateProgress(100); setInstallingUpdate(false); }), []);
 
@@ -95,10 +93,14 @@ export function SettingsView() {
     pushToast('info', 'Descargando actualización; Atreus se reiniciará al terminar.');
   }
 
-  async function activate() {
-    setActivating(true); const result = await api.license.activate(licenseKey); setActivating(false);
+  async function checkKey() {
+    // Se guarda antes de comprobar: si no, se validaría la clave anterior.
+    await patch({ steamWebApiKey: apiKey || null });
+    setCheckingKey(true);
+    const result = await api.steam.checkKey();
+    setCheckingKey(false);
     if (!result.ok) return pushToast('error', result.error);
-    setLicense(result.data); setLicenseKey(''); pushToast('success', `Licencia ${result.data.tier} activada`);
+    setKeyCheck(result.data);
   }
 
   return (
@@ -123,40 +125,49 @@ export function SettingsView() {
               </div>
             </Row>
 
-            <Row label="Clave de la Steam Web API"
-                 hint="Opcional. Solo se usa para descargar los nombres e iconos de los logros cuando no están en la caché local.">
-              <div className="flex w-96 gap-2">
-                <Input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  onBlur={() => void patch({ steamWebApiKey: apiKey || null })}
-                  placeholder="Sin configurar"
-                  className="w-full font-mono text-[12px]"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => void api.settings.openPath('https://steamcommunity.com/dev/apikey')}
-                  aria-label="Obtener clave"
-                >
-                  <ExternalLink size={14} />
-                </Button>
+            <Row
+              label="Clave de la Steam Web API"
+              hint={'Opcional pero recomendable: con ella Atreus lee el progreso de toda tu biblioteca ' +
+                'de una vez, sin abrir un proceso de Steam por juego. Tu perfil tiene que ser público.'}
+            >
+              <div className="flex w-96 flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    onBlur={() => void patch({ steamWebApiKey: apiKey || null })}
+                    placeholder="Sin configurar"
+                    className="w-full font-mono text-[12px]"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => void api.settings.openPath('https://steamcommunity.com/dev/apikey')}
+                    aria-label="Obtener clave"
+                    title="Conseguir una clave en Steam"
+                  >
+                    <ExternalLink size={14} />
+                  </Button>
+                </div>
+                {/*
+                  Una clave mal pegada o un perfil en privado no dan ningún
+                  error: los logros simplemente no aparecen. Este botón es la
+                  única forma de enterarse.
+                */}
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={checkingKey || !apiKey}
+                          onClick={() => void checkKey()}>
+                    <RefreshCw size={13} className={checkingKey ? 'animate-spin' : undefined} />
+                    {checkingKey ? 'Comprobando…' : 'Comprobar clave'}
+                  </Button>
+                  {keyCheck && (
+                    <span className={`text-[12px] leading-4 ${keyCheck.ok && keyCheck.publicProfile ? 'text-success' : keyCheck.ok ? 'text-warn' : 'text-danger'}`}>
+                      {keyCheck.message}
+                    </span>
+                  )}
+                </div>
               </div>
             </Row>
-          </Section>
-
-          <Section title="Licencia y activación">
-            <Row label={license?.active ? `${license.tier} · ${license.ownerName}` : 'Sin licencia activada'}
-                 hint={license?.active ? (license.expiresAt ? `Expira el ${new Date(license.expiresAt * 1000).toLocaleDateString('es-ES')}` : 'Acceso permanente en este equipo.') : 'Introduce una clave firmada emitida por el administrador de Atreus.'}>
-              {license?.active ? <Badge tone="success">Activa</Badge> : <Badge tone="warn">Vista previa</Badge>}
-            </Row>
-            {!license?.active && <Row label="Clave de acceso" hint="La verificación se hace localmente; Atreus no envía la clave a un servidor.">
-              <div className="flex w-96 max-w-full gap-2"><Input value={licenseKey} onChange={(event) => setLicenseKey(event.target.value)} placeholder="ATREUS-1.…" className="font-mono text-[12px]" />
-                <Button variant="primary" onClick={activate} disabled={!licenseKey.trim() || activating}><KeyRound size={14} />{activating ? 'Verificando…' : 'Activar'}</Button></div>
-            </Row>}
-            {license?.active && <Row label="Desactivar este equipo" hint="Elimina solo la activación local; no revoca la clave emitida.">
-              <Button variant="outline" onClick={() => void api.license.deactivate().then((result) => { if (result.ok) setLicense(null); else pushToast('error', result.error); })}>Desactivar</Button>
-            </Row>}
           </Section>
 
           <Section title="Comportamiento">

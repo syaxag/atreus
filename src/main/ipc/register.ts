@@ -4,15 +4,16 @@ import { IPC_CHANNELS, ok, err, type IpcChannel } from '@shared/ipc';
 import { getSettings, setSettings } from '../services/settings';
 import * as catalog from '../services/catalog';
 import * as steam from '../services/steam/session';
+import * as steamWeb from '../services/steam/webapi';
 import * as mods from '../services/mods';
 import * as catalogSync from '../services/catalog/sync';
 import * as updater from '../services/updater';
 import * as guides from '../services/guides';
 import * as progress from '../services/progress';
 import * as achievements from '../services/achievements';
-import * as license from '../services/license';
 import * as maps from '../services/maps';
 import * as platinum from '../services/platinum';
+import { startWarmup } from '../services/platinum/warmup';
 import { paths, OPENABLE, type OpenableKey } from '../paths';
 import { log } from '../logger';
 
@@ -120,7 +121,12 @@ export function registerIpc(): void {
 
   // ── Biblioteca ─────────────────────────────────────────────
   handle('library.list', () => ok(catalog.listGames()));
-  handle('library.scan', async () => ok(await catalog.scan()));
+  handle('library.scan', async () => {
+    const games = await catalog.scan();
+    // Un escaneo puede traer juegos nuevos: que el cálculo los recoja.
+    startWarmup();
+    return ok(games);
+  });
   handle('library.get', (id: string) => {
     const game = catalog.getGame(id);
     return game ? ok(game) : err(`Juego no encontrado: ${id}`, 'NOT_FOUND');
@@ -192,6 +198,8 @@ export function registerIpc(): void {
     mod: Parameters<typeof mods.installRemote>[1],
   ) => ok(await mods.installRemote(gameId, mod)));
 
+  handle('steam.checkKey', async () => ok(await steamWeb.checkKey()));
+
   // ── Logros de cualquier plataforma ─────────────────────────
   handle('achievements.list', (gameId: string) => achievements.list(gameId).then(ok));
   handle('achievements.mark', async (gameId: string, patches: { apiName: string; unlocked: boolean }[]) => {
@@ -213,6 +221,9 @@ export function registerIpc(): void {
 
   // ── Mapas interactivos ─────────────────────────────────────
   handle('maps.list', (gameId: string) => maps.list(gameId).then(ok));
+  handle('maps.add', (gameId: string, input: { title: string; url: string }) =>
+    maps.add(gameId, input).then(ok));
+  handle('maps.remove', (gameId: string, mapId: string) => maps.remove(gameId, mapId).then(ok));
 
   // ── Progreso de completado local ───────────────────────────
   handle('progress.get', (gameId: string) => ok(progress.get(gameId)));
@@ -221,11 +232,6 @@ export function registerIpc(): void {
   // ── Catálogo de definiciones ───────────────────────────────
   handle('catalog.sync', async () => ok(await catalogSync.sync(getSettings().catalogSource)));
   handle('catalog.version', () => ok(catalogSync.version()));
-
-  // ── Licencias ──────────────────────────────────────────────
-  handle('license.get', () => ok(license.getLicense()));
-  handle('license.activate', (key: string) => license.activateLicense(key));
-  handle('license.deactivate', () => license.deactivateLicense());
 
   // Red de seguridad: si el contrato añade un canal y nadie lo registra, se detecta
   // aquí en el arranque y no en un fallo silencioso en tiempo de ejecución.

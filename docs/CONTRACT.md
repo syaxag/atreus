@@ -30,7 +30,7 @@ El contrato son dos archivos:
 | `maps` | Localizar el mapa interactivo del juego |
 | `mods` | Instalar, ordenar y desplegar mods |
 | `progress` | Checklist y notas locales por juego |
-| `settings`, `catalog`, `app`, `license` | Infraestructura |
+| `settings`, `catalog`, `app` | Infraestructura |
 
 ## Reescritura de septiembre de 2026
 
@@ -63,6 +63,24 @@ de Steam con el cliente cerrado cae también en `'manual'`.
 - `game:stopped` lleva ahora los `minutes` que duró la sesión.
 - `Settings` pierde `hotkeysEnabled` y `confirmBeforeCheats`, y gana
   `achievementRiskAccepted`.
+
+## Segunda tanda, septiembre de 2026
+
+**Fuera** — `license.*` (3 canales), el evento `license:updated` y los tipos
+`LicenseInfo` y `LicenseTier`. Era un sistema de activación con clave firmada que no
+gateaba ninguna función en una aplicación personal.
+
+**Dentro:**
+
+- `steam.checkKey` — comprueba la clave de la Web API contra Steam y explica el
+  resultado. Existe porque una clave mal pegada o un perfil privado fallan **en
+  silencio**: los logros no aparecen y no hay forma de saber por qué.
+- `maps.add` / `maps.remove` — guardan un mapa a mano en la ficha del juego, en la capa
+  del usuario. Es la salida para los juegos que no cubre ni MapGenie ni la wiki.
+- El evento `platinum:summaries` — el cálculo en segundo plano va rellenando la
+  biblioteca juego a juego, y la interfaz se entera sin preguntar.
+- `InteractiveMap` gana `removable`: solo se puede quitar lo que está escrito en un
+  archivo, no lo que viene de una búsqueda automática.
 
 ## Cómo se implementa
 

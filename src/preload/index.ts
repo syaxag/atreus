@@ -31,6 +31,7 @@ const api: AtreusApi = {
     backups: (appId) => invoke('steam.backups', appId),
     restore: (appId, snapshotId) => invoke('steam.restore', appId, snapshotId),
     resetAll: (appId) => invoke('steam.resetAll', appId),
+    checkKey: () => invoke('steam.checkKey'),
   },
 
   achievements: {
@@ -66,6 +67,8 @@ const api: AtreusApi = {
 
   maps: {
     list: (gameId) => invoke('maps.list', gameId),
+    add: (gameId, input) => invoke('maps.add', gameId, input),
+    remove: (gameId, mapId) => invoke('maps.remove', gameId, mapId),
   },
 
   progress: {
@@ -94,12 +97,6 @@ const api: AtreusApi = {
     minimize: () => ipcRenderer.send('window.minimize'),
     maximize: () => ipcRenderer.send('window.maximize'),
     close: () => ipcRenderer.send('window.close'),
-  },
-
-  license: {
-    get: () => invoke('license.get'),
-    activate: (key) => invoke('license.activate', key),
-    deactivate: () => invoke('license.deactivate'),
   },
 
   on: (channel, handler) => {

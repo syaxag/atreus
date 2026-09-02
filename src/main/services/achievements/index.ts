@@ -3,6 +3,7 @@ import { log } from '../../logger';
 import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
 import * as steam from '../steam/session';
+import * as webapi from '../steam/webapi';
 import { achievementCatalog, forgetCatalog, resolveAppId } from './catalog';
 import { marksFor, mark as markManual } from './manual';
 
@@ -11,14 +12,18 @@ const logger = log('achievements');
 /**
  * Los logros de un juego, sea de la tienda que sea.
  *
- * Hay dos caminos y la aplicación siempre dice cuál está usando:
+ * Hay tres caminos, en orden de preferencia, y la aplicación siempre dice cuál
+ * está usando:
  *
- *  - **Steam conectado** — el cliente da el estado real, con sus fechas, y
- *    Atreus puede además escribirlo.
- *  - **Todo lo demás** — la lista sale del catálogo público de Steam (que
- *    cubre casi todo lo que hay en Epic, EA o la Store) y el estado lo marcas
- *    tú. Ninguna de esas plataformas publica tus logros sin autenticarte, y
- *    Atreus no va a pedirte la contraseña de nada.
+ *  1. **Cliente de Steam** — estado real con sus fechas, y Atreus puede además
+ *     escribirlo. Cuesta un proceso hijo por juego.
+ *  2. **Steam Web API** — estado igual de real, en una petición HTTP, si el
+ *     usuario ha puesto su clave en Ajustes. No permite escribir, pero es lo
+ *     bastante barato como para recorrer la biblioteca entera.
+ *  3. **Catálogo público de Steam** — la lista sí (cubre casi todo lo que hay
+ *     en Epic, EA o la Store), el estado lo marcas tú. Ninguna de esas
+ *     plataformas publica tus logros sin autenticarte, y Atreus no va a
+ *     pedirte la contraseña de nada.
  *
  * En los dos casos el resto de la aplicación —el informe de platino, la
  * dificultad, la estimación— funciona igual, porque solo necesita la lista y
@@ -52,7 +57,17 @@ function fromCatalog(
   };
 }
 
-export async function list(gameId: GameId): Promise<AchievementSet> {
+export interface ListOptions {
+  /**
+   * No arrancar el cliente de Steam aunque se pueda.
+   *
+   * Lo usa el calentamiento de la biblioteca: recorrer trece juegos abriendo un
+   * proceso hijo por cada uno es justo lo que no debe pasar en segundo plano.
+   */
+  avoidClient?: boolean;
+}
+
+export async function list(gameId: GameId, options: ListOptions = {}): Promise<AchievementSet> {
   const game = getGame(gameId);
   if (!game) throw new Error(`Juego no encontrado: ${gameId}`);
   const definition = getDefinition(gameId);
@@ -65,7 +80,7 @@ export async function list(gameId: GameId): Promise<AchievementSet> {
 
   // ── Camino bueno: el cliente de Steam ──
   let steamProblem: string | null = null;
-  if (game.platform === 'steam') {
+  if (game.platform === 'steam' && !options.avoidClient) {
     try {
       const items = await steam.achievements(game.nativeId);
       if (items.length > 0) {
@@ -85,8 +100,40 @@ export async function list(gameId: GameId): Promise<AchievementSet> {
     }
   }
 
-  // ── Camino de repuesto: el catálogo público, con tu registro ──
+  // ── Segundo camino: la Web API, si hay clave ──
   const appId = await resolveAppId(game);
+  if (appId && game.platform === 'steam') {
+    const fromApi = await webapi.playerAchievements(appId);
+    if (fromApi && fromApi.length > 0) {
+      /*
+       * La Web API no manda iconos ni rareza. El catálogo público sí, y ya está
+       * cacheado casi siempre, así que se cruzan por el nombre visible: es lo
+       * único que comparten, porque los identificadores de uno y otro no son
+       * los mismos.
+       */
+      const art = new Map(
+        (await achievementCatalog(appId)).map((entry) => [entry.displayName.toLowerCase(), entry]),
+      );
+      return {
+        gameId,
+        tracking: 'steam',
+        writable: false,
+        source: 'Steam Web API',
+        note: options.avoidClient
+          ? null
+          : 'Steam no está abierto, así que el progreso viene de la Web API. Es el real, pero para ' +
+            'escribir logros hace falta el cliente.',
+        items: fromApi.map((item) => {
+          const extra = art.get(item.displayName.toLowerCase());
+          return extra
+            ? { ...item, iconUrl: extra.iconUrl, globalPercent: extra.globalPercent }
+            : item;
+        }),
+      };
+    }
+  }
+
+  // ── Último camino: el catálogo público, con tu registro ──
   if (!appId) {
     return empty(gameId, game.platform === 'steam'
       ? steamProblem ?? 'No se pudo leer la lista de logros.'
@@ -134,7 +181,10 @@ export async function refresh(gameId: GameId): Promise<void> {
   const game = getGame(gameId);
   if (!game) return;
   const appId = game.platform === 'steam' ? game.nativeId : await resolveAppId(game);
-  if (appId) forgetCatalog(appId);
+  if (appId) {
+    forgetCatalog(appId);
+    webapi.forgetPlayerAchievements(appId);
+  }
 }
 
 function platformName(platform: string): string {

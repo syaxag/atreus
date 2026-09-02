@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, ExternalLink, LoaderCircle, Map as MapIcon, RotateCw, Gamepad2,
+  ArrowLeft, ArrowRight, ExternalLink, LoaderCircle, Map as MapIcon, Plus, RotateCw, Trash2,
+  Gamepad2,
 } from 'lucide-react';
 import type { InteractiveMap } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
-import { Badge, Button, Card, Empty, Skeleton, ViewHeader } from '@/components/ui';
+import { Badge, Button, Card, Empty, Input, Modal, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
  * Mapas interactivos, abiertos dentro de Atreus.
@@ -24,6 +25,9 @@ export function MapsView() {
   const [maps, setMaps] = useState<InteractiveMap[] | null>(null);
   const [active, setActive] = useState<InteractiveMap | null>(null);
   const [loadingFrame, setLoadingFrame] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ title: '', url: '' });
+  const [saving, setSaving] = useState(false);
   const frame = useRef<HTMLElement & {
     reload(): void; goBack(): void; goForward(): void; canGoBack(): boolean;
   } | null>(null);
@@ -49,6 +53,25 @@ export function MapsView() {
     node.addEventListener('did-start-loading', start);
     node.addEventListener('did-stop-loading', stop);
   }, []);
+
+  async function addMap() {
+    if (!gameId) return;
+    setSaving(true);
+    const response = await api.maps.add(gameId, { title: draft.title.trim(), url: draft.url.trim() });
+    setSaving(false);
+    if (!response.ok) return pushToast('error', response.error);
+    setMaps(response.data);
+    setAdding(false);
+    setDraft({ title: '', url: '' });
+    pushToast('success', 'Mapa añadido a la ficha del juego');
+  }
+
+  async function removeMap(mapId: string) {
+    if (!gameId) return;
+    const response = await api.maps.remove(gameId, mapId);
+    if (!response.ok) return pushToast('error', response.error);
+    setMaps(response.data);
+  }
 
   if (!game || !gameId) {
     return <Empty
@@ -99,7 +122,10 @@ export function MapsView() {
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
         title={`Mapas · ${game.name}`}
-        subtitle="Mapas interactivos reales, con sus coleccionables y sus filtros, dentro de Atreus." />
+        subtitle="Mapas interactivos reales, con sus coleccionables y sus filtros, dentro de Atreus."
+        actions={<Button variant="outline" onClick={() => setAdding(true)}>
+          <Plus size={14} /> Añadir un mapa
+        </Button>} />
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {maps === null ? (
           <div className="flex flex-col gap-3">
@@ -111,21 +137,35 @@ export function MapsView() {
             title="No hay mapa interactivo para este juego"
             hint={`Atreus busca ${game.name} en el directorio público de MapGenie y en el catálogo. ` +
               'Si aparece uno más adelante, saldrá aquí sin actualizar la aplicación.'}
-            action={<Button
-              variant="outline"
-              onClick={() => void api.settings.openPath(
-                `https://duckduckgo.com/?q=${encodeURIComponent(`${game.name} mapa interactivo coleccionables`)}`,
-              )}
-            >
-              <ExternalLink size={14} /> Buscarlo en el navegador
-            </Button>} />
+            action={<div className="flex flex-wrap justify-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void api.settings.openPath(
+                  `https://duckduckgo.com/?q=${encodeURIComponent(`${game.name} mapa interactivo coleccionables`)}`,
+                )}
+              >
+                <ExternalLink size={14} /> Buscarlo en el navegador
+              </Button>
+              <Button variant="primary" onClick={() => setAdding(true)}>
+                <Plus size={14} /> Añadir uno a mano
+              </Button>
+            </div>} />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
             {maps.map((map) => (
               <Card key={map.id} className="flex flex-col p-4">
                 <div className="flex items-start justify-between gap-2">
                   <MapIcon size={18} className="text-accent" />
-                  <Badge mono>{map.provider}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge mono>{map.provider}</Badge>
+                    {map.removable && (
+                      <Button size="sm" variant="ghost" aria-label={`Quitar ${map.title}`}
+                              title="Quitar este mapa de la ficha"
+                              onClick={() => void removeMap(map.id)}>
+                        <Trash2 size={13} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <h2 className="mt-3 text-[14px] font-semibold">{map.title}</h2>
                 <p className="mt-1 flex-1 text-[12px] leading-5 text-muted">{map.description}</p>
@@ -142,6 +182,39 @@ export function MapsView() {
           </div>
         )}
       </div>
+
+      {/*
+        La salida para los juegos que no cubre nadie. La dirección se guarda en
+        la ficha del juego, en la capa del usuario, así que sobrevive a las
+        actualizaciones de Atreus y se puede llevar de un equipo a otro.
+      */}
+      <Modal
+        open={adding}
+        title="Añadir un mapa a mano"
+        icon={<MapIcon size={16} className="text-accent" />}
+        onClose={() => setAdding(false)}
+        footer={<>
+          <Button variant="ghost" onClick={() => setAdding(false)}>Cancelar</Button>
+          <Button variant="primary" disabled={saving || !draft.title.trim() || !draft.url.trim()}
+                  onClick={() => void addMap()}>
+            {saving ? <LoaderCircle size={14} className="animate-spin" /> : <Plus size={14} />} Guardar
+          </Button>
+        </>}
+      >
+        <p className="text-[13px] leading-6 text-muted">
+          Si usas un mapa que Atreus no encuentra solo, pega aquí su dirección y se queda en la
+          ficha de {game.name}. Se abrirá en la pestaña integrada como los demás.
+        </p>
+        <label className="mt-4 block text-[12px] font-medium text-muted" htmlFor="map-title">Nombre</label>
+        <Input id="map-title" value={draft.title} className="mt-1 w-full"
+               placeholder="Mapa de coleccionables"
+               onChange={(event) => setDraft((d) => ({ ...d, title: event.target.value }))} />
+        <label className="mt-3 block text-[12px] font-medium text-muted" htmlFor="map-url">Dirección</label>
+        <Input id="map-url" value={draft.url} className="mt-1 w-full font-mono text-[12px]"
+               placeholder="https://…"
+               onChange={(event) => setDraft((d) => ({ ...d, url: event.target.value }))} />
+        <p className="mt-2 text-[11px] text-faint">Tiene que empezar por https://</p>
+      </Modal>
     </div>
   );
 }

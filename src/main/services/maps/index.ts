@@ -7,6 +7,7 @@ import { log } from '../../logger';
 import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
 import { searchWiki } from '../guides/wiki';
+import { addMap, removeMap } from '../catalog/user-defs';
 import { matchSlug, parseDirectory } from './match';
 
 export { matchSlug, normalizeName, parseDirectory } from './match';
@@ -101,6 +102,27 @@ async function directory(): Promise<Directory> {
 
 // ── API ───────────────────────────────────────────────────────
 
+/**
+ * Añade un mapa a mano y devuelve la lista ya actualizada.
+ *
+ * Es la salida para los juegos que MapGenie no cubre y cuya wiki no tiene una
+ * página decente: pegas la dirección del mapa que uses y se queda en la ficha,
+ * en la capa del usuario, sobreviviendo a las actualizaciones de Atreus.
+ */
+export async function add(
+  gameId: GameId,
+  input: { title: string; url: string; description?: string },
+): Promise<InteractiveMap[]> {
+  addMap(gameId, input);
+  return list(gameId);
+}
+
+/** Quita un mapa añadido a mano. Devuelve la lista ya actualizada. */
+export async function remove(gameId: GameId, mapId: string): Promise<InteractiveMap[]> {
+  removeMap(gameId, mapId);
+  return list(gameId);
+}
+
 /** Mapas interactivos disponibles para el juego. Nunca lanza por la red. */
 export async function list(gameId: GameId): Promise<InteractiveMap[]> {
   const game = getGame(gameId);
@@ -117,6 +139,9 @@ export async function list(gameId: GameId): Promise<InteractiveMap[]> {
       description: entry.description ?? '',
       url: entry.url,
       provider: entry.provider ?? 'Catálogo de Atreus',
+      // Solo se pueden quitar los que están escritos en la ficha; los que
+      // vienen de una búsqueda automática no existen en ningún archivo.
+      removable: true,
     });
   }
 

@@ -63,8 +63,12 @@ Todo lo que Atreus consulta es público y sin autenticar:
 | `api.php` de wiki.gg y Fandom | Búsqueda y texto de páginas de wiki | No |
 | Portada de `mapgenie.io` | Directorio de juegos con mapa | No |
 
-La clave de la Steam Web API que hay en Ajustes es **opcional**: enriquece, no hace
-falta para nada de lo anterior.
+| `ISteamUserStats/GetPlayerAchievements` | Tu progreso real de un juego, sin abrir el cliente | Sí, la clave que pongas en Ajustes |
+
+La clave es **opcional**: sin ella todo lo demás funciona igual. Lo que aporta es
+velocidad —la biblioteca entera se lee sin abrir un proceso de Steam por juego— y que el
+progreso salga aunque Steam esté cerrado. Es tuya, se guarda solo en tu equipo y nunca
+sale hacia ningún sitio que no sea la API de Valve.
 
 ## Licencias de origen
 

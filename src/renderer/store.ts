@@ -137,6 +137,12 @@ export function wireEvents(): () => void {
   const offs = [
     api.on('library:scan-progress', (p) => useStore.setState({ scanProgress: p })),
     api.on('library:updated', (games) => useStore.setState({ games })),
+    // El cálculo en segundo plano va rellenando la biblioteca juego a juego.
+    api.on('platinum:summaries', (list) => {
+      const byId: Record<GameId, PlatinumSummary> = {};
+      for (const summary of list) byId[summary.gameId] = summary;
+      useStore.setState({ platinum: byId });
+    }),
     // Cuando Steam, Epic o un acceso directo abre un juego, se convierte en el
     // contexto de trabajo automáticamente: su ficha ya muestra qué le falta
     // para el platino sin que haya que buscarlo.

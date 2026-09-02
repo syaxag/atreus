@@ -93,6 +93,28 @@ identificador estable de un logro —del hash de su icono, porque el nombre se t
 cuándo un resultado de la tienda es de verdad el juego que buscas. Equivocarse ahí es
 peor que no encontrar nada: enseñaría los logros de un DLC como si fueran los tuyos.
 
+### `services/steam/webapi.ts` — el camino barato
+Cuando el usuario pone su clave en Ajustes, `GetPlayerAchievements` da el estado real de
+un juego en **una petición HTTP**, sin arrancar un proceso hijo. No permite escribir, así
+que va por detrás del cliente y por delante del catálogo público. Es lo que hace viable
+recorrer la biblioteca entera. Sin clave, sin SteamID o con el perfil en privado devuelve
+null y el resto sigue su camino; `checkKey()` existe para que ese silencio se pueda
+diagnosticar desde Ajustes.
+
+### `services/platinum/warmup.ts` — rellenar la biblioteca por detrás
+El informe se calculaba solo al abrir la ficha de un juego, así que la Biblioteca
+arrancaba sin barras y con el orden "más cerca del platino" ordenando por nada. El
+calentamiento la recorre solo, despacio, y avisa juego a juego por `platinum:summaries`.
+
+Con clave de la Web API cada juego es una petición y basta un respiro de segundo y medio;
+sin ella hay que preguntarle al cliente, que es un proceso hijo por juego, y el hueco
+sube a veinte segundos. Nunca corre mientras hay una partida abierta: el informe puede
+esperar, la partida no.
+
+Y no guarda lo que no sabe: en un juego de Steam, un progreso `manual` significa que no
+se pudo leer el estado, no que sea cero. Ese resumen se descarta en vez de pintar un 0/31
+en un juego que llevas a medias.
+
 ### `services/achievements/rarity.ts` — rareza global
 `rarity.ts` consulta `GetGlobalAchievementPercentagesForApp`, que es pública y no
 lleva clave. Devuelve qué porcentaje de los jugadores del mundo tiene cada logro, y se

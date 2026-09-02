@@ -4,6 +4,7 @@ import { getGame } from '../catalog';
 import { popularSteamGuides, readSteamGuide, searchSteamGuides } from './steam';
 import { readWikiPage, searchWiki } from './wiki';
 import { readWebPage, searchWeb } from './web';
+import { readDocument, readList, writeDocument, writeList } from './store';
 
 const logger = log('guides');
 
@@ -16,7 +17,12 @@ const logger = log('guides');
  * dentro de la aplicación**, que es lo que se pedía y lo que antes no pasaba.
  */
 
-const CACHE_TTL_MS = 15 * 60_000;
+/**
+ * Las listas caducan pronto —una guía nueva puede aparecer cualquier día— pero
+ * el texto de una guía ya publicada cambia poco, así que aguanta un día entero.
+ */
+const CACHE_TTL_MS = 60 * 60_000;
+const DOCUMENT_TTL_MS = 24 * 60 * 60_000;
 const MAX_RESULTS = 24;
 
 /** Qué buscar en cada fuente para cada categoría. */
@@ -53,8 +59,6 @@ const TERMS: Record<GuideCategory, { es: string; en: string; wiki: string; web: 
   },
 };
 
-const cache = new Map<string, { at: number; entries: GuideEntry[] }>();
-
 /**
  * Orden de la lista. Manda poder leerla aquí dentro; después el idioma, y
  * dentro de cada grupo, la valoración de la comunidad.
@@ -84,8 +88,8 @@ export async function list(
 
   const extra = (query ?? '').trim().slice(0, 120);
   const key = `${gameId}|${category}|${extra.toLowerCase()}`;
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.entries;
+  const cached = readList(key, CACHE_TTL_MS);
+  if (cached) return cached;
 
   const terms = TERMS[category];
   const steamAppId = game.platform === 'steam' ? game.nativeId : null;
@@ -124,17 +128,15 @@ export async function list(
 
   const entries = [...merged.values()].sort(rank).slice(0, MAX_RESULTS);
   logger.info(`${game.name} · ${category}: ${entries.length} guías (${entries.filter((e) => e.readable).length} legibles aquí)`);
-  cache.set(key, { at: Date.now(), entries });
+  writeList(key, entries);
   return entries;
 }
-
-const documents = new Map<string, { at: number; document: GuideDocument }>();
 
 /** Texto completo de una guía. */
 export async function read(entry: GuideEntry): Promise<GuideDocument> {
   if (!entry?.url || typeof entry.url !== 'string') throw new Error('La guía no tiene una URL válida');
-  const cached = documents.get(entry.url);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.document;
+  const cached = readDocument(entry.url, DOCUMENT_TTL_MS);
+  if (cached) return cached;
 
   const document = entry.provider === 'steam'
     ? await readSteamGuide(entry.url)
@@ -142,6 +144,7 @@ export async function read(entry: GuideEntry): Promise<GuideDocument> {
       ? await readWikiPage(entry)
       : await readWebPage(entry);
 
-  documents.set(entry.url, { at: Date.now(), document });
+  // Un extracto no se guarda: la próxima vez puede que la web sí deje leerla.
+  if (!document.partial) writeDocument(entry.url, document);
   return document;
 }

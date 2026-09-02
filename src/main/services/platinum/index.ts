@@ -47,7 +47,19 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
   return summaries;
 }
 
+/**
+ * Guarda el resumen para la biblioteca, salvo cuando sería mentira.
+ *
+ * En un juego de Steam, `tracking: 'manual'` significa que **no se pudo leer**
+ * tu progreso, no que no tengas ninguno. Guardar ese cero pintaría en la
+ * biblioteca un 0/31 para un juego que llevas a medias, que es peor que dejar
+ * la casilla vacía. En las demás plataformas el registro manual sí es lo único
+ * que hay, y un cero ahí es la verdad: no has marcado nada todavía.
+ */
 function rememberSummary(report: PlatinumReport): void {
+  const isSteam = report.gameId.startsWith('steam:');
+  if (isSteam && report.tracking !== 'steam') return;
+
   const store = loadSummaries();
   store[report.gameId] = {
     gameId: report.gameId,
@@ -103,7 +115,7 @@ function percentsOf(list: Achievement[]): (number | null)[] {
   return list.map((a) => a.globalPercent);
 }
 
-async function build(gameId: GameId): Promise<PlatinumReport> {
+async function build(gameId: GameId, avoidClient = false): Promise<PlatinumReport> {
   const game = getGame(gameId);
   if (!game) throw new Error(`Juego no encontrado: ${gameId}`);
 
@@ -134,7 +146,7 @@ async function build(gameId: GameId): Promise<PlatinumReport> {
 
   let set: AchievementSet;
   try {
-    set = await achievements.list(gameId);
+    set = await achievements.list(gameId, { avoidClient });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return { ...base, warning: `No se pudieron leer los logros: ${message}` };
@@ -198,8 +210,11 @@ async function build(gameId: GameId): Promise<PlatinumReport> {
   return report;
 }
 
-/** Informe del juego. `refresh` ignora la caché de media hora. */
-export function report(gameId: GameId, refresh = false): Promise<PlatinumReport> {
+/**
+ * Informe del juego. `refresh` ignora la caché de media hora; `avoidClient`
+ * impide arrancar el cliente de Steam, para el calentamiento en segundo plano.
+ */
+export function report(gameId: GameId, refresh = false, avoidClient = false): Promise<PlatinumReport> {
   const cached = reports.get(gameId);
   if (!refresh && cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return Promise.resolve(cached.report);
@@ -212,7 +227,7 @@ export function report(gameId: GameId, refresh = false): Promise<PlatinumReport>
   // botón de la ficha releería la misma lista cacheada durante doce horas.
   if (refresh) void achievements.refresh(gameId);
 
-  const promise = build(gameId)
+  const promise = build(gameId, avoidClient)
     .then((value) => {
       reports.set(gameId, { at: Date.now(), report: value });
       return value;

@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react';
 import { Minus, Square, X } from 'lucide-react';
 import { api, usingMock } from '@/lib/api';
 import { Badge } from '@/components/ui';
-import type { LicenseInfo } from '@shared/types';
 
 /**
  * Barra de título propia: la ventana es frameless (ver src/main/index.ts).
  * La zona con `.drag` mueve la ventana; los botones llevan `.no-drag`.
  */
 export function TitleBar() {
-  const [license, setLicense] = useState<LicenseInfo | null>(null);
-  useEffect(() => { void api.license.get().then((result) => { if (result.ok) setLicense(result.data); }); }, []);
-  useEffect(() => api.on('license:updated', setLicense), []);
   return (
     <div className="drag flex h-[var(--titlebar-h)] shrink-0 items-center justify-between border-b border-line bg-surface pl-4">
       <div className="flex items-center gap-2.5">
@@ -22,7 +17,6 @@ export function TitleBar() {
             <Badge tone="warn">datos de prueba</Badge>
           </span>
         )}
-        {license?.active && <span className="no-drag"><Badge tone="accent">{license.tier}</Badge></span>}
       </div>
 
       <div className="no-drag flex h-full">

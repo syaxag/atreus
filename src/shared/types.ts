@@ -271,6 +271,8 @@ export interface InteractiveMap {
   url: string;
   /** "MapGenie", "Wiki del juego", "Catálogo de Atreus"… */
   provider: string;
+  /** true si lo añadiste tú y por tanto se puede quitar. */
+  removable?: boolean;
 }
 
 /** Lista de progreso local: no modifica logros ni partidas del juego. */
@@ -408,18 +410,4 @@ export interface ScanProgress {
   phase: 'steam' | 'epic' | 'gog' | 'xbox' | 'ea' | 'battlenet' | 'enrich' | 'done';
   found: number;
   message: string;
-}
-
-// ────────────────────────── Licencia ──────────────────────────
-
-export type LicenseTier = 'lifetime' | 'friends' | 'pro' | 'trial' | 'none';
-
-export interface LicenseInfo {
-  active: boolean;
-  tier: LicenseTier;
-  licenseKey: string | null;
-  ownerName: string | null;
-  expiresAt: number | null; // Epoch segundos, null = permanente
-  issuedAt: number | null;
-  features: string[];
 }

@@ -1,7 +1,7 @@
 import type { AtreusApi, AtreusEvents } from '@shared/ipc';
 import { ok, err } from '@shared/ipc';
 import type {
-  Achievement, CompletionProgress, Game, GameStat, LicenseInfo, Mod, ModProfile,
+  Achievement, CompletionProgress, Game, GameStat, InteractiveMap, Mod, ModProfile,
   PlatinumReport, PlatinumSummary, Settings, SteamSnapshot,
 } from '@shared/types';
 import {
@@ -27,8 +27,9 @@ let profiles: ModProfile[] = structuredClone(MOCK_PROFILES);
 const snapshots = new Map<string, SteamSnapshot[]>();
 /** Marcas manuales del mock: `${gameId}|${apiName}`. */
 const manualMarks = new Set<string>();
+/** Mapas que el usuario añade a mano durante la sesión del mock. */
+const extraMaps: InteractiveMap[] = [];
 const completionProgress = new Map<string, CompletionProgress>();
-let license: LicenseInfo = { active: false, tier: 'none', licenseKey: null, ownerName: null, expiresAt: null, issuedAt: null, features: ['guides_preview', 'mods_preview'] };
 
 function defaultProgress(gameId: string): CompletionProgress {
   return {
@@ -245,6 +246,11 @@ export const mockApi: AtreusApi = {
       achievements = structuredClone(snapshot.achievements);
       stats = structuredClone(snapshot.stats);
       return ok({ applied: achievements.length + stats.length });
+    },
+
+    async checkKey() {
+      await wait(400, 800);
+      return ok({ ok: true, persona: 'Usuario de prueba', publicProfile: true, message: 'Clave correcta (modo mock).' });
     },
 
     async resetAll() {
@@ -490,11 +496,28 @@ export const mockApi: AtreusApi = {
   },
 
   maps: {
+    async add(gameId, input) {
+      await wait(200, 400);
+      extraMaps.push({ id: `user-${Date.now().toString(36)}`, title: input.title,
+        description: 'Mapa añadido por ti.', url: input.url, provider: 'manual', removable: true });
+      return mockApi.maps.list(gameId);
+    },
+
+    async remove(gameId, mapId) {
+      await wait(150, 300);
+      const index = extraMaps.findIndex((m) => m.id === mapId);
+      if (index >= 0) extraMaps.splice(index, 1);
+      return mockApi.maps.list(gameId);
+    },
+
     async list(gameId) {
       await wait(300, 700);
       const game = games.find((g) => g.id === gameId);
       if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
-      return ok(MOCK_MAPS.map((map) => ({ ...map, title: `${game.name} · mapa interactivo` })));
+      return ok([
+        ...MOCK_MAPS.map((map) => ({ ...map, title: `${game.name} · mapa interactivo` })),
+        ...extraMaps,
+      ]);
     },
   },
 
@@ -529,12 +552,6 @@ export const mockApi: AtreusApi = {
     minimize() { /* sin ventana real en modo mock */ },
     maximize() { /* sin ventana real en modo mock */ },
     close() { /* sin ventana real en modo mock */ },
-  },
-
-  license: {
-    async get() { await wait(); return ok(license); },
-    async activate(key) { await wait(); license = { active: true, tier: 'lifetime', licenseKey: key, ownerName: 'Usuario de prueba', expiresAt: null, issuedAt: Math.floor(Date.now() / 1000), features: ['guides', 'maps', 'mods', 'platinum'] }; emit('license:updated', license); return ok(license); },
-    async deactivate() { await wait(); license = { active: false, tier: 'none', licenseKey: null, ownerName: null, expiresAt: null, issuedAt: null, features: ['guides_preview', 'mods_preview'] }; emit('license:updated', license); return ok(undefined); },
   },
 
   on(channel, handler) {

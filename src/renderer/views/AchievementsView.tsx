@@ -13,6 +13,23 @@ import {
 
 type Tab = 'achievements' | 'stats' | 'backups';
 
+/**
+ * Orden de la lista.
+ *
+ * Geometry Dash tiene 547 logros y Call of Duty 157: en el orden en que los
+ * manda Steam, que para la mayoría de juegos es arbitrario, esa lista es un
+ * muro. Por defecto se ponen delante los más comunes, que es por donde conviene
+ * empezar, igual que hace la ficha del juego.
+ */
+type Sort = 'common' | 'rare' | 'name' | 'steam';
+
+const SORTS: { id: Sort; label: string }[] = [
+  { id: 'common', label: 'Más fáciles primero' },
+  { id: 'rare', label: 'Más raros primero' },
+  { id: 'name', label: 'Nombre' },
+  { id: 'steam', label: 'Orden del juego' },
+];
+
 export function AchievementsView() {
   const game = useStore((s) => s.selected());
   const pushToast = useStore((s) => s.pushToast);
@@ -41,6 +58,7 @@ export function AchievementsView() {
   const [backups, setBackups] = useState<SteamSnapshot[]>([]);
   /** Filtro rápido: casi siempre interesa solo lo que falta. */
   const [onlyRemaining, setOnlyRemaining] = useState(false);
+  const [sort, setSort] = useState<Sort>('common');
 
   /*
    * Aviso de riesgo. No se enseña al entrar —sería un peaje en cada visita—
@@ -127,14 +145,27 @@ export function AchievementsView() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return achievements.filter((a) => {
+    const filtered = achievements.filter((a) => {
       if (onlyRemaining && a.unlocked) return false;
       if (!q) return true;
       return a.displayName.toLowerCase().includes(q) ||
         a.description.toLowerCase().includes(q) ||
         a.apiName.toLowerCase().includes(q);
     });
-  }, [achievements, query, onlyRemaining]);
+    if (sort === 'steam') return filtered;
+    // Los logros sin rareza conocida van al final en los dos órdenes: no se
+    // sabe si son fáciles o imposibles, así que no deberían encabezar nada.
+    const rank = (value: number | null) => (value === null ? -1 : value);
+    return [...filtered].sort((a, b) => {
+      if (sort === 'name') return a.displayName.localeCompare(b.displayName, 'es');
+      if (sort === 'rare') {
+        const ra = a.globalPercent ?? 101;
+        const rb = b.globalPercent ?? 101;
+        return ra - rb;
+      }
+      return rank(b.globalPercent) - rank(a.globalPercent);
+    });
+  }, [achievements, query, onlyRemaining, sort]);
 
   const unlockedTotal = achievements.filter(unlockedOf).length;
 
@@ -330,6 +361,21 @@ export function AchievementsView() {
                       onClick={() => setOnlyRemaining((value) => !value)}>
                 <Filter size={13} /> Solo los que faltan
               </Button>
+              <label className="flex items-center gap-1.5 text-[12px] text-faint">
+                Orden
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as Sort)}
+                  className="h-7 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none"
+                >
+                  {SORTS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              {visible.length !== achievements.length && (
+                <span className="text-[12px] text-faint">{visible.length} de {achievements.length}</span>
+              )}
               <Button size="sm" variant="outline" onClick={() => guard(() => setAll(true))}>Marcar todos</Button>
               <Button size="sm" variant="outline" onClick={() => guard(() => setAll(false))}>Desmarcar</Button>
               <Button size="sm" variant="outline" onClick={() => guard(invert)}>Invertir</Button>

@@ -7,7 +7,7 @@
 
 import type {
   Achievement, AchievementPatch, AchievementSet, CompletionProgress, Game, GameId, GameStat,
-  GuideCategory, GuideDocument, GuideEntry, InteractiveMap, LicenseInfo, Mod,
+  GuideCategory, GuideDocument, GuideEntry, InteractiveMap, Mod,
   ModProfile, PlatinumReport, PlatinumSummary, RemoteMod, Result, ScanProgress,
   Settings, StatPatch, SteamSession, SteamSnapshot,
 } from './types';
@@ -42,6 +42,11 @@ export interface AtreusApi {
     restore(appId: string, snapshotId: string): Promise<Result<{ applied: number }>>;
     /** Restablece TODOS los logros y stats del juego. Destructivo. */
     resetAll(appId: string): Promise<Result<void>>;
+    /**
+     * Comprueba la clave de la Web API contra Steam y explica qué pasa.
+     * Una clave mal pegada o un perfil privado fallan en silencio; esto lo dice.
+     */
+    checkKey(): Promise<Result<{ ok: boolean; persona: string | null; publicProfile: boolean; message: string }>>;
   };
 
   /**
@@ -83,6 +88,10 @@ export interface AtreusApi {
   maps: {
     /** Mapas interactivos disponibles para el juego, buscados automáticamente. */
     list(gameId: GameId): Promise<Result<InteractiveMap[]>>;
+    /** Guarda un mapa a mano en la ficha del juego, para lo que no se encuentra solo. */
+    add(gameId: GameId, input: { title: string; url: string }): Promise<Result<InteractiveMap[]>>;
+    /** Quita uno de los añadidos a mano. */
+    remove(gameId: GameId, mapId: string): Promise<Result<InteractiveMap[]>>;
   };
 
   mods: {
@@ -136,12 +145,6 @@ export interface AtreusApi {
     openLogs(): Promise<Result<void>>;
   };
 
-  license: {
-    get(): Promise<Result<LicenseInfo>>;
-    activate(key: string): Promise<Result<LicenseInfo>>;
-    deactivate(): Promise<Result<void>>;
-  };
-
   /** Suscripción a eventos push del main. Devuelve la función de baja. */
   on<K extends keyof AtreusEvents>(
     channel: K,
@@ -153,6 +156,8 @@ export interface AtreusApi {
 export interface AtreusEvents {
   'library:scan-progress': ScanProgress;
   'library:updated': Game[];
+  /** El cálculo en segundo plano ha rellenado un juego más de la biblioteca. */
+  'platinum:summaries': PlatinumSummary[];
   'steam:session': SteamSession;
   'mods:updated': { gameId: GameId; mods: Mod[] };
   /** Juegos nuevos detectados en un escaneo, con cuántos mods hay para ellos. */
@@ -164,7 +169,6 @@ export interface AtreusEvents {
   'update:available': { version: string };
   'update:progress': { percent: number; bytesPerSecond: number; transferred: number; total: number };
   'update:downloaded': { version: string };
-  'license:updated': LicenseInfo;
 }
 
 /**
@@ -176,14 +180,14 @@ export const IPC_CHANNELS = [
   'library.remove', 'library.setFavorite', 'library.launch',
 
   'steam.open', 'steam.close', 'steam.achievements', 'steam.stats',
-  'steam.commit', 'steam.backups', 'steam.restore', 'steam.resetAll',
+  'steam.commit', 'steam.backups', 'steam.restore', 'steam.resetAll', 'steam.checkKey',
 
   'achievements.list', 'achievements.mark',
 
   'platinum.report', 'platinum.summaries',
 
   'guides.list', 'guides.read',
-  'maps.list',
+  'maps.list', 'maps.add', 'maps.remove',
 
   'mods.list', 'mods.install', 'mods.uninstall', 'mods.setEnabled',
   'mods.reorder', 'mods.deploy', 'mods.purge', 'mods.profiles',
@@ -197,15 +201,13 @@ export const IPC_CHANNELS = [
 
   'catalog.sync', 'catalog.version',
 
-  'license.get', 'license.activate', 'license.deactivate',
-
   'app.version', 'app.checkForUpdates', 'app.downloadUpdate', 'app.openLogs',
 ] as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number];
 
 export const EVENT_CHANNELS = [
-  'library:scan-progress', 'library:updated', 'steam:session',
+  'library:scan-progress', 'library:updated', 'platinum:summaries', 'steam:session',
   'mods:updated', 'mods:available',
   'game:started', 'game:stopped', 'toast', 'update:available',
   'update:progress', 'update:downloaded', 'license:updated',
