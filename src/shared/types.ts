@@ -378,6 +378,15 @@ export interface Settings {
   steamPath: string | null;
   /** Clave de la Steam Web API. Opcional: enriquece, no hace falta. */
   steamWebApiKey: string | null;
+  /**
+   * Clave de OpenXBL, para leer tus logros de Xbox.
+   *
+   * Xbox Live no se consulta sin autenticarse. La clave la generas tú entrando
+   * con tu cuenta de Microsoft en xbl.io; Atreus solo maneja la clave y nunca
+   * ve tu contraseña. Sin ella los juegos de Xbox usan la lista del catálogo
+   * público de Steam con el progreso que marques a mano.
+   */
+  xboxApiKey: string | null;
   scanOnStart: boolean;
   minimizeToTray: boolean;
   /** Origen del catálogo de definiciones: carpeta local o URL de repo. */

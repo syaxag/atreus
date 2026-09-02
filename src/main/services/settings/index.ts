@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accent: '#8b5cf6',
   steamPath: null,
   steamWebApiKey: null,
+  xboxApiKey: null,
   scanOnStart: true,
   minimizeToTray: true,
   catalogSource: '',

@@ -12,7 +12,7 @@ Uso personal. Ver [docs/SCOPE.md](docs/SCOPE.md).
 |---|---|
 | **Biblioteca** | Detecta juegos de Steam, Epic, GOG, EA y Xbox, más ejecutables sueltos. Ordena por lo más cerca del platino, con horas jugadas y progreso reales |
 | **Ficha del juego** | Cuántos logros llevas, cuánto has jugado, cuánto llevas persiguiendo el platino, cuánto te queda y cómo de duro es — con la lista de lo que falta ordenada por rareza |
-| **Logros** | Funciona con juegos de cualquier tienda: progreso, rareza global de cada logro e historial. En Steam los lee y puede desbloquearlos, avisando antes de lo que eso significa; en Xbox, Epic o EA enseña la lista y llevas tú el registro |
+| **Logros** | Funciona con juegos de cualquier tienda: progreso, rareza de cada logro e historial. En Steam los lee y puede desbloquearlos, avisando antes de lo que eso significa; en Xbox los lee con tu clave de OpenXBL; en Epic o EA enseña la lista y llevas tú el registro |
 | **Guías** | Busca solas las guías del juego y muestra su **texto completo** dentro de Atreus, con imágenes y atribución |
 | **Mapas** | Abre el mapa interactivo real del juego —MapGenie o su wiki— en una pestaña integrada |
 | **Mods** | Instalación desde `.zip`/`.7z`, orden de carga, perfiles, despliegue reversible por hardlink |
@@ -32,6 +32,11 @@ Nada de esto necesita clave de API ni cuenta:
   plataformas que no publican horas, Atreus cuenta las sesiones que ve.
 - **Guías** — de la comunidad de Steam y de las wikis del juego (wiki.gg, Fandom).
 - **Mapas** — del directorio público de MapGenie y, si el juego no está ahí, de su wiki.
+
+Para los juegos de **Xbox** hay una segunda clave, la de [OpenXBL](https://xbl.io):
+la generas entrando con tu cuenta de Microsoft en su web y Atreus solo maneja la clave,
+nunca tu contraseña. Con ella los logros de Xbox se leen solos, con sus fechas y su
+rareza; sin ella se usa la lista de la versión de Steam y el progreso lo marcas tú.
 
 La clave de la Steam Web API que hay en Ajustes es opcional, pero merece la pena: con
 ella Atreus lee el progreso de toda la biblioteca en una petición por juego, en vez de

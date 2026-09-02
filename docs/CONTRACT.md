@@ -25,6 +25,7 @@ El contrato son dos archivos:
 | `library` | Detectar, listar, marcar y lanzar juegos |
 | `steam` | Leer y escribir logros y estadísticas por el cliente de Steam |
 | `achievements` | Logros de cualquier juego, de la tienda que sea, y el registro manual |
+| `xbox` | Comprobación de la clave de OpenXBL, para leer los logros de Xbox |
 | `platinum` | Informe de cuánto falta para el 100 %, y resumen de toda la biblioteca |
 | `guides` | Buscar guías y traer su texto completo |
 | `maps` | Localizar el mapa interactivo del juego |
@@ -81,6 +82,19 @@ gateaba ninguna función en una aplicación personal.
   biblioteca juego a juego, y la interfaz se entera sin preguntar.
 - `InteractiveMap` gana `removable`: solo se puede quitar lo que está escrito en un
   archivo, no lo que viene de una búsqueda automática.
+
+## Tercera tanda: logros de Xbox
+
+**Dentro** — `xbox.checkKey`, y `Settings.xboxApiKey`.
+
+Xbox Live no se consulta sin autenticarse. El punto medio es OpenXBL: el usuario entra
+con su cuenta de Microsoft **en la web de ellos**, genera una clave y pega solo la clave.
+Atreus nunca ve una contraseña, y la clave se revoca desde xbl.io cuando se quiera.
+
+Con clave, un juego de Xbox devuelve `tracking: 'steam'` y `writable: false`: el estado
+es real —con fechas y con la rareza que publica Xbox— pero Xbox Live no acepta
+escrituras de terceros. Sin clave se queda como estaba, en `'manual'` sobre la lista del
+catálogo público de Steam, y el aviso de la vista dice dónde está la salida.
 
 ## Cómo se implementa
 

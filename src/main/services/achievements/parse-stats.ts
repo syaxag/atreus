@@ -132,25 +132,15 @@ export function normalizeTitle(name: string): string {
 /**
  * Elige qué resultado de la tienda es el juego que se busca.
  *
- * Se exige coincidencia exacta del nombre normalizado, o que el de la tienda
- * sea el de la biblioteca con algo añadido detrás. Adivinar de más aquí sería
- * peor que no encontrar nada: enseñaría los logros de otro juego —los de un DLC
- * o los de otra entrega de la saga— como si fueran los tuyos.
+ * Solo vale la coincidencia exacta del nombre normalizado. `normalizeTitle` ya
+ * quita ediciones, marcas comerciales y coletillas de plataforma, que es lo que
+ * de verdad separa un nombre de otro entre tiendas; aflojar más no gana casos
+ * reales y sí abre la puerta a colar el DLC o la siguiente entrega de la saga.
+ * Enseñar los logros de otro juego como si fueran los tuyos es peor que no
+ * enseñar ninguno.
  */
 export function pickStoreMatch(gameName: string, hits: StoreHit[]): string | null {
   const target = normalizeTitle(gameName);
   if (!target) return null;
-
-  let loose: string | null = null;
-  for (const hit of hits) {
-    if (NOT_A_GAME.test(hit.name)) continue;
-    const candidate = normalizeTitle(hit.name);
-    if (candidate === target) return hit.appId;
-    if (loose) continue;
-    // Se tolera un par de palabras de más —una subtitulación, un año— pero no
-    // un nombre entero pegado detrás: eso ya es otro producto.
-    const extra = candidate.startsWith(`${target} `) ? candidate.slice(target.length).trim() : null;
-    if (extra && extra.split(' ').length <= 2) loose = hit.appId;
-  }
-  return loose;
+  return hits.find((hit) => !NOT_A_GAME.test(hit.name) && normalizeTitle(hit.name) === target)?.appId ?? null;
 }

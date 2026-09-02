@@ -49,6 +49,12 @@ export interface AtreusApi {
     checkKey(): Promise<Result<{ ok: boolean; persona: string | null; publicProfile: boolean; message: string }>>;
   };
 
+  /** Logros de Xbox mediante OpenXBL, con la clave que el usuario genera. */
+  xbox: {
+    /** Comprueba la clave y dice cuántos juegos ve en el historial. */
+    checkKey(): Promise<Result<{ ok: boolean; gamertag: string | null; titles: number; message: string }>>;
+  };
+
   /**
    * Logros de cualquier juego, de la tienda que sea.
    *
@@ -181,6 +187,8 @@ export const IPC_CHANNELS = [
 
   'steam.open', 'steam.close', 'steam.achievements', 'steam.stats',
   'steam.commit', 'steam.backups', 'steam.restore', 'steam.resetAll', 'steam.checkKey',
+
+  'xbox.checkKey',
 
   'achievements.list', 'achievements.mark',
 

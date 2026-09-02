@@ -12,8 +12,9 @@ conseguirlo y abrir los mapas donde está cada cosa, sin salir de la aplicación
   las horas de tu cuenta local.
 - **Logros de cualquier plataforma** — en Steam, del cliente, con reimplementación
   propia de la lógica de SAM (zlib, libre de reimplementar) y sobre juegos que posees.
-  En Epic, EA, Xbox o GOG la lista sale del catálogo público de Steam y el progreso lo
-  marca el usuario, porque ninguna de esas plataformas lo publica sin iniciar sesión.
+  En Xbox, con la clave de OpenXBL que genera el usuario, el estado es igual de real.
+  En Epic, EA o GOG la lista sale del catálogo público de Steam y el progreso lo marca
+  el usuario, porque ninguna de esas plataformas lo publica sin iniciar sesión.
 - **Guías con texto completo** — de la comunidad de Steam y de las wikis del juego,
   mostradas dentro de Atreus con atribución y enlace a la fuente.
 - **Mapas interactivos** — se abre el mapa real del proveedor (MapGenie, wikis) en una
@@ -29,7 +30,7 @@ conseguirlo y abrir los mapas donde está cada cosa, sin salir de la aplicación
 | Trainers, cheats o buscador de valores | Lo mismo. El historial de git conserva el motor si alguna vez hiciera falta |
 | Evasión de anti-cheat (EAC, BattlEye, VAC) | Fuera de alcance. Ninguna técnica de ocultación |
 | Alojar o republicar guías | Se muestra el texto con su fuente y un enlace para abrirla fuera; nunca se copia sin atribuir |
-| Pedir la contraseña de Xbox, Epic o EA | Sus logros solo se consultan autenticándose. Antes que pedir credenciales, Atreus enseña la lista y deja que marques tú el progreso |
+| Pedir la contraseña de Xbox, Epic o EA | Nunca. Para Xbox hay una clave de OpenXBL que generas tú en su web; Atreus solo maneja la clave y puedes revocarla cuando quieras |
 | Desempaquetar, descompilar o reutilizar código de terceros | Reimplementamos, no reempaquetamos |
 | Cualquier forma de distribución pública | Es una app personal |
 
@@ -63,7 +64,8 @@ Todo lo que Atreus consulta es público y sin autenticar:
 | `api.php` de wiki.gg y Fandom | Búsqueda y texto de páginas de wiki | No |
 | Portada de `mapgenie.io` | Directorio de juegos con mapa | No |
 
-| `ISteamUserStats/GetPlayerAchievements` | Tu progreso real de un juego, sin abrir el cliente | Sí, la clave que pongas en Ajustes |
+| `ISteamUserStats/GetPlayerAchievements` | Tu progreso real de un juego, sin abrir el cliente | Sí, la clave de Steam que pongas en Ajustes |
+| `xbl.io` (OpenXBL) | Tus logros de Xbox, con fechas y rareza | Sí, la clave de OpenXBL que generes tú |
 
 La clave es **opcional**: sin ella todo lo demás funciona igual. Lo que aporta es
 velocidad —la biblioteca entera se lee sin abrir un proceso de Steam por juego— y que el

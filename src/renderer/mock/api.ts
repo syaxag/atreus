@@ -107,6 +107,7 @@ let settings: Settings = {
   accent: '#8b5cf6',
   steamPath: 'C:\\Program Files (x86)\\Steam',
   steamWebApiKey: null,
+  xboxApiKey: null,
   scanOnStart: true,
   minimizeToTray: true,
   catalogSource: '',
@@ -259,6 +260,13 @@ export const mockApi: AtreusApi = {
       stats = stats.map((s) => ({ ...s, value: 0, originalValue: 0 }));
       emit('toast', { level: 'warn', message: 'Logros y estadísticas restablecidos' });
       return ok(undefined);
+    },
+  },
+
+  xbox: {
+    async checkKey() {
+      await wait(500, 900);
+      return ok({ ok: true, gamertag: 'JugadorDePrueba', titles: 42, message: 'Conectado (modo mock): 42 juegos en el historial.' });
     },
   },
 

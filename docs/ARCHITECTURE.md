@@ -93,6 +93,18 @@ identificador estable de un logro —del hash de su icono, porque el nombre se t
 cuándo un resultado de la tienda es de verdad el juego que buscas. Equivocarse ahí es
 peor que no encontrar nada: enseñaría los logros de un DLC como si fueran los tuyos.
 
+### `services/xbox` — logros de Xbox, con tu estado
+`parse.ts` es puro y **deliberadamente tolerante**: la misma API devuelve los logros en
+dos formas según el endpoint —una corta con `isUnlocked`, y la de Xbox Live con
+`progressState` y `progression.timeUnlocked`— y el envoltorio `content` unas veces está
+y otras no. Se aceptan todas, porque fallar aquí deja un juego entero sin logros y sin
+explicación. Las pruebas usan las respuestas del OpenAPI que publica el propio servicio
+(`api.xbl.io/swagger.json`), no ejemplos inventados.
+
+El emparejado juego ↔ título exige el nombre exacto una vez normalizado, igual que con
+la tienda de Steam. Al escribir las pruebas apareció que la regla laxa que había dejado
+permitía que "Halo" se llevase los logros de "Halo Infinite"; se quitó de los dos sitios.
+
 ### `services/steam/webapi.ts` — el camino barato
 Cuando el usuario pone su clave en Ajustes, `GetPlayerAchievements` da el estado real de
 un juego en **una petición HTTP**, sin arrancar un proceso hijo. No permite escribir, así

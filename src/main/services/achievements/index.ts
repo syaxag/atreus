@@ -4,6 +4,7 @@ import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
 import * as steam from '../steam/session';
 import * as webapi from '../steam/webapi';
+import * as xbox from '../xbox';
 import { achievementCatalog, forgetCatalog, resolveAppId } from './catalog';
 import { marksFor, mark as markManual } from './manual';
 
@@ -20,7 +21,9 @@ const logger = log('achievements');
  *  2. **Steam Web API** — estado igual de real, en una petición HTTP, si el
  *     usuario ha puesto su clave en Ajustes. No permite escribir, pero es lo
  *     bastante barato como para recorrer la biblioteca entera.
- *  3. **Catálogo público de Steam** — la lista sí (cubre casi todo lo que hay
+ *  3. **OpenXBL** — para los juegos de Xbox, si el usuario ha generado su
+ *     clave. Estado real, con fechas y con la rareza que publica Xbox.
+ *  4. **Catálogo público de Steam** — la lista sí (cubre casi todo lo que hay
  *     en Epic, EA o la Store), el estado lo marcas tú. Ninguna de esas
  *     plataformas publica tus logros sin autenticarte, y Atreus no va a
  *     pedirte la contraseña de nada.
@@ -100,6 +103,22 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
     }
   }
 
+  // ── Xbox: OpenXBL, si el usuario ha generado su clave ──
+  if (game.platform === 'xbox') {
+    const fromXbox = await xbox.achievementsFor(game.name);
+    if (fromXbox && fromXbox.length > 0) {
+      return {
+        gameId,
+        tracking: 'steam',
+        // Xbox Live no acepta escrituras de terceros: se lee, no se toca.
+        writable: false,
+        source: 'Xbox Live · OpenXBL',
+        note: null,
+        items: fromXbox,
+      };
+    }
+  }
+
   // ── Segundo camino: la Web API, si hay clave ──
   const appId = await resolveAppId(game);
   if (appId && game.platform === 'steam') {
@@ -155,8 +174,7 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
     note: game.platform === 'steam'
       ? `No se pudo hablar con el cliente de Steam (${steamProblem}). La lista es la real, ` +
         'pero el progreso es el que hayas marcado tú.'
-      : `${platformName(game.platform)} no publica tus logros sin iniciar sesión, así que la lista ` +
-        'es la de la versión de Steam y el progreso lo marcas tú.',
+      : manualNote(game.platform),
     items: catalog.map((entry) => fromCatalog(entry, marks)),
   };
 }
@@ -185,6 +203,21 @@ export async function refresh(gameId: GameId): Promise<void> {
     forgetCatalog(appId);
     webapi.forgetPlayerAchievements(appId);
   }
+}
+
+/**
+ * Por qué el progreso lo pone el usuario, dicho de forma que se pueda actuar.
+ *
+ * En Xbox hay salida —una clave de OpenXBL— y merece la pena decirlo aquí, que
+ * es donde el usuario se está encontrando el problema, y no escondido en
+ * Ajustes.
+ */
+function manualNote(platform: string): string {
+  const base = `${platformName(platform)} no publica tus logros sin iniciar sesión, así que la lista ` +
+    'es la de la versión de Steam y el progreso lo marcas tú.';
+  return platform === 'xbox'
+    ? `${base} Si quieres que se lean solos, genera una clave de OpenXBL y pégala en Ajustes.`
+    : base;
 }
 
 function platformName(platform: string): string {

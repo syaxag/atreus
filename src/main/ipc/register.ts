@@ -11,6 +11,7 @@ import * as updater from '../services/updater';
 import * as guides from '../services/guides';
 import * as progress from '../services/progress';
 import * as achievements from '../services/achievements';
+import * as xbox from '../services/xbox';
 import * as maps from '../services/maps';
 import * as platinum from '../services/platinum';
 import { startWarmup } from '../services/platinum/warmup';
@@ -199,6 +200,8 @@ export function registerIpc(): void {
   ) => ok(await mods.installRemote(gameId, mod)));
 
   handle('steam.checkKey', async () => ok(await steamWeb.checkKey()));
+
+  handle('xbox.checkKey', async () => ok(await xbox.checkKey()));
 
   // ── Logros de cualquier plataforma ─────────────────────────
   handle('achievements.list', (gameId: string) => achievements.list(gameId).then(ok));

@@ -34,6 +34,10 @@ const api: AtreusApi = {
     checkKey: () => invoke('steam.checkKey'),
   },
 
+  xbox: {
+    checkKey: () => invoke('xbox.checkKey'),
+  },
+
   achievements: {
     list: (gameId) => invoke('achievements.list', gameId),
     mark: (gameId, patches) => invoke('achievements.mark', gameId, patches),

@@ -6,11 +6,15 @@ import { relative } from '@/lib/format';
 import { Badge, Button, Card, Input, Toggle, ViewHeader } from '@/components/ui';
 
 interface KeyCheck { ok: boolean; persona: string | null; publicProfile: boolean; message: string }
+interface XboxCheck { ok: boolean; gamertag: string | null; titles: number; message: string }
 
 export function SettingsView() {
   const settings = useStore((s) => s.settings);
   const [checkingKey, setCheckingKey] = useState(false);
   const [keyCheck, setKeyCheck] = useState<KeyCheck | null>(null);
+  const [xboxKey, setXboxKey] = useState('');
+  const [checkingXbox, setCheckingXbox] = useState(false);
+  const [xboxCheck, setXboxCheck] = useState<XboxCheck | null>(null);
   const patch = useStore((s) => s.patchSettings);
   const pushToast = useStore((s) => s.pushToast);
 
@@ -35,6 +39,7 @@ export function SettingsView() {
 
   useEffect(() => {
     setApiKey(settings?.steamWebApiKey ?? '');
+    setXboxKey(settings?.xboxApiKey ?? '');
   }, [settings?.steamWebApiKey]);
 
   useEffect(() => api.on('update:available', ({ version: nextVersion }) => {
@@ -103,6 +108,15 @@ export function SettingsView() {
     setKeyCheck(result.data);
   }
 
+  async function checkXbox() {
+    await patch({ xboxApiKey: xboxKey || null });
+    setCheckingXbox(true);
+    const result = await api.xbox.checkKey();
+    setCheckingXbox(false);
+    if (!result.ok) return pushToast('error', result.error);
+    setXboxCheck(result.data);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
@@ -163,6 +177,53 @@ export function SettingsView() {
                   {keyCheck && (
                     <span className={`text-[12px] leading-4 ${keyCheck.ok && keyCheck.publicProfile ? 'text-success' : keyCheck.ok ? 'text-warn' : 'text-danger'}`}>
                       {keyCheck.message}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Row>
+          </Section>
+
+          {/*
+            Xbox Live no se consulta sin autenticarse y Atreus no pide
+            contraseñas. OpenXBL es el punto medio: el usuario entra con su
+            cuenta en la web de ellos, genera una clave y pega solo la clave.
+          */}
+          <Section title="Xbox">
+            <Row
+              label="Clave de OpenXBL"
+              hint={'Opcional. Con ella Atreus lee tus logros de Xbox de verdad, con sus fechas, ' +
+                'en vez de que los marques tú. La generas entrando con tu cuenta de Microsoft en ' +
+                'xbl.io: Atreus solo maneja la clave y puedes revocarla cuando quieras.'}
+            >
+              <div className="flex w-96 flex-col gap-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={xboxKey}
+                    onChange={(event) => setXboxKey(event.target.value)}
+                    onBlur={() => void patch({ xboxApiKey: xboxKey || null })}
+                    placeholder="Sin configurar"
+                    className="w-full font-mono text-[12px]"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => void api.settings.openPath('https://xbl.io/')}
+                    aria-label="Conseguir una clave"
+                    title="Conseguir una clave en xbl.io"
+                  >
+                    <ExternalLink size={14} />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={checkingXbox || !xboxKey}
+                          onClick={() => void checkXbox()}>
+                    <RefreshCw size={13} className={checkingXbox ? 'animate-spin' : undefined} />
+                    {checkingXbox ? 'Comprobando…' : 'Comprobar clave'}
+                  </Button>
+                  {xboxCheck && (
+                    <span className={`text-[12px] leading-4 ${xboxCheck.ok && xboxCheck.titles > 0 ? 'text-success' : xboxCheck.ok ? 'text-warn' : 'text-danger'}`}>
+                      {xboxCheck.message}
                     </span>
                   )}
                 </div>
