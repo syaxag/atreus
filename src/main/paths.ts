@@ -22,6 +22,20 @@ const root = app.isPackaged
   ? join(app.getPath('appData'), 'Atreus')
   : join(app.getPath('appData'), 'Atreus-dev');
 
+/*
+ * Electron guarda lo suyo —cachés, almacenamiento del renderer y, sobre todo,
+ * el candado de instancia única— en `userData`, que por defecto sale del
+ * nombre del producto. Como el nombre es el mismo en desarrollo y en la app
+ * instalada, ambas acababan en la misma carpeta y **se disputaban el candado**:
+ * con la app de desarrollo abierta, la instalada arrancaba entera y se cerraba
+ * sola justo antes de mostrarse, sin decir nada, porque cedía el paso a la
+ * otra. Se ancla aquí, junto al resto de los datos, y cada una va por su lado.
+ *
+ * Tiene que ocurrir al cargar el módulo: para cuando la app está lista, tanto
+ * el candado como las cachés ya están abiertos donde tocaba.
+ */
+app.setPath('userData', root);
+
 /**
  * Contenido de fábrica. Va como `extraResources`, es decir, en
  * `resources/data` **fuera** del asar: dentro no se podría leer ni reemplazar.

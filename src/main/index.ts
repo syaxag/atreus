@@ -36,8 +36,17 @@ function appIconPath(): string {
 // El esquema propio debe declararse antes de que la app esté lista.
 registerSchemes();
 
-// Una sola instancia: si ya hay una corriendo, se enfoca y esta se cierra.
-if (!app.requestSingleInstanceLock()) {
+/**
+ * Una sola instancia: si ya hay una corriendo, se enfoca y esta se cierra.
+ *
+ * Queda registrado. Electron aplaza el cierre hasta después de `ready`, así
+ * que sin esta línea la app arranca del todo y desaparece sin explicación —y
+ * desde fuera se ve igual que un fallo de arranque.
+ */
+const tieneCandado = app.requestSingleInstanceLock();
+
+if (!tieneCandado) {
+  logger.info('ya hay otra instancia de Atreus abierta; se le cede el paso');
   app.quit();
 } else {
   app.on('second-instance', () => {
@@ -156,6 +165,10 @@ function createTray(): void {
 }
 
 app.whenReady().then(() => {
+  // El cierre por instancia duplicada llega después de `ready`: no hay nada
+  // que arrancar mientras tanto.
+  if (!tieneCandado) return;
+
   ensurePaths();
   logger.info(`Atreus ${app.getVersion()} arrancando — datos en ${paths.root}`);
 

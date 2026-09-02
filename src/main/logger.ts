@@ -1,14 +1,23 @@
-import { createWriteStream, statSync, renameSync, existsSync, type WriteStream } from 'node:fs';
+import { appendFileSync, statSync, renameSync, existsSync } from 'node:fs';
 import { paths } from './paths';
 
 type Level = 'debug' | 'info' | 'warn' | 'error';
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2 MB, luego se rota a .old
 
-let stream: WriteStream | null = null;
+/**
+ * El registro se escribe **de forma síncrona**.
+ *
+ * Con un flujo con búfer, las últimas líneas se quedan sin volcar cuando el
+ * proceso se va de golpe — y son justo esas las que dicen por qué se fue. Un
+ * arranque escribe una docena de líneas: el coste de escribirlas a pelo no se
+ * nota, y a cambio el registro siempre acaba en lo último que de verdad pasó.
+ */
+let rotado = false;
 
-function open(): WriteStream {
-  if (stream) return stream;
+function rotarUnaVez(): void {
+  if (rotado) return;
+  rotado = true;
   // Rotación simple: un solo archivo previo.
   try {
     if (existsSync(paths.logFile) && statSync(paths.logFile).size > MAX_BYTES) {
@@ -17,8 +26,6 @@ function open(): WriteStream {
   } catch {
     // Si la rotación falla no vale la pena romper el arranque.
   }
-  stream = createWriteStream(paths.logFile, { flags: 'a' });
-  return stream;
 }
 
 function write(level: Level, scope: string, args: unknown[]): void {
@@ -32,7 +39,8 @@ function write(level: Level, scope: string, args: unknown[]): void {
   else process.stdout.write(line);
 
   try {
-    open().write(line);
+    rotarUnaVez();
+    appendFileSync(paths.logFile, line);
   } catch {
     // Un fallo al escribir en disco no debe tumbar la app.
   }
