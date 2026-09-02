@@ -271,20 +271,46 @@ export const mockApi: AtreusApi = {
   },
 
   achievements: {
+    /*
+     * El mock cubre los tres modos a propósito: si aquí solo hubiera juegos de
+     * Steam escribibles, la interfaz de solo lectura y la del registro manual
+     * no se podrían ajustar sin tener delante una cuenta de Xbox.
+     */
     async list(gameId) {
       await wait(300, 700);
       const game = games.find((g) => g.id === gameId);
       if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
-      const steam = game.platform === 'steam';
+
+      if (game.platform === 'steam') {
+        return ok({
+          gameId,
+          tracking: 'steam' as const,
+          writable: true,
+          source: 'Cliente de Steam',
+          note: null,
+          items: achievements,
+        });
+      }
+
+      // Xbox con clave de OpenXBL: estado real, pero no se puede escribir.
+      if (game.platform === 'xbox') {
+        return ok({
+          gameId,
+          tracking: 'steam' as const,
+          writable: false,
+          source: 'Xbox Live · OpenXBL',
+          note: 'Estos son tus logros reales de Xbox, con sus fechas. Xbox no permite desbloquearlos desde fuera del juego: no existe ninguna API para eso, ni oficial ni de terceros, así que aquí solo se leen.',
+          items: achievements,
+        });
+      }
+
       return ok({
         gameId,
-        tracking: steam ? ('steam' as const) : ('manual' as const),
-        writable: steam,
-        source: steam ? 'Cliente de Steam' : 'Catálogo público de Steam (AppID 000000)',
-        note: steam
-          ? null
-          : 'Esta plataforma no publica tus logros sin iniciar sesión, así que la lista es la de la versión de Steam y el progreso lo marcas tú.',
-        items: steam ? achievements : achievements.map((a) => ({ ...a, unlocked: manualMarks.has(`${gameId}|${a.apiName}`) })),
+        tracking: 'manual' as const,
+        writable: false,
+        source: 'Catálogo público de Steam (AppID 000000)',
+        note: 'Esta plataforma no publica tus logros sin iniciar sesión, así que la lista es la de la versión de Steam y el progreso lo marcas tú.',
+        items: achievements.map((a) => ({ ...a, unlocked: manualMarks.has(`${gameId}|${a.apiName}`) })),
       });
     },
 

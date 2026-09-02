@@ -113,7 +113,9 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
         // Xbox Live no acepta escrituras de terceros: se lee, no se toca.
         writable: false,
         source: 'Xbox Live · OpenXBL',
-        note: null,
+        note: 'Estos son tus logros reales de Xbox, con sus fechas. Xbox no permite ' +
+          'desbloquearlos desde fuera del juego: no existe ninguna API para eso, ni oficial ' +
+          'ni de terceros, así que aquí solo se leen.',
         items: fromXbox,
       };
     }

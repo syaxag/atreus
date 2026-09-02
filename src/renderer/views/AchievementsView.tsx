@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, Trophy, Lock, RotateCcw, Save, EyeOff, History, ShieldAlert, Filter, NotebookPen,
+  Eye,
 } from 'lucide-react';
 import type { Achievement, AchievementSet, GameStat, SteamSnapshot } from '@shared/types';
 import { api } from '@/lib/api';
@@ -138,6 +139,13 @@ export function AchievementsView() {
 
   const writable = set?.writable ?? false;
   const manual = set?.tracking === 'manual';
+  /*
+   * Estado real que no se puede escribir: Xbox por OpenXBL, o un juego de Steam
+   * leído por la Web API con el cliente cerrado. Aquí los interruptores no son
+   * un control, son un indicador, y tienen que comportarse como tal: dejarlos
+   * activos hacía que "Guardar" fallara con un error que no ayudaba a nadie.
+   */
+  const readOnly = set?.tracking === 'steam' && !writable;
   const pendingCount =
     Object.keys(achPatch).length + Object.keys(statPatch).length;
   const unlockingCount = Object.values(achPatch).filter(Boolean).length;
@@ -319,14 +327,19 @@ export function AchievementsView() {
         />
       ) : tab === 'achievements' ? (
         <>
-          {manual && set?.note && (
+          {set?.note && (manual || readOnly) && (
             <div className="flex items-start gap-2.5 border-b border-line bg-inset px-6 py-3">
-              <NotebookPen size={15} className="mt-0.5 shrink-0 text-accent" />
+              {readOnly
+                ? <Eye size={15} className="mt-0.5 shrink-0 text-accent" />
+                : <NotebookPen size={15} className="mt-0.5 shrink-0 text-accent" />}
               <div className="min-w-0">
-                <p className="text-[13px] font-medium">Este es tu registro, no la plataforma</p>
+                <p className="text-[13px] font-medium">
+                  {readOnly ? `Solo lectura · ${set.source}` : 'Este es tu registro, no la plataforma'}
+                </p>
                 <p className="mt-0.5 text-[12px] leading-5 text-muted">
-                  {set.note} Marcar aquí no desbloquea nada: sirve para que la ficha del juego
-                  sepa por dónde vas y pueda calcular lo que te queda.
+                  {set.note}
+                  {!readOnly && ' Marcar aquí no desbloquea nada: sirve para que la ficha del juego ' +
+                    'sepa por dónde vas y pueda calcular lo que te queda.'}
                 </p>
               </div>
             </div>
@@ -376,9 +389,11 @@ export function AchievementsView() {
               {visible.length !== achievements.length && (
                 <span className="text-[12px] text-faint">{visible.length} de {achievements.length}</span>
               )}
-              <Button size="sm" variant="outline" onClick={() => guard(() => setAll(true))}>Marcar todos</Button>
-              <Button size="sm" variant="outline" onClick={() => guard(() => setAll(false))}>Desmarcar</Button>
-              <Button size="sm" variant="outline" onClick={() => guard(invert)}>Invertir</Button>
+              {!readOnly && <>
+                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(true))}>Marcar todos</Button>
+                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(false))}>Desmarcar</Button>
+                <Button size="sm" variant="outline" onClick={() => guard(invert)}>Invertir</Button>
+              </>}
             </div>
           </div>
 
@@ -453,7 +468,7 @@ export function AchievementsView() {
 
                       <Toggle
                         checked={on}
-                        disabled={a.protected}
+                        disabled={a.protected || readOnly}
                         label={a.displayName}
                         onChange={(next) => guard(() => toggleOne(a, next))}
                       />
