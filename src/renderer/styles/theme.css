@@ -127,6 +127,12 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    /*
+      Sin esto, una animación infinita acortada a 0,01 ms se repetiría cien mil
+      veces por segundo: quien pide menos movimiento acabaría con el ventilador
+      a tope. La celebración del platino tiene varias.
+    */
+    animation-iteration-count: 1 !important;
   }
 }
 
@@ -313,32 +319,50 @@ body {
 
 /* ── Celebración del platino ──────────────────────────────────
    La coreografía del vídeo original, dibujada aquí: el trofeo llega
-   retrocediendo desde muy cerca, estalla la luz, una cinta lo orbita y todo
-   queda en reposo entre estrellas. Va en CSS y no en JavaScript para que lo
-   componga la GPU: si tienes el juego abierto detrás, esto no le quita nada.
-   La regla de `prefers-reduced-motion` de más arriba lo deja quieto solo.     */
+   retrocediendo desde muy cerca, estalla la luz, unas cintas lo orbitan y nada
+   se queda quieto — flota, respira y despide chispas mientras esté en pantalla.
+   Va en CSS y no en JavaScript para que lo componga la GPU: si tienes el juego
+   abierto detrás, esto no le quita nada. La regla de `prefers-reduced-motion`
+   de más arriba lo deja todo parado solo.
+
+   Cada capa anima UNA sola propiedad de transformación. Por eso hay
+   envoltorios anidados —flotar, inclinar, girar— en vez de una animación que
+   lo haga todo: dos animaciones sobre el mismo `transform` se pisan y gana la
+   última, que es exactamente lo que dejaba esto congelado al acabar la
+   entrada.                                                                   */
 
 /* El trofeo entra desde muy cerca y retrocede hasta su sitio. */
-@keyframes atreus-trofeo {
-  0%   { transform: scale(2.1) translateY(6%); opacity: 0; filter: brightness(1.8); }
-  18%  { opacity: 1; }
-  55%  { transform: scale(1.04) translateY(0); filter: brightness(1.25); }
-  70%  { filter: brightness(2.2) drop-shadow(0 0 60px rgba(167, 139, 250, .95)); }
-  100% { transform: scale(1) translateY(0); filter: brightness(1)
+@keyframes atreus-trofeo-entra {
+  0%   { transform: scale(2.15); opacity: 0; filter: brightness(1.9) blur(3px); }
+  16%  { opacity: 1; }
+  52%  { transform: scale(1.05); filter: brightness(1.3) blur(0); }
+  68%  { filter: brightness(2.4) drop-shadow(0 0 70px rgba(196, 181, 253, .95)); }
+  100% { transform: scale(1); filter: brightness(1)
            drop-shadow(0 18px 42px rgba(109, 40, 217, .55)); }
 }
 
-.celebra-trofeo {
-  animation: atreus-trofeo 2.6s cubic-bezier(.16, 1, .3, 1) both;
+.celebra-entrada {
+  animation: atreus-trofeo-entra 2.4s cubic-bezier(.16, 1, .3, 1) both;
   will-change: transform, filter;
 }
 
-/* Resplandor que respira detrás del trofeo. */
+/* Y una vez ahí no se queda quieto: flota y cabecea, muy despacio. */
+@keyframes atreus-flotar {
+  0%, 100% { transform: translateY(0) rotate(-.7deg); }
+  50%      { transform: translateY(-14px) rotate(.7deg); }
+}
+
+.celebra-flota {
+  animation: atreus-flotar 6s ease-in-out 2.2s infinite both;
+  will-change: transform;
+}
+
+/* Resplandor de entrada. */
 @keyframes atreus-halo {
   0%   { transform: scale(.25); opacity: 0; }
   55%  { opacity: .5; }
   72%  { transform: scale(1.35); opacity: .95; }
-  100% { transform: scale(1); opacity: .45; }
+  100% { transform: scale(1); opacity: .5; }
 }
 
 .celebra-halo {
@@ -354,11 +378,30 @@ body {
   will-change: transform, opacity;
 }
 
+/* Y detrás, uno que respira sin parar. */
+@keyframes atreus-respirar {
+  0%, 100% { transform: scale(.94); opacity: .32; }
+  50%      { transform: scale(1.14); opacity: .6; }
+}
+
+.celebra-respira {
+  position: absolute;
+  width: 130%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(167, 139, 250, .45) 0%,
+    rgba(109, 40, 217, .22) 42%,
+    transparent 70%);
+  animation: atreus-respirar 4.5s ease-in-out 2.4s infinite both;
+  will-change: transform, opacity;
+}
+
 /* El estallido: un anillo que se abre y se apaga. */
 @keyframes atreus-onda {
   0%   { transform: scale(.15); opacity: 0; border-width: 14px; }
   8%   { opacity: 1; }
-  100% { transform: scale(2.4); opacity: 0; border-width: 1px; }
+  100% { transform: scale(2.6); opacity: 0; border-width: 1px; }
 }
 
 .celebra-onda {
@@ -367,7 +410,7 @@ body {
   aspect-ratio: 1;
   border-radius: 50%;
   border: solid rgba(221, 214, 254, .9);
-  animation: atreus-onda 1.5s cubic-bezier(.22, .61, .36, 1) .72s both;
+  animation: atreus-onda 1.6s cubic-bezier(.22, .61, .36, 1) .68s both;
   will-change: transform, opacity;
 }
 
@@ -375,7 +418,7 @@ body {
 @keyframes atreus-chispa {
   0%   { transform: translateX(0) scale(1); opacity: 0; }
   10%  { opacity: 1; }
-  100% { transform: translateX(var(--distancia)) scale(.2); opacity: 0; }
+  100% { transform: translateX(var(--distancia)) scale(.15); opacity: 0; }
 }
 
 .celebra-chispa {
@@ -395,40 +438,77 @@ body {
   height: 100%;
   border-radius: 50%;
   background: inherit;
-  animation: atreus-chispa 1.5s cubic-bezier(.16, 1, .3, 1) both;
+  animation: atreus-chispa 1.6s cubic-bezier(.16, 1, .3, 1) both;
   animation-delay: inherit;
 }
 
-/* La cinta que orbita el trofeo, inclinada para que se lea como una órbita. */
-@keyframes atreus-orbita {
-  0%   { transform: rotateX(74deg) rotate(0deg); opacity: 0; }
-  22%  { opacity: 1; }
-  100% { transform: rotateX(74deg) rotate(360deg); opacity: .9; }
+/* Las cintas que orbitan. Giran mientras la celebración esté abierta: pararlas
+   al acabar la entrada era justo lo que la dejaba muerta. */
+@keyframes atreus-girar {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes atreus-girar-inverso {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+
+@keyframes atreus-aparecer {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .celebra-orbita {
   position: absolute;
   width: 128%;
   aspect-ratio: 1;
-  transform-style: preserve-3d;
-  animation: atreus-orbita 3.4s linear 1s both;
+  animation: atreus-aparecer .9s ease-out 1s both;
+}
+
+.celebra-orbita-inclina {
+  position: absolute;
+  inset: 0;
+  transform: rotateX(74deg);
+}
+
+.celebra-orbita-inclina.inversa {
+  transform: rotateX(66deg) rotateZ(26deg);
+}
+
+.celebra-orbita-gira {
+  position: absolute;
+  inset: 0;
+  animation: atreus-girar 5.5s linear infinite;
   will-change: transform;
 }
 
-.celebra-orbita-cuerpo {
+.celebra-orbita-gira.inversa {
+  animation-name: atreus-girar-inverso;
+  animation-duration: 8.5s;
+}
+
+.celebra-anillo {
   position: absolute;
   inset: 0;
   border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: rgba(233, 213, 255, .95);
-  border-right-color: rgba(167, 139, 250, .6);
+  border-right-color: rgba(167, 139, 250, .55);
   filter: drop-shadow(0 0 8px rgba(167, 139, 250, .8));
 }
 
-/* Polvo estelar: cada mota parpadea a su ritmo. */
+.celebra-anillo.tenue {
+  border-width: 1px;
+  border-top-color: rgba(196, 181, 253, .55);
+  border-right-color: transparent;
+  border-left-color: rgba(139, 92, 246, .35);
+}
+
+/* Polvo estelar: cada mota parpadea y deriva a su ritmo. */
 @keyframes atreus-estrella {
-  0%, 100% { opacity: .12; transform: scale(.7); }
-  50%      { opacity: .95; transform: scale(1); }
+  0%, 100% { opacity: .1; transform: translateY(0) scale(.65); }
+  50%      { opacity: .95; transform: translateY(-14px) scale(1); }
 }
 
 .celebra-estrella {
@@ -436,15 +516,33 @@ body {
   border-radius: 50%;
   background: #e9d5ff;
   box-shadow: 0 0 6px 1px rgba(196, 181, 253, .7);
-  animation: atreus-estrella linear infinite both;
+  animation: atreus-estrella ease-in-out infinite both;
+  will-change: transform, opacity;
+}
+
+/* Motas que suben sin parar desde abajo: el fondo nunca se queda inmóvil. */
+@keyframes atreus-ascua {
+  0%   { transform: translateY(0) scale(.35); opacity: 0; }
+  14%  { opacity: .85; }
+  100% { transform: translateY(-52vh) scale(1); opacity: 0; }
+}
+
+.celebra-ascua {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: #c4b5fd;
+  box-shadow: 0 0 8px 2px rgba(139, 92, 246, .6);
+  animation: atreus-ascua linear infinite both;
+  will-change: transform, opacity;
 }
 
 /* El texto llega cuando el trofeo ya ha aterrizado. */
 @keyframes atreus-texto-celebra {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .celebra-texto {
-  animation: atreus-texto-celebra .7s cubic-bezier(.16, 1, .3, 1) 2.2s both;
+  animation: atreus-texto-celebra .8s cubic-bezier(.16, 1, .3, 1) 2.1s both;
 }

@@ -406,6 +406,8 @@ export interface Settings {
    * desde Ajustes. Mientras sea false, Logros no deja guardar nada.
    */
   achievementRiskAccepted: boolean;
+  /** Suena la recompensa al conseguir un platino. */
+  celebrationSound: boolean;
   language: 'es' | 'en';
 }
 

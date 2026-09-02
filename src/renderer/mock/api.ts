@@ -116,6 +116,7 @@ let settings: Settings = {
   checkForAppUpdates: true,
   autoDownloadUpdates: false,
   achievementRiskAccepted: false,
+  celebrationSound: true,
   language: 'es',
 };
 

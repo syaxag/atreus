@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   checkForAppUpdates: true,
   autoDownloadUpdates: false,
   achievementRiskAccepted: false,
+  celebrationSound: true,
   language: 'es',
 };
 

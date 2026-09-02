@@ -71,6 +71,13 @@ function createWindow(): void {
        * puente `window.atreus` ni puede tocar el sistema de archivos.
        */
       webviewTag: true,
+      /*
+       * La celebración suena sola al conseguir un platino, sin que nadie pulse
+       * nada. Chromium exige un gesto antes de reproducir audio; en una
+       * aplicación de escritorio esa protección no pinta nada, porque el
+       * usuario ya decidió abrirla.
+       */
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 

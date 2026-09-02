@@ -3,28 +3,35 @@ import { X } from 'lucide-react';
 import type { PlatinumReport } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 import { duration, hours, span } from '@/lib/format';
+import { sonarPlatino } from '@/lib/sonido';
+import { useStore } from '@/store';
 import { Button } from '@/components/ui';
 
 /**
  * La celebración del platino.
  *
  * Reproduce la coreografía del vídeo original —retroceso que revela el trofeo,
- * estallido de luz, cinta de partículas girando y reposo entre estrellas— pero
- * dibujada aquí en vez de incrustar el vídeo. Así no arrastra la marca de agua,
- * se ve nítida a cualquier tamaño de ventana, pesa unos kilobytes en lugar de
- * cinco megas, y puede decir de qué juego se trata y lo que costó, que es lo
- * que convierte una animación bonita en el remate de algo tuyo.
+ * estallido de luz, cintas girando y reposo entre estrellas— pero dibujada aquí
+ * en vez de incrustar el vídeo. Así no arrastra la marca de agua, se ve nítida
+ * a cualquier tamaño de ventana, pesa unos kilobytes en lugar de cinco megas, y
+ * puede decir de qué juego se trata y lo que costó, que es lo que convierte una
+ * animación bonita en el remate de algo tuyo.
  *
- * Todo el movimiento es CSS: el navegador lo compone en la GPU y no compite con
- * el juego si lo tienes abierto detrás. Con `prefers-reduced-motion` el sistema
- * ya lo deja quieto (ver theme.css), y entonces esto es sencillamente una
- * tarjeta con el trofeo.
+ * Nada se queda quieto cuando termina la entrada: el trofeo flota, el
+ * resplandor respira, las cintas siguen girando y las ascuas suben desde abajo.
+ * Una animación que se congela a los tres segundos se siente rota.
+ *
+ * Todo el movimiento es CSS: lo compone la GPU y no compite con el juego si lo
+ * tienes abierto detrás. Con `prefers-reduced-motion` el sistema lo deja quieto
+ * (ver theme.css) y entonces esto es una tarjeta con el trofeo, sin más.
  */
 
-/** Cuántas motas de polvo estelar. Suficientes para llenar sin recargar. */
+/** Motas de polvo estelar repartidas por el fondo. */
 const ESTRELLAS = 46;
-/** Cuántas chispas salen disparadas en el estallido. */
+/** Chispas que salen disparadas en el estallido. */
 const CHISPAS = 28;
+/** Ascuas que suben sin parar desde el borde inferior. */
+const ASCUAS = 16;
 
 interface Mota {
   izq: number;
@@ -45,12 +52,11 @@ interface Chispa {
  * Posiciones estables mientras la celebración esté abierta.
  *
  * Se calculan una vez con `useMemo`: si se recalcularan en cada repintado, las
- * motas saltarían de sitio a mitad de la animación.
+ * motas saltarían de sitio a mitad de la animación. El generador es propio y
+ * determinista, así que dos celebraciones del mismo juego se ven igual.
  */
 function useConfeti(semilla: string) {
   return useMemo(() => {
-    // Generador propio y determinista: dos celebraciones del mismo juego se ven
-    // igual, y no depende de Math.random en mitad del render.
     let estado = [...semilla].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
     const azar = () => {
       estado = (estado * 1664525 + 1013904223) >>> 0;
@@ -65,24 +71,37 @@ function useConfeti(semilla: string) {
     }));
     const chispas: Chispa[] = Array.from({ length: CHISPAS }, (_, i) => ({
       angulo: (360 / CHISPAS) * i + azar() * 8,
-      distancia: 130 + azar() * 190,
+      distancia: 140 + azar() * 200,
       retardo: azar() * 0.18,
       tam: 2 + azar() * 3,
     }));
-    return { estrellas, chispas };
+    const ascuas: Mota[] = Array.from({ length: ASCUAS }, () => ({
+      izq: azar() * 100,
+      arr: 0,
+      tam: 1.5 + azar() * 2.5,
+      retardo: azar() * 9,
+      duracion: 7 + azar() * 6,
+    }));
+    return { estrellas, chispas, ascuas };
   }, [semilla]);
 }
 
 export function PlatinumCelebration({
   report, onClose,
 }: { report: PlatinumReport; onClose: () => void }) {
-  const { estrellas, chispas } = useConfeti(report.gameId);
+  const { estrellas, chispas, ascuas } = useConfeti(report.gameId);
+  const conSonido = useStore((state) => state.settings?.celebrationSound ?? true);
   // El botón de cerrar aparece cuando la animación ya ha dicho lo suyo: antes
   // sería una invitación a saltarse justo lo que se ha ganado.
   const [listo, setListo] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setListo(true), 3200);
+    if (conSonido) sonarPlatino();
+    // El sonido suena una vez por celebración, no cada vez que React repinta.
+  }, [report.gameId, conSonido]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setListo(true), 3000);
     const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', escape);
     return () => { clearTimeout(t); window.removeEventListener('keydown', escape); };
@@ -95,11 +114,11 @@ export function PlatinumCelebration({
       aria-label={`Platino conseguido en ${report.gameName}`}
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-[#07070b]/95 backdrop-blur-md"
     >
-      {/* Polvo estelar de fondo, el reposo del vídeo. */}
+      {/* Polvo estelar y ascuas: el fondo nunca se queda inmóvil. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         {estrellas.map((mota, i) => (
           <span
-            key={i}
+            key={`e${i}`}
             className="celebra-estrella"
             style={{
               left: `${mota.izq}%`,
@@ -111,11 +130,25 @@ export function PlatinumCelebration({
             }}
           />
         ))}
+        {ascuas.map((mota, i) => (
+          <span
+            key={`a${i}`}
+            className="celebra-ascua"
+            style={{
+              left: `${mota.izq}%`,
+              width: `${mota.tam}px`,
+              height: `${mota.tam}px`,
+              animationDelay: `${mota.retardo}s`,
+              animationDuration: `${mota.duracion}s`,
+            }}
+          />
+        ))}
       </div>
 
       <div className="relative flex flex-col items-center px-6">
         <div className="relative flex items-center justify-center">
-          {/* Resplandor que crece por detrás del trofeo. */}
+          {/* Resplandor de entrada, y detrás otro que respira sin parar. */}
+          <div aria-hidden="true" className="celebra-respira" />
           <div aria-hidden="true" className="celebra-halo" />
           {/* El estallido: un anillo que se expande y se apaga. */}
           <div aria-hidden="true" className="celebra-onda" />
@@ -130,21 +163,36 @@ export function PlatinumCelebration({
                   height: `${chispa.tam}px`,
                   transform: `rotate(${chispa.angulo}deg)`,
                   ['--distancia' as string]: `${chispa.distancia}px`,
-                  animationDelay: `${0.75 + chispa.retardo}s`,
+                  animationDelay: `${0.72 + chispa.retardo}s`,
                 }}
               />
             ))}
           </div>
-          {/* La cinta que orbita, inclinada para que se lea como una órbita. */}
+
+          {/*
+            Dos cintas orbitando en sentidos contrarios y con distinta
+            inclinación. Cada capa hace una sola cosa —aparecer, inclinar,
+            girar— porque dos animaciones sobre el mismo transform se pisan.
+          */}
           <div aria-hidden="true" className="celebra-orbita">
-            <span className="celebra-orbita-cuerpo" />
+            <div className="celebra-orbita-inclina">
+              <div className="celebra-orbita-gira"><span className="celebra-anillo" /></div>
+            </div>
+            <div className="celebra-orbita-inclina inversa">
+              <div className="celebra-orbita-gira inversa">
+                <span className="celebra-anillo tenue" />
+              </div>
+            </div>
           </div>
 
-          <img
-            src={trofeo}
-            alt=""
-            className="celebra-trofeo relative h-[46vh] max-h-[420px] min-h-[220px] w-auto"
-          />
+          {/* Envoltorio que flota; dentro, el que entra. Separados por lo mismo. */}
+          <div className="celebra-flota relative">
+            <img
+              src={trofeo}
+              alt=""
+              className="celebra-entrada h-[46vh] max-h-[420px] min-h-[220px] w-auto"
+            />
+          </div>
         </div>
 
         <div className="celebra-texto mt-6 flex flex-col items-center text-center">

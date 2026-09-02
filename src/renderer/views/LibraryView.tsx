@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Search, RefreshCw, Star, Play, LibraryBig, Plus, Trophy, Users,
+  Search, RefreshCw, Star, Play, Gem, Plus, Trophy, Users, LoaderCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn';
 import { duration, PLATFORM_LABEL, relative } from '@/lib/format';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
 import type { Game, PlatinumSummary } from '@shared/types';
+import trofeo from '@/assets/trofeo.png';
 
 /**
  * Los filtros de una biblioteca de cazador de platinos: qué estoy persiguiendo,
@@ -170,7 +171,7 @@ export function LibraryView() {
           </div>
         ) : visible.length === 0 ? (
           <Empty
-            icon={<LibraryBig size={40} strokeWidth={1.25} />}
+            icon={<Gem size={40} strokeWidth={1.25} />}
             title={games.length === 0 ? 'La biblioteca está vacía' : 'Ningún juego coincide'}
             hint={
               games.length === 0
@@ -260,11 +261,17 @@ function score(summary: PlatinumSummary | undefined): number {
 }
 
 function summarize(games: Game[], platinum: Record<string, PlatinumSummary>): string {
-  const known = games.map((game) => platinum[game.id]).filter((s): s is PlatinumSummary => !!s && s.total > 0);
-  const complete = known.filter((s) => s.complete).length;
-  const started = known.filter((s) => s.unlocked > 0 && !s.complete).length;
-  if (known.length === 0) return `${games.length} juegos · abre uno para calcular su progreso`;
-  return `${games.length} juegos · ${complete} al 100 % · ${started} en curso`;
+  const known = games
+    .map((game) => platinum[game.id])
+    .filter((s): s is PlatinumSummary => !!s && s.total > 0);
+  const platinos = known.filter((s) => s.complete).length;
+  const enCurso = known.filter((s) => s.unlocked > 0 && !s.complete).length;
+  if (known.length === 0) return `${games.length} juegos · calculando su progreso…`;
+  // Se cuentan platinos, no porcentajes: es la unidad de esta aplicación.
+  const partes = [`${games.length} juegos`];
+  partes.push(platinos === 1 ? '1 platino' : `${platinos} platinos`);
+  if (enCurso > 0) partes.push(`${enCurso} en curso`);
+  return partes.join(' · ');
 }
 
 function GameCard({
@@ -275,8 +282,27 @@ function GameCard({
   const selectedId = useStore((s) => s.selectedId);
   const toggleFavorite = useStore((s) => s.toggleFavorite);
   const pushToast = useStore((s) => s.pushToast);
+  const celebrate = useStore((s) => s.celebrate);
+  const [abriendo, setAbriendo] = useState(false);
 
   const active = selectedId === game.id;
+  const platino = summary?.complete === true;
+
+  /**
+   * Revive la celebración desde la propia Colección.
+   *
+   * La tarjeta solo tiene el resumen, y la celebración necesita el informe
+   * entero —las horas, la dificultad, lo que tardaste—, así que se pide al
+   * abrir. Está cacheado media hora, o sea que casi siempre es instantáneo.
+   */
+  async function verCelebracion(e: React.MouseEvent) {
+    e.stopPropagation();
+    setAbriendo(true);
+    const res = await api.platinum.report(game.id);
+    setAbriendo(false);
+    if (!res.ok) return pushToast('error', res.error);
+    celebrate(res.data);
+  }
 
   async function launch(e: React.MouseEvent) {
     e.stopPropagation();
@@ -306,7 +332,11 @@ function GameCard({
         'defer-render-lg animate-rise',
         'transition-[transform,border-color,box-shadow] duration-[180ms] ease-atreus',
         'hover:-translate-y-1 hover:border-accent hover:shadow-lg hover:shadow-accent/15',
-        active ? 'border-accent shadow-md shadow-accent/20' : 'border-line',
+        // Un juego rematado se reconoce de un vistazo en la parrilla: es el
+        // único que cambia de color de borde sin que lo toques.
+        platino
+          ? 'border-[var(--success-line)] shadow-md shadow-emerald-500/10'
+          : active ? 'border-accent shadow-md shadow-accent/20' : 'border-line',
       )}
       // El escalonado se corta pronto: con veinte tarjetas ya se ha leído el
       // gesto, y esperar a la número cuarenta solo sería lentitud disfrazada.
@@ -330,6 +360,22 @@ function GameCard({
           <Star size={15} fill={game.favorite ? 'currentColor' : 'none'} />
         </button>
 
+        {/* El trofeo, solo en los que están al 100 %: es la recompensa de la
+            parrilla, y desde aquí se puede volver a ver su celebración. */}
+        {platino && (
+          <button
+            type="button"
+            onClick={verCelebracion}
+            aria-label={`Ver la celebración del platino de ${game.name}`}
+            title="Ver la celebración"
+            className="absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
+          >
+            {abriendo
+              ? <LoaderCircle size={20} className="animate-spin text-accent" />
+              : <img src={trofeo} alt="" className="h-6 w-auto drop-shadow-[0_2px_8px_rgba(139,92,246,.8)]" />}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={launch}
@@ -351,10 +397,14 @@ function GameCard({
             tone={summary.complete ? 'success' : 'accent'}
             className="h-1"
             label={`${game.name}: ${summary.unlocked} de ${summary.total} logros`} />
-          <p className="flex items-center gap-1 text-[11px] text-faint">
-            <Trophy size={10} className={summary.complete ? 'text-success' : 'text-accent'} />
-            {summary.unlocked}/{summary.total}
-            <span className="tabular-nums">· {summary.percent.toFixed(0)} %</span>
+          <p className={cn('flex items-center gap-1 text-[11px]', platino ? 'text-success' : 'text-faint')}>
+            <Trophy size={10} className={platino ? 'text-success' : 'text-accent'} />
+            {platino
+              ? <span className="font-medium">Platino</span>
+              : <>
+                {summary.unlocked}/{summary.total}
+                <span className="tabular-nums">· {summary.percent.toFixed(0)} %</span>
+              </>}
             {summary.playtimeMinutes ? <span>· {duration(summary.playtimeMinutes)}</span> : null}
           </p>
         </> : <>

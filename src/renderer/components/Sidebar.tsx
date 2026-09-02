@@ -1,4 +1,5 @@
 import { Gem, Trophy, Compass, Map, Package, Settings2 } from 'lucide-react';
+import { useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useStore, type Section } from '@/store';
@@ -28,10 +29,42 @@ export function Sidebar() {
   const section = useStore((s) => s.section);
   const go = useStore((s) => s.go);
   const selected = useStore((s) => s.selected());
-  const summary = useStore((s) => (selected ? s.platinum[selected.id] : undefined));
+  const platinum = useStore((s) => s.platinum);
+  const summary = selected ? platinum[selected.id] : undefined;
+
+  /*
+   * El marcador de la casa. Un cazador de platinos lleva la cuenta de dos
+   * cosas: cuántos tiene y cuántos está persiguiendo. Tenerlo siempre delante
+   * es lo que separa esto de una lista de juegos instalados.
+   */
+  const marcador = useMemo(() => {
+    const todos = Object.values(platinum).filter((s) => s.total > 0);
+    return {
+      platinos: todos.filter((s) => s.complete).length,
+      enCurso: todos.filter((s) => s.unlocked > 0 && !s.complete).length,
+    };
+  }, [platinum]);
 
   return (
     <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col border-r border-line bg-surface">
+      <button
+        onClick={() => go('library')}
+        title="Ir a tu colección"
+        className="flex items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
+      >
+        <span className="text-[26px] font-semibold leading-none tabular-nums text-fg">
+          {marcador.platinos}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[11px] uppercase tracking-wide text-accent">
+            {marcador.platinos === 1 ? 'platino' : 'platinos'}
+          </span>
+          <span className="block truncate text-[11px] text-faint">
+            {marcador.enCurso > 0 ? `${marcador.enCurso} en curso` : 'nada empezado'}
+          </span>
+        </span>
+      </button>
+
       <div className="flex flex-1 flex-col gap-0.5 p-2">
         {ITEMS.map((item) => (
           <Item

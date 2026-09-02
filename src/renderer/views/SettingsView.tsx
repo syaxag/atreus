@@ -247,6 +247,11 @@ export function SettingsView() {
               de volver a verlo es este interruptor. Va aquí, en Ajustes, y no
               escondido: quien lo aceptó sin leer tiene que poder deshacerlo.
             */}
+            <Row label="Sonido al conseguir un platino"
+                 hint="La celebración suena con una recompensa sintetizada por la propia aplicación; no descarga ni reproduce ningún archivo.">
+              <Toggle checked={settings.celebrationSound}
+                      onChange={(v) => void patch({ celebrationSound: v })} />
+            </Row>
             <Row label="Avisar antes de desbloquear logros"
                  hint="Vuelve a mostrar la advertencia sobre desbloquear logros a mano la próxima vez que lo intentes.">
               <Toggle checked={!settings.achievementRiskAccepted}
