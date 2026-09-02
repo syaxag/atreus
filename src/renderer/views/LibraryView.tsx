@@ -172,7 +172,7 @@ export function LibraryView() {
         ) : visible.length === 0 ? (
           <Empty
             icon={<Gem size={40} strokeWidth={1.25} />}
-            title={games.length === 0 ? 'La biblioteca está vacía' : 'Ningún juego coincide'}
+            title={games.length === 0 ? 'Tu colección está vacía' : 'Ningún juego coincide'}
             hint={
               games.length === 0
                 ? 'Escanea para detectar tus juegos de Steam, Epic, GOG y Xbox, o añade un ejecutable a mano.'

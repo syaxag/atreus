@@ -80,17 +80,23 @@ literal en un componente** — siempre `var(--…)`.
 │ Sidebar  │  Contenido                                    │
 │ 220px    │                                               │
 │          │                                               │
-│ Bibliot. │                                               │
-│ Logros   │                                               │
-│ Guías    │                                               │
-│ Mapas    │                                               │
-│ Mods     │                                               │
+│ 7 platin.│                                               │
+│ ──────── │                                               │
+│ Colección│                                               │
+│ Trofeos  │                                               │
+│ Rutas    │                                               │
+│ Atlas    │                                               │
+│ Taller   │                                               │
 │          │                                               │
 │ ──────── │                                               │
 │ Ajustes  │                                               │
 └──────────┴───────────────────────────────────────────────┘
 ```
 
+- Los nombres de las secciones no son los de un launcher: **Colección, Trofeos,
+  Rutas, Atlas, Taller**. La aplicación no administra programas instalados, así
+  que no habla como si lo hiciera. Arriba del todo va el marcador —cuántos
+  platinos tienes y cuántos persigues—, que es el dato de la casa.
 - Ventana **frameless**: la barra de título es nuestra (`-webkit-app-region: drag`).
   Los botones llevan `no-drag`.
 - Sidebar: sin iconos de colores. Item activo = texto blanco + barra morada de 2px

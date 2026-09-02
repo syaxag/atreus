@@ -24,7 +24,7 @@ const SHORTCUTS = [
   { section: 'achievements' as const, label: 'Trofeos', hint: 'Progreso, rareza y desbloqueo', icon: Trophy },
   { section: 'guides' as const, label: 'Rutas', hint: 'Guías con su texto completo aquí dentro', icon: BookOpen },
   { section: 'maps' as const, label: 'Atlas', hint: 'Mapa interactivo del juego', icon: Map },
-  { section: 'mods' as const, label: 'Mods', hint: 'Workshop y catálogos públicos', icon: Package },
+  { section: 'mods' as const, label: 'Taller', hint: 'Workshop y catálogos públicos', icon: Package },
 ];
 
 export function GameView() {

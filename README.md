@@ -10,13 +10,13 @@ Uso personal. Ver [docs/SCOPE.md](docs/SCOPE.md).
 
 | Módulo | Qué resuelve |
 |---|---|
-| **Biblioteca** | Detecta juegos de Steam, Epic, GOG, EA y Xbox, más ejecutables sueltos. Ordena por lo más cerca del platino, con horas jugadas y progreso reales |
+| **Colección** | Detecta juegos de Steam, Epic, GOG, EA y Xbox, más ejecutables sueltos. Ordena por lo más cerca del platino, con horas jugadas y progreso reales |
 | **Ficha del juego** | Cuántos logros llevas, cuánto has jugado, cuánto llevas persiguiendo el platino, cuánto te queda y cómo de duro es — con la lista de lo que falta ordenada por rareza. Al llegar al 100 %, el trofeo preside la tarjeta |
 | **Celebración** | Cuando rematas un platino y vuelves a la aplicación, salta la celebración: la animación del trofeo de Atreus, el nombre del juego y lo que te costó |
-| **Logros** | Funciona con juegos de cualquier tienda: progreso, rareza de cada logro e historial. En Steam los lee y puede desbloquearlos, avisando antes de lo que eso significa; en Xbox los lee con tu clave de OpenXBL; en Epic o EA enseña la lista y llevas tú el registro |
-| **Guías** | Busca solas las guías del juego y muestra su **texto completo** dentro de Atreus, con imágenes y atribución |
-| **Mapas** | Abre el mapa interactivo real del juego —MapGenie o su wiki— en una pestaña integrada |
-| **Mods** | Instalación desde `.zip`/`.7z`, orden de carga, perfiles, despliegue reversible por hardlink |
+| **Trofeos** | Funciona con juegos de cualquier tienda: progreso, rareza de cada logro e historial. En Steam los lee y puede desbloquearlos, avisando antes de lo que eso significa; en Xbox los lee con tu clave de OpenXBL; en Epic o EA enseña la lista y llevas tú el registro |
+| **Rutas** | Busca solas las guías del juego y muestra su **texto completo** dentro de Atreus, con imágenes y atribución |
+| **Atlas** | Abre el mapa interactivo real del juego —MapGenie o su wiki— en una pestaña integrada |
+| **Taller** | Instalación desde `.zip`/`.7z`, orden de carga, perfiles, despliegue reversible por hardlink |
 
 Todo se extiende añadiendo un JSON en [`data/games/`](data/games/) — sin recompilar.
 

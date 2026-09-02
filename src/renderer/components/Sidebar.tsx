@@ -14,15 +14,16 @@ import { useStore, type Section } from '@/store';
  * Los nombres no son los genéricos de un launcher, porque esto no lo es.
  * "Colección" es lo que tiene un coleccionista, no una estantería de programas;
  * "Trofeos" es la palabra con la que se habla de esto de verdad; "Rutas" es lo
- * que se sigue para un platino, que no es lo mismo que un manual; y "Atlas" es
- * un libro de mapas, que es exactamente lo que ofrece.
+ * que se sigue para un platino, que no es lo mismo que un manual; "Atlas" es un
+ * libro de mapas, que es exactamente lo que ofrece; y "Taller" es como se ha
+ * llamado siempre en español el sitio donde se le mete mano a un juego.
  */
 const ITEMS: { id: Section; label: string; icon: LucideIcon; needsGame?: boolean }[] = [
   { id: 'library', label: 'Colección', icon: Gem },
   { id: 'achievements', label: 'Trofeos', icon: Trophy, needsGame: true },
   { id: 'guides', label: 'Rutas', icon: Compass, needsGame: true },
   { id: 'maps', label: 'Atlas', icon: Map, needsGame: true },
-  { id: 'mods', label: 'Mods', icon: Package, needsGame: true },
+  { id: 'mods', label: 'Taller', icon: Package, needsGame: true },
 ];
 
 export function Sidebar() {
