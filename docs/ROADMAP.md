@@ -77,13 +77,26 @@ proceso principal.
 **Lo que no cubre:** el contenido de fuera. Una guía de Steam en inglés seguirá
 en inglés; Atreus traduce su interfaz, no lo que encuentra.
 
-## 2. La portada
+## 2. La portada · *hecha*
 
-Abres Atreus y caes en una parrilla. Steam, Xbox o PSNProfiles te reciben con
-*qué estás jugando, qué tienes a un paso del platino, qué hiciste ayer*. Atreus
-**ya tiene todos esos datos** —resúmenes, actividad, horas, siguiente logro— y
-no los compone en ninguna parte. Es la pieza que más cambiaría la sensación de
-la aplicación por lo poco que cuesta: no hay que calcular nada nuevo.
+Abrías Atreus y caías en una parrilla. Ahora la aplicación se abre por la
+portada, que compone lo que ya sabía y estaba repartido:
+
+- **Sigue donde lo dejaste** — el juego que está abierto ahora mismo, o el
+  último que tocaste. Con su progreso y **por qué logro seguir**, que es lo
+  único que se pide de más: un informe, del juego que ya estabas jugando y
+  cacheado media hora. Es lo que convierte la tarjeta en una decisión en vez
+  de un recordatorio.
+- **Lo que tienes empezado**, del más cerca del platino al más lejos.
+- **Lo último que tocaste**, que es lo que se quedó por el camino.
+
+Se llamó un rato *"a un paso del platino"*, como decía esta hoja. Con una
+biblioteca de verdad delante listaba un juego al 2 %: el orden sí pone delante
+lo más cerca, pero el título prometía una cercanía que depende de tu
+biblioteca, no de Atreus. El bloque se llama ahora por lo que contiene.
+
+Queda pendiente lo que no se puede saber sin usarla más tiempo: si tres
+bloques son los tres que hacen falta, o si sobra el último.
 
 ## 3. Tu perfil
 

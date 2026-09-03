@@ -1,4 +1,6 @@
-import { Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight } from 'lucide-react';
+import {
+  Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight, Newspaper,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -9,9 +11,9 @@ import { useT, type Clave } from '@/i18n';
 import { useStore, type Section } from '@/store';
 
 /**
- * Seis destinos, ni uno más, en dos grupos que no son lo mismo.
+ * Siete destinos, ni uno más, en dos grupos que no son lo mismo.
  *
- * Dos valen siempre. Los otros cuatro **operan sobre el juego en contexto** y
+ * Tres valen siempre. Los otros cuatro **operan sobre el juego en contexto** y
  * no significan nada sin él: por eso van debajo del juego y sangrados, no
  * mezclados con los primeros. Antes estaban todos en la misma lista y el juego
  * que los gobierna aparecía al final de la barra, lejos y sin relación visible;
@@ -37,6 +39,7 @@ interface Destino {
 }
 
 const GENERALES: Destino[] = [
+  { id: 'home', label: 'lateral.portada', icon: Newspaper },
   { id: 'library', label: 'lateral.coleccion', icon: Gem },
   { id: 'activity', label: 'lateral.actividad', icon: Activity },
 ];
@@ -82,8 +85,8 @@ export function Sidebar() {
   return (
     <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col overflow-y-auto border-r border-line bg-surface">
       <button
-        onClick={() => go('library')}
-        title={t('lateral.irColeccion')}
+        onClick={() => go('home')}
+        title={t('lateral.irPortada')}
         className="flex shrink-0 items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
       >
         <span className="text-[26px] font-semibold leading-none tabular-nums text-fg">

@@ -3,6 +3,7 @@ import { TitleBar } from '@/components/TitleBar';
 import { Sidebar } from '@/components/Sidebar';
 import { Toaster } from '@/components/Toaster';
 import { PlatinumCelebration } from '@/components/PlatinumCelebration';
+import { HomeView } from '@/views/HomeView';
 import { LibraryView } from '@/views/LibraryView';
 import { AchievementsView } from '@/views/AchievementsView';
 import { ModsView } from '@/views/ModsView';
@@ -97,6 +98,7 @@ export default function App() {
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <div key={`${section}-${selectedGame?.id ?? 'none'}`} className="flex min-h-0 flex-1 flex-col animate-view">
+              {section === 'home' && <HomeView />}
               {section === 'library' && <LibraryView />}
               {section === 'activity' && <ActivityView />}
               {section === 'game' && <GameView />}

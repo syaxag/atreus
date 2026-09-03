@@ -6,7 +6,9 @@ import { api } from '@/lib/api';
 import { traducir, type Clave, type Huecos } from '@shared/i18n';
 import { explicarAviso } from '@/lib/aviso';
 
-export type Section = 'library' | 'activity' | 'game' | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
+export type Section =
+  | 'home' | 'library' | 'activity' | 'game'
+  | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
 
 export interface Toast {
   id: number;
@@ -80,7 +82,9 @@ interface State {
 let toastSeq = 0;
 
 export const useStore = create<State>((set, get) => ({
-  section: 'library',
+  // Se abre por la portada: caer en la parrilla entera obliga a decidir antes
+  // de saber nada, y lo que hace falta para decidir ya está calculado.
+  section: 'home',
   games: [],
   platinum: {},
   selectedId: null,
