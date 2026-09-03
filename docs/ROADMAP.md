@@ -24,10 +24,23 @@ aplicación hace falta, como mínimo, inglés.
 - [x] **Selector en Ajustes**, que aplica al momento y se guarda.
 - [x] Primera superficie migrada: barra de título y barra lateral.
 - [x] Colección: cabecera, filtros, orden, buscador y avisos.
-- [ ] El resto de las vistas, una por una: ficha, Trofeos, Rutas, Atlas,
-      Taller, Actividad y el cuerpo de Ajustes.
-- [ ] Fechas y números por idioma. `format.ts` tiene `'es-ES'` incrustado en
-      seis sitios.
+- [x] La ficha del juego, entera.
+- [x] **Fechas y números siguen al idioma.** `format.ts` guarda la configuración
+      regional en una variable de módulo y la fija el renderer al cambiar el
+      ajuste. `span()` no lo cubría —compone "2 años y 3 meses" a mano, cosa que
+      `Intl` no hace— y recibe las palabras del mismo diccionario.
+- [ ] Trofeos, Rutas, Atlas, Taller, Actividad y el cuerpo de Ajustes.
+- [ ] **La prosa que fabrica el backend.** Saltó al traducir la ficha: con la
+      interfaz en inglés seguía diciendo *Exigente*, *"Con tus 16,4 h llevas 30
+      de 38 logros…"* y *"estadísticas globales de logros"*. No es un olvido de
+      traducción: son frases **ya redactadas** que el proceso principal manda
+      hechas por el IPC, y ninguna traducción del renderer puede tocarlas.
+
+      El arreglo de verdad no es traducir el backend, es que **deje de mandar
+      prosa**: que `PlatinumDifficulty` lleve su tramo en vez de su etiqueta,
+      que la explicación viaje como los números con los que se compone, y que
+      las fuentes sean identificadores. La frase la arma el renderer, que es
+      quien sabe en qué idioma está. Es un cambio de contrato, no un retoque.
 - [ ] Un tercer idioma es solo un archivo de datos más. Portugués es el
       candidato obvio por tamaño de público.
 

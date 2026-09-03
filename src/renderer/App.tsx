@@ -12,6 +12,8 @@ import { MapsView } from '@/views/MapsView';
 import { GameView } from '@/views/GameView';
 import { ActivityView } from '@/views/ActivityView';
 import { hayModalAbierto } from '@/components/ui';
+import { LOCALE, useIdioma, useT } from '@/i18n';
+import { configurarLocale } from '@/lib/format';
 import { useStore, wireEvents } from '@/store';
 
 export default function App() {
@@ -23,6 +25,23 @@ export default function App() {
   const scan = useStore((s) => s.scan);
   const celebration = useStore((s) => s.celebration);
   const celebrate = useStore((s) => s.celebrate);
+
+  /*
+   * Las fechas y los números siguen al idioma.
+   *
+   * `format.ts` guarda la configuración regional en una variable de módulo, así
+   * que basta con fijarla cuando cambia el ajuste; el repintado que provoca el
+   * propio cambio de idioma ya recalcula todo lo que la usa.
+   */
+  const idioma = useIdioma();
+  const t = useT();
+  useEffect(() => {
+    configurarLocale(LOCALE[idioma], {
+      hoy: t('tiempo.hoy'), dia: t('tiempo.dia'), dias: t('tiempo.dias'),
+      mes: t('tiempo.mes'), meses: t('tiempo.meses'),
+      anio: t('tiempo.anio'), anios: t('tiempo.anios'), y: t('tiempo.y'),
+    });
+  }, [idioma, t]);
 
   useEffect(() => {
     const unwire = wireEvents();

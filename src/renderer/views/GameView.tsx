@@ -8,6 +8,7 @@ import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { duration, hours, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span } from '@/lib/format';
+import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Card, DifficultyMeter, Empty, ProgressRing, Skeleton,
 } from '@/components/ui';
@@ -20,14 +21,15 @@ import {
  * es lo que falta. Todo lo demás son atajos a las otras vistas.
  */
 
-const SHORTCUTS = [
-  { section: 'achievements' as const, label: 'Trofeos', hint: 'Progreso, rareza y desbloqueo', icon: Trophy },
-  { section: 'guides' as const, label: 'Rutas', hint: 'Guías con su texto completo aquí dentro', icon: BookOpen },
-  { section: 'maps' as const, label: 'Atlas', hint: 'Mapa interactivo del juego', icon: Map },
-  { section: 'mods' as const, label: 'Taller', hint: 'Workshop y catálogos públicos', icon: Package },
+const SHORTCUTS: { section: 'achievements' | 'guides' | 'maps' | 'mods'; label: Clave; hint: Clave; icon: typeof Trophy }[] = [
+  { section: 'achievements', label: 'lateral.trofeos', hint: 'ficha.atajoTrofeos', icon: Trophy },
+  { section: 'guides', label: 'lateral.rutas', hint: 'ficha.atajoRutas', icon: BookOpen },
+  { section: 'maps', label: 'lateral.atlas', hint: 'ficha.atajoAtlas', icon: Map },
+  { section: 'mods', label: 'lateral.taller', hint: 'ficha.atajoTaller', icon: Package },
 ];
 
 export function GameView() {
+  const t = useT();
   const game = useStore((state) => state.selected());
   const isRunning = useStore((state) => (game ? state.activeGameIds.includes(game.id) : false));
   const go = useStore((state) => state.go);
@@ -71,8 +73,8 @@ export function GameView() {
   if (!game) {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
-      title="Ningún juego seleccionado"
-      hint="Elige un juego en la Colección para ver cuánto te falta para su platino." />;
+      title={t('ficha.sinJuego')}
+      hint={t('ficha.sinJuegoPista')} />;
   }
 
   async function play() {
@@ -80,7 +82,7 @@ export function GameView() {
     if (!current) return;
     const response = await api.library.launch(current.id);
     if (!response.ok) return pushToast('error', response.error);
-    pushToast('info', `${current.name} iniciado`);
+    pushToast('info', t('ficha.iniciado', { juego: current.name }));
   }
 
   return (
@@ -110,23 +112,27 @@ export function GameView() {
               {isRunning && (
                 <Badge tone="success">
                   <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                  En ejecución
+                  {t('ficha.enEjecucion')}
                 </Badge>
               )}
-              {game.multiplayer && <Badge tone="warn">Multijugador</Badge>}
+              {game.multiplayer && <Badge tone="warn">{t('ficha.multijugador')}</Badge>}
             </div>
             <h1 className="mt-2 truncate text-[28px] font-semibold leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,.8)]">
               {game.name}
             </h1>
             <p className="mt-0.5 text-[12px] text-muted">
-              {duration(game.playtimeMinutes)} jugadas · última partida {relative(game.lastPlayed)}
+              {t('ficha.jugadas', {
+                tiempo: duration(game.playtimeMinutes), cuando: relative(game.lastPlayed),
+              })}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)} title="Volver a calcular el informe">
-              <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Actualizar
+            <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)} title={t('ficha.actualizarPista')}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> {t('ficha.actualizar')}
             </Button>
-            <Button variant="primary" onClick={() => void play()}><Play size={14} fill="currentColor" /> Jugar</Button>
+            <Button variant="primary" onClick={() => void play()}>
+              <Play size={14} fill="currentColor" /> {t('ficha.jugar')}
+            </Button>
           </div>
         </div>
       </header>
@@ -139,14 +145,16 @@ export function GameView() {
         ) : null}
 
         <section className="mt-6">
-          <h2 className="mb-2 text-[13px] font-semibold">Seguir desde aquí</h2>
+          <h2 className="mb-2 text-[13px] font-semibold">{t('ficha.seguirDesdeAqui')}</h2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
             {SHORTCUTS.map(({ section, label, hint, icon: Icon }) => (
               <Card key={section} className="p-4">
                 <Icon size={18} className="text-accent" />
-                <h3 className="mt-3 text-[14px] font-semibold">{label}</h3>
-                <p className="mt-1 min-h-8 text-[12px] text-muted">{hint}</p>
-                <Button size="sm" variant="outline" className="mt-3" onClick={() => go(section)}>Abrir</Button>
+                <h3 className="mt-3 text-[14px] font-semibold">{t(label)}</h3>
+                <p className="mt-1 min-h-8 text-[12px] text-muted">{t(hint)}</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => go(section)}>
+                  {t('ficha.abrir')}
+                </Button>
               </Card>
             ))}
           </div>
@@ -159,6 +167,7 @@ export function GameView() {
 function Report({
   report, readableGuideCount, onRefresh,
 }: { report: PlatinumReport; readableGuideCount: number | null; onRefresh: () => void }) {
+  const t = useT();
   const go = useStore((state) => state.go);
   const celebrate = useStore((state) => state.celebrate);
   const hasAchievements = report.total > 0;
@@ -222,21 +231,23 @@ function Report({
           <div className="flex items-center gap-2">
             <Trophy size={16} className={report.complete ? 'text-success' : 'text-accent'} />
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">
-              {report.complete ? 'Platino conseguido' : 'Camino al platino'}
+              {t(report.complete ? 'ficha.platinoConseguido' : 'ficha.caminoAlPlatino')}
             </h2>
           </div>
           <p className="mt-2 text-[15px] leading-6 text-fg">
             {hasAchievements
               ? report.complete
-                ? `Los ${report.total} logros, todos tuyos.`
-                : <>Te faltan <span className="font-semibold text-accent">{report.total - report.unlocked}</span> logros de {report.total}.</>
-              : 'Sin datos de logros para este juego'}
+                ? t('ficha.todosTuyos', { total: report.total })
+                : t('ficha.faltanLogros', {
+                  faltan: report.total - report.unlocked, total: report.total,
+                })
+              : t('ficha.sinDatos')}
           </p>
           {/* Un platino se enseña. El botón deja revivir la celebración cuando
               te apetezca, no solo el día que cayó. */}
           {report.complete && (
             <Button size="sm" variant="outline" className="mt-3" onClick={() => celebrate(report)}>
-              <Sparkles size={13} /> Ver la celebración
+              <Sparkles size={13} /> {t('ficha.verCelebracion')}
             </Button>
           )}
         </div>
@@ -244,7 +255,7 @@ function Report({
           {/* Decir de dónde sale el progreso no es un detalle: un 40 % medido
               por Steam y un 40 % que has marcado tú no valen lo mismo. */}
           {report.tracking === 'manual' && (
-            <Badge tone="accent"><NotebookPen size={11} className="mr-1" /> Progreso marcado por ti</Badge>
+            <Badge tone="accent"><NotebookPen size={11} className="mr-1" /> {t('ficha.progresoManual')}</Badge>
           )}
           {/* Estando completo no hace falta insignia: lo dicen el titular, el
               100,0 % y el trofeo. Y así no se pisan. */}
@@ -263,35 +274,40 @@ function Report({
     <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
       <Metric
         icon={<Clock size={15} />}
-        label="Tiempo jugado"
+        label={t('ficha.tiempoJugado')}
         value={duration(report.playtimeMinutes)}
         hint={report.trackedMinutes > 0
-          ? `${duration(report.trackedMinutes)} observados por Atreus`
-          : 'Según tu cuenta de la plataforma'}
+          ? t('ficha.observados', { tiempo: duration(report.trackedMinutes) })
+          : t('ficha.segunPlataforma')}
       />
       <Metric
         icon={<Hourglass size={15} />}
-        label={report.complete ? 'Te costó' : 'Persiguiéndolo'}
+        label={t(report.complete ? 'ficha.teCosto' : 'ficha.persiguiendolo')}
         value={report.firstUnlockAt ? span(report.firstUnlockAt) : '—'}
         hint={report.firstUnlockAt
-          ? `Desde tu primer logro${report.lastUnlockAt ? `, último ${relative(report.lastUnlockAt)}` : ''}`
-          : 'Aún no has desbloqueado ningún logro'}
+          ? (report.lastUnlockAt
+            ? t('ficha.desdePrimerLogroUltimo', { cuando: relative(report.lastUnlockAt) })
+            : t('ficha.desdePrimerLogro'))
+          : t('ficha.sinLogrosAun')}
       />
       <Metric
         icon={<Target size={15} />}
-        label={report.complete ? 'Tiempo total' : 'Te queda'}
+        label={t(report.complete ? 'ficha.tiempoTotal' : 'ficha.teQueda')}
         value={report.estimate ? hours(report.complete ? report.estimate.totalHours : report.estimate.remainingHours) : '—'}
         hint={report.estimate
           ? report.complete
-            ? 'Horas invertidas hasta el 100 %'
-            : `De unas ${hours(report.estimate.totalHours)} en total · ${CONFIDENCE[report.estimate.confidence]}`
-          : 'Hace falta al menos un logro para estimar'}
+            ? t('ficha.horasHastaCien')
+            : t('ficha.deUnasEnTotal', {
+              total: hours(report.estimate.totalHours),
+              confianza: t(CONFIDENCE[report.estimate.confidence]),
+            })
+          : t('ficha.haceFaltaUnLogro')}
       />
       <Metric
         icon={<Gauge size={15} />}
-        label="Dificultad del platino"
+        label={t('ficha.dificultad')}
         value={report.difficulty ? `${format(report.difficulty.score)}/10` : '—'}
-        hint={report.difficulty?.label ?? 'Steam no publica la rareza de este juego'}
+        hint={report.difficulty?.label ?? t('ficha.sinRareza')}
         extra={report.difficulty ? <DifficultyMeter score={report.difficulty.score} className="mt-2" /> : undefined}
       />
     </div>
@@ -300,7 +316,7 @@ function Report({
       <Card className="mt-3 p-4">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-accent" />
-          <h3 className="text-[13px] font-semibold">Cómo salen estos números</h3>
+          <h3 className="text-[13px] font-semibold">{t('ficha.comoSalen')}</h3>
         </div>
         <ul className="mt-2 flex flex-col gap-1.5 text-[12px] leading-5 text-muted">
           {report.estimate && <li>· {report.estimate.explanation}</li>}
@@ -308,9 +324,11 @@ function Report({
         </ul>
         {report.sources.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px] text-faint">
-            <p>Fuentes: {report.sources.join(' · ')} · actualizado {relative(report.updatedAt)}</p>
+            <p>{t('ficha.fuentes', {
+              fuentes: report.sources.join(' · '), cuando: relative(report.updatedAt),
+            })}</p>
             <Button size="sm" variant="ghost" onClick={onRefresh} title="Volver a consultar fuentes y progreso">
-              <RefreshCw size={13} /> Actualizar datos
+              <RefreshCw size={13} /> {t('ficha.actualizarDatos')}
             </Button>
           </div>
         )}
@@ -325,10 +343,10 @@ function Report({
       <section className="mt-6">
         <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="text-[13px] font-semibold">
-            Lo que te falta · empieza por arriba
+            {t('ficha.loQueFalta')}
           </h2>
           <Button size="sm" variant="outline" onClick={() => go('achievements')}>
-            Ver los {report.remaining.length}
+            {t('ficha.verLosN', { n: report.remaining.length })}
           </Button>
         </div>
         <Card className="divide-y divide-line">
@@ -354,9 +372,9 @@ function Report({
                   : <div className="h-8 w-8 shrink-0 rounded-sm bg-inset" />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-medium">
-                    {item.hidden && !item.displayName ? 'Logro oculto' : item.displayName}
+                    {item.hidden && !item.displayName ? t('ficha.logroOculto') : item.displayName}
                   </p>
-                  <p className="truncate text-[12px] text-muted">{item.description || 'Sin descripción'}</p>
+                  <p className="truncate text-[12px] text-muted">{item.description || t('ficha.sinDescripcion')}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p
@@ -376,7 +394,7 @@ function Report({
         </Card>
         {report.remaining.length > 8 && (
           <p className="mt-2 text-[12px] text-faint">
-            Ordenados del más común al más raro: los de abajo son los que deciden el platino.
+            {t('ficha.ordenadosPorRareza')}
           </p>
         )}
       </section>
@@ -389,9 +407,10 @@ function Report({
 function NextStep({
   report, readableGuideCount,
 }: { report: PlatinumReport; readableGuideCount: number | null }) {
+  const t = useT();
   const go = useStore((state) => state.go);
   const next = report.remaining[0]!;
-  const label = next.hidden && !next.displayName ? 'Logro oculto' : next.displayName;
+  const label = next.hidden && !next.displayName ? t('ficha.logroOculto') : next.displayName;
 
   return (
     <Card className="mt-4 border-[var(--accent-line)] bg-[var(--accent-soft)] p-4">
@@ -399,18 +418,24 @@ function NextStep({
         <div className="flex min-w-0 items-start gap-3">
           <Target size={18} className="mt-0.5 shrink-0 text-accent" />
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">Qué hago ahora</p>
-            <h2 className="mt-1 text-[15px] font-semibold">Empieza por {label}</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">{t('ficha.queHagoAhora')}</p>
+            <h2 className="mt-1 text-[15px] font-semibold">{t('ficha.empiezaPor', { logro: label })}</h2>
             <p className="mt-1 max-w-2xl text-[12px] leading-5 text-muted">
-              {next.description || 'Es el siguiente logro pendiente más asequible.'} · Lo tiene el {percent(next.globalPercent)} de jugadores.
-              {report.estimate ? ` Te quedan unas ${hours(report.estimate.remainingHours)} para el 100 % completo.` : ''}
+              {next.description || t('ficha.masAsequible')}
+              {' · '}
+              {t('ficha.loTieneEl', { porcentaje: percent(next.globalPercent) })}
+              {report.estimate
+                ? ` ${t('ficha.teQuedanUnas', { horas: hours(report.estimate.remainingHours) })}`
+                : ''}
             </p>
             <p className="mt-1 text-[11px] text-faint">
               {readableGuideCount === null
-                ? 'Buscando rutas que puedas leer aquí…'
-                : readableGuideCount > 0
-                  ? `${readableGuideCount} ${readableGuideCount === 1 ? 'guía legible' : 'guías legibles'} para el platino.`
-                  : 'No hay una guía legible disponible todavía; puedes revisar los logros.'}
+                ? t('ficha.buscandoRutas')
+                : readableGuideCount === 0
+                  ? t('ficha.sinGuiaLegible')
+                  : readableGuideCount === 1
+                    ? t('ficha.unaGuiaLegible')
+                    : t('ficha.guiasLegibles', { n: readableGuideCount })}
             </p>
           </div>
         </div>
@@ -419,12 +444,12 @@ function NextStep({
             segundo después es peor que esperar. */}
         {readableGuideCount === null ? (
           <Button size="sm" variant="primary" disabled>
-            <LoaderCircle size={13} className="animate-spin" /> Buscando rutas…
+            <LoaderCircle size={13} className="animate-spin" /> {t('ficha.buscandoRutasBoton')}
           </Button>
         ) : (
           <Button size="sm" variant="primary" onClick={() => go(readableGuideCount > 0 ? 'guides' : 'achievements')}>
             {readableGuideCount > 0 ? <BookOpen size={13} /> : <Trophy size={13} />}
-            {readableGuideCount > 0 ? 'Abrir rutas' : 'Ver logros'}
+            {t(readableGuideCount > 0 ? 'ficha.abrirRutas' : 'ficha.verLogros')}
           </Button>
         )}
       </div>
@@ -432,10 +457,10 @@ function NextStep({
   );
 }
 
-const CONFIDENCE: Record<'low' | 'medium' | 'high', string> = {
-  low: 'estimación gruesa',
-  medium: 'estimación razonable',
-  high: 'estimación fiable',
+const CONFIDENCE: Record<'low' | 'medium' | 'high', Clave> = {
+  low: 'ficha.confianzaBaja',
+  medium: 'ficha.confianzaMedia',
+  high: 'ficha.confianzaAlta',
 };
 
 function format(score: number): string {
@@ -468,6 +493,7 @@ function Metric({
  * el dato principal a mano.
  */
 function ReportSkeleton({ gameName, resumen }: { gameName: string; resumen?: PlatinumSummary }) {
+  const t = useT();
   const sabemos = resumen !== undefined && resumen.total > 0;
 
   return <>
@@ -477,7 +503,9 @@ function ReportSkeleton({ gameName, resumen }: { gameName: string; resumen?: Pla
           <ProgressRing
             value={resumen.percent}
             tone={resumen.complete ? 'success' : 'accent'}
-            label={`${gameName}: ${resumen.unlocked} de ${resumen.total} logros`}
+            label={t('lateral.progresoDe', {
+              juego: gameName, hechos: resumen.unlocked, total: resumen.total,
+            })}
           >
             <span className="text-[28px] font-semibold leading-none tabular-nums">
               {Math.round(resumen.percent)}
@@ -493,7 +521,7 @@ function ReportSkeleton({ gameName, resumen }: { gameName: string; resumen?: Pla
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[13px] text-muted" role="status" aria-live="polite">
             <RefreshCw size={14} className="animate-spin text-accent" />
-            <span>Leyendo logros, horas y rareza de {gameName}…</span>
+            <span>{t('ficha.leyendo', { juego: gameName })}</span>
           </div>
           <Skeleton className="mt-3 h-4 w-2/3" />
           <Skeleton className="mt-2 h-4 w-1/2" />
