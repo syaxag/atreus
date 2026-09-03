@@ -79,7 +79,7 @@ function checkProcesses(): void {
     const game = getGame(gameId);
     active.set(gameId, { pid, startedAt: Date.now() });
     emit('game:started', { gameId, pid });
-    if (game) emit('toast', { level: 'info', message: `${game.name} se ha iniciado` });
+    if (game) emit('toast', { level: 'info', notice: { kind: 'gameStarted', game: game.name } });
   }
 
   for (const [gameId, session] of active) {
@@ -96,9 +96,7 @@ function checkProcesses(): void {
     if (game) {
       emit('toast', {
         level: 'info',
-        message: minutes >= 1
-          ? `${game.name} se ha cerrado · ${minutes} min de sesión`
-          : `${game.name} se ha cerrado`,
+        notice: { kind: 'gameStopped', game: game.name, minutes },
       });
     }
   }

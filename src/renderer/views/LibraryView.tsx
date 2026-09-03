@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn';
 import { comparar, duration, PLATFORM_LABEL, relative } from '@/lib/format';
 import { useT, type Clave } from '@/i18n';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
-import type { ContentAvailability, Game, PlatinumSummary } from '@shared/types';
+import type { ContentAvailability, Game, PlatinumSummary, ScanProgress } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 
 /**
@@ -20,6 +20,23 @@ type Sort = 'progress' | 'name' | 'played';
 
 /** Orden de las fases del escaneo, para traducirlas a un porcentaje. */
 const SCAN_PHASES = ['steam', 'epic', 'gog', 'xbox', 'enrich', 'done'] as const;
+
+/**
+ * El rótulo de cada fase.
+ *
+ * Lo mandaba el backend dentro del propio progreso, ya escrito. La fase sola
+ * dice lo mismo y deja el idioma donde se sabe.
+ */
+const SCAN_LABEL: Record<ScanProgress['phase'], Clave> = {
+  steam: 'col.faseSteam',
+  epic: 'col.faseEpic',
+  gog: 'col.faseGog',
+  xbox: 'col.faseXbox',
+  ea: 'col.faseEa',
+  battlenet: 'col.faseBattlenet',
+  enrich: 'col.faseEnrich',
+  done: 'col.resumen',
+};
 
 function scanPercent(progress: { phase: string } | null): number {
   if (!progress) return 6;
@@ -151,7 +168,7 @@ export function LibraryView() {
         title={t('col.titulo')}
         subtitle={
           scanning && progress
-            ? progress.message
+            ? t(SCAN_LABEL[progress.phase], { n: progress.found })
             : summarize(games, platinum, t)
         }
         actions={

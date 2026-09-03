@@ -60,7 +60,7 @@ function getUpdater(): UpdaterModule['autoUpdater'] | null {
     loaded.on('update-downloaded', (info) => {
       const version = (info as { version?: string })?.version ?? '?';
       logger.info(`actualización descargada: ${version}`);
-      emit('toast', { level: 'success', message: `Atreus ${version} está listo para instalarse al cerrar.` });
+      emit('toast', { level: 'success', notice: { kind: 'updateReady', version } });
       emit('update:downloaded', { version });
     });
     loaded.on('download-progress', (value) => {

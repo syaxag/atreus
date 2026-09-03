@@ -176,6 +176,23 @@ export interface AchievementSet {
  * la cuenta y el número de juegos en sus propios campos, así que aquí solo
  * hace falta el caso; la frase la escribe Ajustes.
  */
+/**
+ * Un aviso que el proceso principal manda por su cuenta.
+ *
+ * Los avisos del main no nacen de una pulsación: un juego que se abre, el
+ * catálogo que se actualiza solo. Viajan como caso y datos por lo mismo que
+ * `Notice`; la frase la escribe el renderer al recibirlos.
+ */
+export type ToastNotice =
+  | { kind: 'definitionsReloaded' }
+  | { kind: 'gameStarted'; game: string }
+  | { kind: 'gameStopped'; game: string; minutes: number }
+  | { kind: 'contentReadyOne'; game: string; mods: number; guides: number }
+  | { kind: 'contentReadyMany'; games: number }
+  | { kind: 'catalogUpdated'; definitions: number }
+  | { kind: 'modConflicts'; files: number }
+  | { kind: 'updateReady'; version: string };
+
 export type SteamKeyStatus = 'badFormat' | 'noSteamId' | 'rejected' | 'ok' | 'privateProfile';
 
 export type XboxKeyStatus = 'noKey' | 'rejected' | 'ok' | 'emptyHistory';
@@ -540,7 +557,11 @@ export type Result<T> =
   | { ok: false; error: string; code?: string };
 
 export interface ScanProgress {
+  /**
+   * En qué va el escaneo. Antes venía además un `message` con el rótulo ya
+   * escrito —"Leyendo bibliotecas de Steam…"—, y la fase ya lo decía todo:
+   * el rótulo lo pone la Colección, que sabe en qué idioma está.
+   */
   phase: 'steam' | 'epic' | 'gog' | 'xbox' | 'ea' | 'battlenet' | 'enrich' | 'done';
   found: number;
-  message: string;
 }

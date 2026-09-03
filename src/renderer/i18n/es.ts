@@ -95,6 +95,29 @@ export const es = {
   'col.ejecutables': 'Ejecutables',
   'col.juegoAnadido': '{juego} añadido',
 
+  // ── Fases del escaneo ──
+  'col.faseSteam': 'Leyendo bibliotecas de Steam…',
+  'col.faseEpic': 'Buscando manifiestos de Epic…',
+  'col.faseGog': 'Consultando el registro de GOG…',
+  'col.faseXbox': 'Enumerando paquetes de Xbox…',
+  'col.faseEa': 'Consultando instalaciones de EA App…',
+  'col.faseBattlenet': 'Consultando instalaciones de Battle.net…',
+  'col.faseEnrich': 'Aplicando definiciones…',
+
+  // ── Avisos que manda el proceso principal ──
+  'toast.definiciones': 'Definiciones recargadas',
+  'toast.iniciado': '{juego} se ha iniciado',
+  'toast.cerrado': '{juego} se ha cerrado',
+  'toast.cerradoUnMinuto': '{juego} se ha cerrado · 1 min de sesión',
+  'toast.cerradoConMinutos': '{juego} se ha cerrado · {n} min de sesión',
+  'toast.contenidoUno': '{juego}: {mods} mods y {guias} guías preparadas',
+  'toast.contenidoVarios': '{n} juegos nuevos con contenido preparado',
+  'toast.catalogoUna': 'Contenido actualizado: 1 definición nueva',
+  'toast.catalogo': 'Contenido actualizado: {n} definiciones nuevas',
+  'toast.conflictoUno': '1 archivo en conflicto: ha ganado el mod que está más abajo en el orden de carga.',
+  'toast.conflictos': '{n} archivos en conflicto: ha ganado el mod que está más abajo en el orden de carga.',
+  'toast.actualizacionLista': 'Atreus {version} está listo para instalarse al cerrar.',
+
   // ── Ficha del juego ──
   'ficha.sinJuego': 'Ningún juego seleccionado',
   'ficha.sinJuegoPista': 'Elige un juego en la Colección para ver cuánto te falta para su platino.',

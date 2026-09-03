@@ -275,7 +275,7 @@ app.whenReady().then(() => {
     // Si cambió el proveedor de mods de un juego, lo cacheado ya no vale.
     forgetDiscovery();
     emit('library:updated', games);
-    emit('toast', { level: 'info', message: 'Definiciones recargadas' });
+    emit('toast', { level: 'info', notice: { kind: 'definitionsReloaded' } });
   });
   createWindow();
   createTray();

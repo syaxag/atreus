@@ -143,22 +143,15 @@ export const mockApi: AtreusApi = {
     async list() { await wait(); return ok(games); },
 
     async scan() {
-      const phases = [
-        { phase: 'steam', message: 'Leyendo bibliotecas de Steam…' },
-        { phase: 'epic', message: 'Buscando manifiestos de Epic…' },
-        { phase: 'gog', message: 'Consultando el registro de GOG…' },
-        { phase: 'xbox', message: 'Enumerando paquetes de Xbox…' },
-        { phase: 'enrich', message: 'Descargando carátulas…' },
-      ] as const;
-      for (const [i, p] of phases.entries()) {
+      const phases = ['steam', 'epic', 'gog', 'xbox', 'enrich'] as const;
+      for (const [i, phase] of phases.entries()) {
         await wait(220, 480);
         emit('library:scan-progress', {
-          phase: p.phase,
+          phase,
           found: Math.round(((i + 1) / phases.length) * games.length),
-          message: p.message,
         });
       }
-      emit('library:scan-progress', { phase: 'done', found: games.length, message: 'Listo' });
+      emit('library:scan-progress', { phase: 'done', found: games.length });
       emit('library:updated', games);
       return ok(games);
     },
@@ -242,7 +235,6 @@ export const mockApi: AtreusApi = {
         return p ? { ...s, value: p.value, originalValue: p.value } : s;
       });
       const applied = patch.achievements.length + patch.stats.length;
-      emit('toast', { level: 'success', message: `${applied} cambios guardados en Steam` });
       // El simulacro no tiene un Steam que rechace nada.
       return ok({ applied, rejected: [] });
     },
@@ -272,7 +264,6 @@ export const mockApi: AtreusApi = {
       await wait(500, 900);
       achievements = achievements.map((a) => ({ ...a, unlocked: false, unlockTime: null }));
       stats = stats.map((s) => ({ ...s, value: 0, originalValue: 0 }));
-      emit('toast', { level: 'warn', message: 'Logros y estadísticas restablecidos' });
       return ok(undefined);
     },
   },
@@ -443,7 +434,6 @@ export const mockApi: AtreusApi = {
         m.gameId === gameId && m.enabled ? { ...m, status: 'deployed' as const } : m);
       const files = mods.filter((m) => m.gameId === gameId && m.enabled).length * 14;
       emit('mods:updated', { gameId, mods: mods.filter((x) => x.gameId === gameId) });
-      emit('toast', { level: 'success', message: `${files} archivos desplegados` });
       return ok({ files });
     },
 
@@ -452,7 +442,6 @@ export const mockApi: AtreusApi = {
       mods = mods.map((m) =>
         m.gameId === gameId && m.status === 'deployed' ? { ...m, status: 'staged' as const } : m);
       emit('mods:updated', { gameId, mods: mods.filter((x) => x.gameId === gameId) });
-      emit('toast', { level: 'info', message: 'Directorio del juego restaurado' });
       return ok(undefined);
     },
 

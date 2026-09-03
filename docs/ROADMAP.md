@@ -47,16 +47,23 @@ aplicación hace falta, como mínimo, inglés.
       propina, los números salen con la configuración regional puesta: la
       dificultad decía "0,30 %" también en inglés, porque la coma se la ponía
       el backend a mano.
-- [ ] **El resto de la prosa que fabrica el backend.** Queda lo que escribe el
-      servicio de logros y viaja hacia arriba: las fuentes del informe
-      (*"Steam · estadísticas globales de logros"*), el aviso de por qué el
-      progreso no es automático, y lo que contesta *"Clave válida, perfil
-      público"* al comprobar una clave en Ajustes.
+- [x] **El backend deja de mandar prosa.** Las fuentes del informe viajan como
+      `SourceRef`, el porqué del progreso como `Notice`, la comprobación de
+      una clave como `status`, los avisos del proceso principal como
+      `ToastNotice` y el escaneo solo con su fase. La frase la arman
+      `lib/platino.ts` y `lib/aviso.ts`. Dos excepciones a propósito: la nota
+      de la ficha de un juego, que la escribió quien hizo esa ficha, y el
+      detalle técnico de un fallo del sistema. Atreus no traduce lo que
+      encuentra.
+- [ ] **El menú de la bandeja**, que lo construye Electron en el proceso
+      principal y no llega a ver el diccionario. Para traducirlo hay que
+      mover los diccionarios a `shared/`, que es donde acabarán viviendo.
+      Cuatro cadenas.
 
-      El arreglo es el mismo que ya se hizo con la dificultad: que **deje de
-      mandar prosa**. Las fuentes como identificadores, el aviso como un
-      código con sus datos, y la frase la arma el renderer, que es quien sabe
-      en qué idioma está. Es un cambio de contrato, no un retoque.
+      Lo que **no** se va a traducir: los tres objetivos con los que nace la
+      lista de una partida. Se escriben en tu disco la primera vez y los
+      editas tú; traducirlos al pintarlos pisaría lo que hayas cambiado. Son
+      datos tuyos, no interfaz.
 - [ ] Un tercer idioma es solo un archivo de datos más. Portugués es el
       candidato obvio por tamaño de público.
 

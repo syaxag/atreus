@@ -222,9 +222,7 @@ export function deploy(gameId: GameId): { files: number } {
   if (result.conflicts.length > 0) {
     emit('toast', {
       level: 'warn',
-      message:
-        `${result.conflicts.length} archivo(s) en conflicto: ` +
-        'ha ganado el mod que está más abajo en el orden de carga.',
+      notice: { kind: 'modConflicts', files: result.conflicts.length },
     });
   }
   return { files: result.files };

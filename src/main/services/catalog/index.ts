@@ -183,11 +183,11 @@ export async function scan(): Promise<Game[]> {
   const covers = new Map<string, string>();
   let found: Game[] = [];
 
-  const step = (phase: ScanProgress['phase'], message: string) =>
-    emit('library:scan-progress', { phase, found: found.length, message });
+  const step = (phase: ScanProgress['phase']) =>
+    emit('library:scan-progress', { phase, found: found.length });
 
   // ── Steam ──
-  step('steam', 'Leyendo bibliotecas de Steam…');
+  step('steam');
   const steamPath = findSteamPath(getSettings().steamPath);
   if (steamPath) {
     // Guardar la ruta detectada para que Ajustes la muestre.
@@ -204,26 +204,26 @@ export async function scan(): Promise<Game[]> {
   }
 
   // ── Resto de plataformas: un fallo en una no detiene las demás ──
-  step('epic', 'Buscando manifiestos de Epic…');
+  step('epic');
   try { found = found.concat(scanEpic()); } catch (e) { logger.error('Epic:', e); }
 
-  step('gog', 'Consultando el registro de GOG…');
+  step('gog');
   try { found = found.concat(scanGog()); } catch (e) { logger.error('GOG:', e); }
 
-  step('xbox', 'Enumerando paquetes de Xbox…');
+  step('xbox');
   try { found = found.concat(scanXbox()); } catch (e) { logger.error('Xbox:', e); }
 
   // EA App y Battle.net comparten la lista de programas instalados: se lee una
   // sola vez, que es la parte lenta (PowerShell), y se reparte entre los dos.
-  step('ea', 'Consultando instalaciones de EA App…');
+  step('ea');
   const uninstall = readUninstallEntries();
   try { found = found.concat(scanEa(uninstall)); } catch (e) { logger.error('EA App:', e); }
 
-  step('battlenet', 'Consultando instalaciones de Battle.net…');
+  step('battlenet');
   try { found = found.concat(scanBattleNet(uninstall)); } catch (e) { logger.error('Battle.net:', e); }
 
   // ── Consolidar ──
-  step('enrich', 'Aplicando definiciones…');
+  step('enrich');
   const manualIds = new Set(state.manual.map((g) => g.id));
   const merged = onlyGames([...found.filter((g) => !manualIds.has(g.id)), ...state.manual]);
 
@@ -247,11 +247,7 @@ export async function scan(): Promise<Game[]> {
     void announceNewGames(fresh);
   }
 
-  emit('library:scan-progress', {
-    phase: 'done',
-    found: state.games.length,
-    message: `${state.games.length} juegos`,
-  });
+  emit('library:scan-progress', { phase: 'done', found: state.games.length });
   logger.info(`escaneo terminado: ${state.games.length} juegos`);
   return state.games;
 }
@@ -295,9 +291,12 @@ async function announceNewGames(fresh: Game[]): Promise<void> {
   emit('mods:available', { games: found });
   emit('toast', {
     level: 'info',
-    message: found.length === 1
-      ? `${found[0]!.name}: ${found[0]!.count} mods y ${found[0]!.guides} guías preparadas`
-      : `${found.length} juegos nuevos con contenido preparado`,
+    notice: found.length === 1
+      ? {
+        kind: 'contentReadyOne',
+        game: found[0]!.name, mods: found[0]!.count, guides: found[0]!.guides,
+      }
+      : { kind: 'contentReadyMany', games: found.length },
   });
   logger.info(`catálogo: ${found.map((f) => `${f.name} (${f.count} mods, ${f.guides} guías)`).join(', ')}`);
 }

@@ -99,6 +99,29 @@ export const en: Record<Clave, string> = {
   'col.ejecutables': 'Executables',
   'col.juegoAnadido': '{juego} added',
 
+  // ── Scan phases ──
+  'col.faseSteam': 'Reading Steam libraries…',
+  'col.faseEpic': 'Looking for Epic manifests…',
+  'col.faseGog': 'Checking the GOG registry…',
+  'col.faseXbox': 'Listing Xbox packages…',
+  'col.faseEa': 'Checking EA App installs…',
+  'col.faseBattlenet': 'Checking Battle.net installs…',
+  'col.faseEnrich': 'Applying definitions…',
+
+  // ── Notices the main process sends on its own ──
+  'toast.definiciones': 'Definitions reloaded',
+  'toast.iniciado': '{juego} has started',
+  'toast.cerrado': '{juego} has closed',
+  'toast.cerradoUnMinuto': '{juego} has closed · 1 min of play',
+  'toast.cerradoConMinutos': '{juego} has closed · {n} min of play',
+  'toast.contenidoUno': '{juego}: {mods} mods and {guias} guides ready',
+  'toast.contenidoVarios': '{n} new games with content ready',
+  'toast.catalogoUna': 'Content updated: 1 new definition',
+  'toast.catalogo': 'Content updated: {n} new definitions',
+  'toast.conflictoUno': '1 file clashes: the mod further down the load order won it.',
+  'toast.conflictos': '{n} files clash: the mod further down the load order won them.',
+  'toast.actualizacionLista': 'Atreus {version} is ready to install when you close it.',
+
   // ── Game page ──
   'ficha.sinJuego': 'No game selected',
   'ficha.sinJuegoPista': 'Pick a game in your Collection to see how far its platinum is.',

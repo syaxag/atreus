@@ -14,10 +14,3 @@ export function emit<K extends keyof AtreusEvents>(
   }
 }
 
-/** Atajo para el evento `toast`, que es el que más se usa. */
-export const toast = {
-  info: (message: string) => emit('toast', { level: 'info', message }),
-  success: (message: string) => emit('toast', { level: 'success', message }),
-  warn: (message: string) => emit('toast', { level: 'warn', message }),
-  error: (message: string) => emit('toast', { level: 'error', message }),
-};

@@ -250,7 +250,7 @@ async function automaticSync(): Promise<void> {
     if (result.updated > 0) {
       emit('toast', {
         level: 'success',
-        message: `Contenido actualizado: ${result.updated} definiciones nuevas`,
+        notice: { kind: 'catalogUpdated', definitions: result.updated },
       });
     }
   } catch (error) {

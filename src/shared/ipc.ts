@@ -9,7 +9,7 @@ import type {
   Achievement, AchievementPatch, AchievementSet, CompletionProgress, Game, GameId, GameStat,
   ContentAvailability, GuideCategory, GuideDocument, GuideEntry, InteractiveMap, Mod, ModDeployPreview,
   ModProfile, PlatinumReport, PlatinumSummary, RemoteMod, Result, ScanProgress,
-  Settings, StatPatch, SteamKeyStatus, SteamSession, SteamSnapshot, XboxKeyStatus,
+  Settings, StatPatch, SteamKeyStatus, SteamSession, SteamSnapshot, ToastNotice, XboxKeyStatus,
 } from './types';
 
 /** Superficie completa expuesta en `window.atreus`. */
@@ -200,7 +200,7 @@ export interface AtreusEvents {
   'game:started': { gameId: GameId; pid: number };
   /** Al cerrarse, se informa de cuántos minutos duró la sesión. */
   'game:stopped': { gameId: GameId; minutes: number };
-  'toast': { level: 'info' | 'success' | 'warn' | 'error'; message: string };
+  'toast': { level: 'info' | 'success' | 'warn' | 'error'; notice: ToastNotice };
   'update:available': { version: string };
   'update:progress': { percent: number; bytesPerSecond: number; transferred: number; total: number };
   'update:downloaded': { version: string };

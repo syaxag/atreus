@@ -4,6 +4,7 @@ import type {
 } from '@shared/types';
 import { api } from '@/lib/api';
 import { traducir, type Clave, type Huecos } from '@/i18n/traducir';
+import { explicarAviso } from '@/lib/aviso';
 
 export type Section = 'library' | 'activity' | 'game' | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
 
@@ -314,7 +315,7 @@ export function wireEvents(): () => void {
         gameId,
       });
     }),
-    api.on('toast', ({ level, message }) => store.pushToast(level, message)),
+    api.on('toast', ({ level, notice }) => store.pushToast(level, explicarAviso(tr, notice))),
   ];
   return () => offs.forEach((off) => off());
 }
