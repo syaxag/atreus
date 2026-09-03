@@ -145,6 +145,21 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
     });
   }
 
+  /*
+   * 2 y 3 salen a la vez, aunque solo se use una.
+   *
+   * Antes iban en fila: primero el directorio de MapGenie y, si no había
+   * coincidencia, la wiki. Con las dos cachés frías eso eran 21 s de esqueletos
+   * para un juego que no está en MapGenie, que son la mayoría. Las dos
+   * consultas juntas cuestan lo que la más lenta, y la de la wiki se descarta
+   * si MapGenie acierta: una petición de más en el caso bueno, a cambio de la
+   * mitad de espera en el malo.
+   */
+  const wikiEnMarcha = searchWiki(game.name, 'map').catch((e) => {
+    logger.warn(`no se pudo consultar la wiki de ${game.name}:`, e);
+    return [];
+  });
+
   // 2. MapGenie, emparejado por nombre contra su directorio público.
   const slug = matchSlug(game.name, (await directory(refresh)).games);
   if (slug && !out.some((map) => map.url.includes(`mapgenie.io/${slug}`))) {
@@ -166,7 +181,7 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
    * vista de enlaces de segunda cuando ya existe un mapa de verdad.
    */
   if (out.length === 0) {
-    const fromWiki = (await searchWiki(game.name, 'map'))
+    const fromWiki = (await wikiEnMarcha)
       .filter((hit) => /\b(map|mapa|world|atlas)\b/i.test(hit.title))
       .slice(0, 3);
     for (const hit of fromWiki) {

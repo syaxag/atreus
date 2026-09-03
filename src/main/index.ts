@@ -58,6 +58,55 @@ if (!tieneCandado) {
   });
 }
 
+/**
+ * El dominio registrable de una URL: `mapgenie.io` para `cdn.mapgenie.io`.
+ *
+ * Aproximación deliberada —no consulta la lista pública de sufijos—, así que
+ * para un dominio de tercer nivel como `algo.co.uk` se queda en `co.uk`. Vale
+ * para lo que hace falta aquí, que es distinguir "esto es del proveedor del
+ * mapa" de "esto es de una red de anuncios".
+ */
+function dominioDe(url: string): string {
+  try {
+    const partes = new URL(url).hostname.split('.');
+    return partes.slice(-2).join('.');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * La sesión de los mapas no carga marcos de terceros.
+ *
+ * Medido abriendo el mapa de un juego en MapGenie: **479 subframes**, casi
+ * todos sincronizaciones de identificadores entre redes de anuncios, muchos
+ * fallando por DNS o por conexión cerrada. El mapa estaba listo a los 5
+ * segundos y la página no callaba hasta los 29, que es lo que se sentía como
+ * "el Atlas va lentísimo y se cuelga".
+ *
+ * Se cortan solo los **marcos** de otro dominio y los `ping`/`beacon`. El mapa
+ * se dibuja con lienzo y JavaScript propios, así que no pierde nada; lo que
+ * desaparece es lo que nunca fue parte del mapa. Es además coherente con el
+ * resto de la aplicación, que no pide cuentas ni contraseñas a nadie.
+ */
+function blindarSesionDeMapas(ses: Electron.Session): void {
+  let cortados = 0;
+  ses.webRequest.onBeforeRequest((detalles, callback) => {
+    const tipo = detalles.resourceType;
+    if (tipo !== 'subFrame' && tipo !== 'ping') return callback({});
+
+    const propio = dominioDe(detalles.url);
+    const anfitrion = detalles.frame?.top?.url ? dominioDe(detalles.frame.top.url) : '';
+    if (tipo === 'subFrame' && propio !== '' && propio === anfitrion) return callback({});
+
+    cortados++;
+    // Un solo recuento por tramos: uno por petición llenaría el registro con
+    // cientos de líneas idénticas por cada mapa que se abra.
+    if (cortados % 100 === 0) logger.info(`mapas: ${cortados} marcos de terceros cortados`);
+    callback({ cancel: true });
+  });
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -163,15 +212,18 @@ function createWindow(): void {
    * de la de la ventana: ponerlo solo en la ventana no cubriría los mapas,
    * que son justo lo único que carga páginas de fuera.
    */
+  const sesionMapas = session.fromPartition('persist:atreus-maps');
   for (const [nombre, ses] of [
     ['ventana', mainWindow.webContents.session],
-    ['mapas', session.fromPartition('atreus-maps')],
+    ['mapas', sesionMapas],
   ] as const) {
     ses.setPermissionRequestHandler((_contents, permission, callback) => {
       logger.warn(`permiso denegado en la sesión de ${nombre}: ${permission}`);
       callback(false);
     });
   }
+
+  blindarSesionDeMapas(sesionMapas);
 
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (devUrl) {

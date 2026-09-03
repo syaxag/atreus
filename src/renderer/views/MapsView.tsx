@@ -58,12 +58,21 @@ export function MapsView() {
     setLoadingFrame(active !== null);
   }, [active]);
 
+  /*
+   * El plazo se cuenta hasta `dom-ready`, no hasta que la página entera calle.
+   *
+   * Medido contra mapgenie.io: el documento está listo a los 5 s y el mapa ya
+   * se usa, pero `did-stop-loading` no llega hasta los 29 porque detrás siguen
+   * cargándose cientos de marcos de sincronización de anuncios. Con el plazo
+   * atado a eso, el aviso de "tarda demasiado" saltaba encima de un mapa que
+   * funcionaba, y volvía a saltar cada vez que un marco nuevo reabría la carga.
+   */
   useEffect(() => {
     if (!active || !loadingFrame) return;
     const timeout = window.setTimeout(() => {
       setLoadingFrame(false);
       setFrameError('El mapa está tardando demasiado en responder. Puede estar bloqueando la vista integrada.');
-    }, 12_000);
+    }, 20_000);
     return () => window.clearTimeout(timeout);
   }, [active, loadingFrame]);
 
@@ -71,8 +80,20 @@ export function MapsView() {
   const attach = useCallback((node: HTMLElement | null) => {
     frame.current = node as typeof frame.current;
     if (!node) return;
-    const start = () => { setFrameError(null); setLoadingFrame(true); };
-    const stop = () => setLoadingFrame(false);
+
+    /*
+     * Solo el marco principal cuenta. `did-start-loading` y `did-stop-loading`
+     * hablan de la pestaña entera: con 479 marcos de anuncios encendiéndose y
+     * apagándose, encendían y apagaban el cartel de carga sin parar. `load-commit`
+     * sí dice si la navegación es del marco principal, y `dom-ready` es el
+     * momento en que el mapa se puede usar.
+     */
+    const commit = (event: Event) => {
+      if ((event as Event & { isMainFrame?: boolean }).isMainFrame !== true) return;
+      setFrameError(null);
+      setLoadingFrame(true);
+    };
+    const listo = () => setLoadingFrame(false);
     /*
      * `did-fail-load` también salta por un subrecurso o un subframe: los
      * anuncios y los trackers de un mapa fallan a diario y el mapa se ve
@@ -81,12 +102,12 @@ export function MapsView() {
      */
     const fail = (event: Event) => {
       const detail = event as Event & { isMainFrame?: boolean; errorCode?: number };
-      if (detail.isMainFrame === false || detail.errorCode === -3) return;
+      if (detail.isMainFrame !== true || detail.errorCode === -3) return;
       setLoadingFrame(false);
       setFrameError('No se pudo abrir este mapa dentro de Atreus.');
     };
-    node.addEventListener('did-start-loading', start);
-    node.addEventListener('did-stop-loading', stop);
+    node.addEventListener('load-commit', commit);
+    node.addEventListener('dom-ready', listo);
     node.addEventListener('did-fail-load', fail);
   }, []);
 
@@ -146,14 +167,20 @@ export function MapsView() {
           </Button>
         </div>
         {/*
-          `partition` sin persistencia: la sesión del mapa no se mezcla con
-          nada más de la aplicación y no queda nada guardado al cerrar.
+          Partición propia y **persistente**.
+
+          Propia, para que la sesión del mapa no se mezcle con nada más de la
+          aplicación. Persistente, por dos motivos medidos: sin disco no hay
+          caché, así que cada apertura se descargaba el mapa entero otra vez; y
+          lo que marcas en el mapa —que es media gracia de MapGenie, y lo que
+          promete la descripción de esta misma vista— vive en su cookie y se
+          perdía al cerrar Atreus.
         */}
         <div className="relative min-h-0 flex-1 bg-white">
           <webview
             ref={attach as never}
             src={active.url}
-            partition="atreus-maps"
+            partition="persist:atreus-maps"
             allowpopups={undefined}
             className="h-full w-full bg-white"
           />
