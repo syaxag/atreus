@@ -158,10 +158,27 @@ function Report({
   return <>
     <Card className={report.complete ? 'relative min-h-[196px] overflow-hidden p-5' : 'p-5'}>
       {/*
-        Al 100 %, el trofeo preside su propia tarjeta. La tarjeta crece para que
-        quepa **entero**: sangrado por arriba y por abajo se veía cortado por la
-        mitad, que es peor que no ponerlo. Va centrado a la derecha, con su
-        resplandor, y la cifra sigue siendo lo primero que se lee.
+        Al 100 %, el trofeo preside su propia tarjeta, entero.
+
+        Antes iba a `h-[84%]` y centrado, y se cortaba por abajo. Un porcentaje
+        de altura se mide contra la altura de la tarjeta, y esa altura la decide
+        el contenido: en cuanto la fila de arriba envuelve —ventana estrecha,
+        un nombre largo, una insignia de más— la referencia cambia y el 84 % de
+        entonces ya no es el de ahora.
+
+        Lo que se cortaba no era el trofeo: era **su resplandor**. El trofeo
+        medía 163 px en una tarjeta de 196 —17 px de aire por lado, medidos— y
+        cabía. Pero la sombra iba a `0 12px 34px`, que llega unos 46 px por
+        debajo de la imagen, y la tarjeta recorta lo que se sale. Ese corte
+        limpio del halo bajo la peana es lo que se ve como una imagen cortada.
+
+        Así que el trofeo baja a 78 % —21 px de aire por lado— y la sombra se
+        acorta a un alcance de 18. Cabe todo, halo incluido.
+
+        Y no vale anclarlo a los dos bordes con `top-5 bottom-5`: una imagen es
+        un elemento reemplazado, y con la altura en `auto` toma su altura
+        intrínseca y se ignora el `bottom`. Probado: 1024 px de alto
+        desbordando 849 la tarjeta.
       */}
       {report.complete && <>
         <div
@@ -172,7 +189,7 @@ function Report({
           src={trofeo}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute right-8 top-1/2 h-[84%] w-auto -translate-y-1/2 drop-shadow-[0_12px_34px_rgba(109,40,217,.55)]"
+          className="pointer-events-none absolute right-8 top-1/2 h-[78%] w-auto -translate-y-1/2 drop-shadow-[0_4px_14px_rgba(109,40,217,.5)]"
         />
       </>}
       <div className="relative flex flex-wrap items-center gap-6">
