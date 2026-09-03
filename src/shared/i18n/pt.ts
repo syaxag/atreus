@@ -111,7 +111,7 @@ export const pt: Record<Clave, string> = {
   'perfil.rachaUnDia': '1 dia seguido conquistando algo',
   'perfil.rachaDias': '{n} dias seguidos conquistando algo',
   'perfil.sinRacha': 'Você não desbloqueou nada hoje, nem ontem',
-  'perfil.diasActivos': '{n} dias com alguma conquista nos últimos noventa',
+  'perfil.diasActivos': '{n} dias com alguma conquista nos últimos {ventana}',
   'perfil.ultimoLogro': 'A última, em {juego} {cuando}',
   'perfil.deQueEstanHechos': 'Do que as suas platinas são feitas',
   'perfil.sinPlatinos': 'Quando você fechar a primeira, o quanto ela era dura aparece aqui.',

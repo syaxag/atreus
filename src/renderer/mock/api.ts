@@ -369,6 +369,7 @@ export const mockApi: AtreusApi = {
           unlockDays: [0, 1, 2, 5, 9]
             .map((atras) => Math.floor(Date.now() / 1000 / 86400) - atras)
             .sort((a, b) => a - b),
+          schema: 2,
           updatedAt: report.updatedAt,
         };
       }));

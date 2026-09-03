@@ -337,6 +337,12 @@ export interface PlatinumSummary {
    * el perfil suma los de todos los juegos sin volver a abrir un solo informe.
    */
   unlockDays: number[];
+  /**
+   * Con qué versión del cálculo se guardó. Sube cuando el resumen empieza a
+   * llevar algo nuevo, para que lo guardado antes se vuelva a calcular en vez
+   * de quedarse a medias para siempre.
+   */
+  schema: number;
   /** En segundos; null mientras no se haya calculado nunca. */
   updatedAt: number | null;
 }

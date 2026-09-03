@@ -104,7 +104,7 @@ export const es = {
   'perfil.rachaUnDia': '1 día seguido consiguiendo algo',
   'perfil.rachaDias': '{n} días seguidos consiguiendo algo',
   'perfil.sinRacha': 'Hoy no has desbloqueado nada, ni ayer',
-  'perfil.diasActivos': '{n} días con algún logro en los últimos noventa',
+  'perfil.diasActivos': '{n} días con algún logro en los últimos {ventana}',
   'perfil.ultimoLogro': 'El último, en {juego} {cuando}',
   'perfil.deQueEstanHechos': 'De qué están hechos tus platinos',
   'perfil.sinPlatinos': 'Cuando remates el primero, aquí saldrá lo duro que era.',

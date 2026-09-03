@@ -4,7 +4,7 @@ import { log } from '../../logger';
 import { listGames } from '../catalog';
 import { runningGames } from '../catalog/activity';
 import * as webapi from '../steam/webapi';
-import { report, summariesFor } from './index';
+import { report, summariesFor, SUMMARY_SCHEMA } from './index';
 
 const logger = log('platinum:warmup');
 
@@ -40,11 +40,15 @@ const sleep = (ms: number) => new Promise<void>((resolve) => { timer = setTimeou
 /**
  * Qué juegos hay que calcular.
  *
- * Los que no se han calculado nunca, y también aquellos a los que has jugado
- * después del último cálculo y todavía no estaban al 100 %. Sin lo segundo, un
- * platino rematado jugando no se notaría hasta que abrieras su ficha a mano, y
- * la celebración no saltaría al volver a la aplicación, que es justo cuando
- * tiene que saltar.
+ * Los que no se han calculado nunca, los que se calcularon con una versión
+ * anterior del resumen, y también aquellos a los que has jugado después del
+ * último cálculo y todavía no estaban al 100 %.
+ *
+ * Sin el tercero, un platino rematado jugando no se notaría hasta que abrieras
+ * su ficha a mano, y la celebración no saltaría al volver a la aplicación, que
+ * es justo cuando tiene que saltar. Sin el segundo, lo que el resumen aprendió
+ * a guardar después solo aparecería en los juegos que volvieras a tocar: la
+ * dificultad de la tarjeta habría salido en tres juegos de dieciséis.
  */
 function pending(): GameId[] {
   const resumen = new Map(summariesFor().map((s) => [s.gameId, s]));
@@ -52,6 +56,7 @@ function pending(): GameId[] {
     .filter((game) => {
       const s = resumen.get(game.id);
       if (!s || s.updatedAt === null) return true;
+      if (s.schema < SUMMARY_SCHEMA) return true;
       if (s.complete) return false;
       return game.lastPlayed !== null && game.lastPlayed > s.updatedAt;
     })

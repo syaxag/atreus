@@ -55,12 +55,30 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
       rarest: resumen.rarest ?? null,
       lastUnlockAt: resumen.lastUnlockAt ?? null,
       unlockDays: resumen.unlockDays ?? [],
+      schema: resumen.schema ?? 1,
     }]));
   } catch {
     summaries = {};
   }
   return summaries;
 }
+
+/** Un día desde la época, que es la unidad en la que se cuenta una racha. */
+const DIA = 86_400;
+
+/**
+ * Con qué versión del cálculo se guardó un resumen.
+ *
+ * Sube cuando el resumen empieza a llevar algo que antes no llevaba. El
+ * calentamiento recalcula lo que se quedó atrás, y por eso existe: sin esto,
+ * la dificultad y el siguiente logro de la tarjeta solo aparecerían en los
+ * juegos que volvieras a jugar, que es una función a medias disfrazada de
+ * función entera.
+ *
+ * 2 — dificultad, siguiente logro, el más raro que tienes, último desbloqueo
+ *     y días con actividad.
+ */
+export const SUMMARY_SCHEMA = 2;
 
 /**
  * Guarda el resumen para la biblioteca, salvo cuando sería mentira.
@@ -71,9 +89,6 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
  * la casilla vacía. En las demás plataformas el registro manual sí es lo único
  * que hay, y un cero ahí es la verdad: no has marcado nada todavía.
  */
-/** Un día desde la época, que es la unidad en la que se cuenta una racha. */
-const DIA = 86_400;
-
 function rememberSummary(report: PlatinumReport, unlocked: Achievement[]): void {
   const isSteam = report.gameId.startsWith('steam:');
   if (isSteam && report.tracking !== 'steam') return;
@@ -102,6 +117,7 @@ function rememberSummary(report: PlatinumReport, unlocked: Achievement[]): void 
     rarest: rarestOf(unlocked),
     lastUnlockAt: report.lastUnlockAt,
     unlockDays: recentDays(unlocked),
+    schema: SUMMARY_SCHEMA,
     updatedAt: report.updatedAt,
   };
   try {
@@ -142,6 +158,7 @@ export function summariesFor(): PlatinumSummary[] {
         rarest: null,
         lastUnlockAt: null,
         unlockDays: [],
+        schema: SUMMARY_SCHEMA,
         updatedAt: null,
       };
   });

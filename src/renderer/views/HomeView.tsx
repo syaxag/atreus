@@ -42,8 +42,12 @@ export function HomeView() {
    *
    * Manda el que está abierto ahora mismo: si Atreus ve el proceso, es lo que
    * el usuario está haciendo y no hay nada que adivinar. Si no hay ninguno, el
-   * último que tocó; y si tampoco —biblioteca recién escaneada— el que tenga
-   * más avanzado, que es por donde tiene sentido volver.
+   * último que tocó; y si tampoco, el que tenga más avanzado.
+   *
+   * El último recurso es un favorito, o el primero que haya. Antes se devolvía
+   * `null` y la pantalla se iba al vacío de "escanea tu biblioteca" teniendo
+   * dieciséis juegos delante: la biblioteca recién escaneada de quien juega en
+   * Epic o en Xbox no trae ni horas ni progreso, y ese es justo el caso.
    */
   const protagonista = useMemo<Game | null>(() => {
     if (games.length === 0) return null;
@@ -55,9 +59,11 @@ export function HomeView() {
       return jugados.reduce((a, b) => ((b.lastPlayed ?? 0) > (a.lastPlayed ?? 0) ? b : a));
     }
     const empezados = games.filter((game) => cerca(platinum[game.id]));
-    if (empezados.length === 0) return null;
-    return empezados.reduce((a, b) =>
-      ((platinum[b.id]?.percent ?? 0) > (platinum[a.id]?.percent ?? 0) ? b : a));
+    if (empezados.length > 0) {
+      return empezados.reduce((a, b) =>
+        ((platinum[b.id]?.percent ?? 0) > (platinum[a.id]?.percent ?? 0) ? b : a));
+    }
+    return games.find((game) => game.favorite) ?? games[0] ?? null;
   }, [games, activeGameIds, platinum]);
 
   const enMarcha = protagonista ? activeGameIds.includes(protagonista.id) : false;

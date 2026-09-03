@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { CalendarDays, Flame, Gauge, Gem, Sparkles, Timer, Trophy } from 'lucide-react';
 import type { DifficultyTier, PlatinumSummary } from '@shared/types';
 import { useStore } from '@/store';
-import { cn } from '@/lib/cn';
 import { duration, numero, percent as fmtPercent, rarityToken, relative } from '@/lib/format';
 import { DIFICULTAD } from '@/lib/platino';
 import { useT } from '@/i18n';
@@ -24,6 +23,15 @@ import { Card, Empty, Progress, ViewHeader } from '@/components/ui';
 /** Un día desde la época: la unidad en la que se cuenta una racha. */
 const DIA = 86_400;
 
+/**
+ * La ventana que esta pantalla dice contar.
+ *
+ * El backend guarda los últimos noventa días *en el momento de calcular*, así
+ * que un juego que no se recalcula desde hace meses arrastra días que ya no
+ * caben en la frase. Se recorta aquí, que es donde está escrita la frase.
+ */
+const VENTANA_DIAS = 90;
+
 export function ProfileView() {
   const t = useT();
   const games = useStore((state) => state.games);
@@ -37,6 +45,7 @@ export function ProfileView() {
   );
 
   const cuenta = useMemo(() => sumar(resumenes), [resumenes]);
+  const aMedias = useMemo(() => sumarEnCurso(resumenes), [resumenes]);
   const racha = useMemo(() => contarRacha(resumenes), [resumenes]);
 
   /** El más raro de todos los que tienes, y de qué juego es. */
@@ -171,7 +180,7 @@ export function ProfileView() {
               </p>
               <p className="mt-3 flex items-center gap-1.5 text-[11px] text-faint">
                 <CalendarDays size={12} />
-                {t('perfil.diasActivos', { n: racha.dias })}
+                {t('perfil.diasActivos', { n: racha.dias, ventana: VENTANA_DIAS })}
               </p>
               {ultimo?.lastUnlockAt && (
                 <p className="mt-1 truncate text-[11px] text-faint">
@@ -221,10 +230,10 @@ export function ProfileView() {
             </div>
             <p className="mt-2 text-[12px] text-muted">
               {t('perfil.enCursoCuerpo', {
-                curso: cuenta.enCurso, faltan: numero(cuenta.total - cuenta.hechos),
+                curso: aMedias.juegos, faltan: numero(aMedias.faltan),
               })}
             </p>
-            <Progress value={cuenta.media} className="mt-3" />
+            <Progress value={aMedias.media} className="mt-3" />
           </Card>
 
         </div>
@@ -241,7 +250,7 @@ function Cifra({
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-faint">
         <span className="text-accent">{icon}</span> {label}
       </div>
-      <p className={cn('mt-2 text-[26px] font-semibold leading-none tabular-nums')}>{valor}</p>
+      <p className="mt-2 text-[26px] font-semibold leading-none tabular-nums">{valor}</p>
       <p className="mt-1 truncate text-[12px] text-muted">{pie}</p>
     </Card>
   );
@@ -270,6 +279,27 @@ function sumar(resumenes: PlatinumSummary[]) {
 }
 
 /**
+ * Lo empezado y sin terminar, contado aparte.
+ *
+ * El bloque que habla de ello enseñaba la media global y los logros que faltan
+ * en toda la biblioteca: dos números de un conjunto distinto del que nombraba
+ * el título. Una barra al 64 % debajo de "ocho juegos a medias" no dice nada
+ * de esos ocho.
+ */
+function sumarEnCurso(resumenes: PlatinumSummary[]) {
+  let hechos = 0;
+  let total = 0;
+  let juegos = 0;
+  for (const s of resumenes) {
+    if (s.complete || s.unlocked === 0) continue;
+    hechos += s.unlocked;
+    total += s.total;
+    juegos += 1;
+  }
+  return { juegos, faltan: total - hechos, media: total > 0 ? (hechos / total) * 100 : 0 };
+}
+
+/**
  * La racha: días seguidos con al menos un logro, contando hacia atrás.
  *
  * Ayer vale como punto de partida además de hoy. Sin eso la racha se rompería
@@ -277,11 +307,12 @@ function sumar(resumenes: PlatinumSummary[]) {
  * que es contar el reloj en vez de contar lo que haces.
  */
 function contarRacha(resumenes: PlatinumSummary[]): { actual: number; dias: number } {
+  const hoy = Math.floor(Date.now() / 1000 / DIA);
+  const desde = hoy - VENTANA_DIAS;
   const dias = new Set<number>();
-  for (const s of resumenes) for (const dia of s.unlockDays) dias.add(dia);
+  for (const s of resumenes) for (const dia of s.unlockDays) if (dia >= desde) dias.add(dia);
   if (dias.size === 0) return { actual: 0, dias: 0 };
 
-  const hoy = Math.floor(Date.now() / 1000 / DIA);
   let cursor = dias.has(hoy) ? hoy : hoy - 1;
   let actual = 0;
   while (dias.has(cursor)) { actual += 1; cursor -= 1; }
