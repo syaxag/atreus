@@ -46,21 +46,21 @@ export function SettingsView() {
 
   useEffect(() => api.on('update:available', ({ version: nextVersion }) => {
     setUpdateVersion(nextVersion);
-    pushToast('info', `Actualización disponible: Atreus ${nextVersion}`);
-  }), [pushToast]);
+    pushToast('info', t('ajustes.actualizacionDisponible', { version: nextVersion }));
+  }), [pushToast, t]);
   useEffect(() => api.on('update:progress', ({ percent }) => setUpdateProgress(percent)), []);
   useEffect(() => api.on('update:downloaded', () => { setUpdateProgress(100); setInstallingUpdate(false); }), []);
 
   if (!settings) return null;
 
   async function pickSteam() {
-    const res = await api.settings.pickFolder('Elige la carpeta de instalación de Steam');
+    const res = await api.settings.pickFolder(t('ajustes.elegirCarpetaSteam'));
     if (!res.ok) return pushToast('error', res.error);
     if (res.data) void patch({ steamPath: res.data });
   }
 
   async function pickCatalogFolder() {
-    const res = await api.settings.pickFolder('Elige la carpeta con las definiciones');
+    const res = await api.settings.pickFolder(t('ajustes.elegirCarpetaDefs'));
     if (!res.ok) return pushToast('error', res.error);
     if (res.data) void patch({ catalogSource: res.data });
   }
@@ -73,8 +73,8 @@ export function SettingsView() {
     pushToast(
       'success',
       res.data.updated === 0
-        ? `Sin cambios · ${res.data.total} definiciones`
-        : `${res.data.updated} definiciones actualizadas · ${res.data.total} en total`,
+        ? t('ajustes.sinCambios', { total: res.data.total })
+        : t('ajustes.definicionesActualizadas', { n: res.data.updated, total: res.data.total }),
     );
     void loadCatalog();
   }
@@ -84,10 +84,16 @@ export function SettingsView() {
     const res = await api.app.checkForUpdates();
     setCheckingUpdate(false);
     if (!res.ok) return pushToast('error', res.error);
-    setUpdateVersion(res.data.available ? res.data.version : null);
+    // Se desestructura para que el número entre en el hueco ya comprobado: el
+    // contrato admite `available` sin versión, y el texto anterior lo habría
+    // escrito como "la versión null".
+    const { available, version: nueva } = res.data;
+    setUpdateVersion(available ? nueva : null);
     pushToast(
-      res.data.available ? 'success' : 'info',
-      res.data.available ? `Disponible la versión ${res.data.version}` : 'Ya estás en la última versión',
+      available ? 'success' : 'info',
+      available && nueva
+        ? t('ajustes.disponibleVersion', { version: nueva })
+        : t('ajustes.yaAlDia'),
     );
   }
 
@@ -97,7 +103,7 @@ export function SettingsView() {
     const res = await api.app.downloadUpdate();
     setInstallingUpdate(false);
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('info', 'Descargando actualización; Atreus se reiniciará al terminar.');
+    pushToast('info', t('ajustes.descargandoAviso'));
   }
 
   async function checkKey() {
@@ -122,30 +128,25 @@ export function SettingsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title="Ajustes"
-        subtitle={`Atreus ${version}${usingMock ? ' · modo de prueba' : ''}`}
+        title={t('lateral.ajustes')}
+        subtitle={`Atreus ${version}${usingMock ? ` · ${t('ajustes.modoPrueba')}` : ''}`}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
 
           <Section title="Steam" defaultOpen>
-            <Row label="Carpeta de Steam"
-                 hint="Se detecta sola desde el registro; solo hace falta tocarla si tienes una instalación portátil.">
+            <Row label={t('ajustes.carpetaSteam')} hint={t('ajustes.carpetaSteamPista')}>
               <div className="flex w-96 gap-2">
                 <Input value={settings.steamPath ?? ''} readOnly
-                       placeholder="Sin detectar" className="w-full font-mono text-[12px]" />
+                       placeholder={t('ajustes.sinDetectar')} className="w-full font-mono text-[12px]" />
                 <Button variant="outline" onClick={pickSteam}>
                   <FolderOpen size={14} />
                 </Button>
               </div>
             </Row>
 
-            <Row
-              label="Clave de la Steam Web API"
-              hint={'Opcional pero recomendable: con ella Atreus lee el progreso de toda tu biblioteca ' +
-                'de una vez, sin abrir un proceso de Steam por juego. Tu perfil tiene que ser público.'}
-            >
+            <Row label={t('ajustes.claveSteam')} hint={t('ajustes.claveSteamPista')}>
               <div className="flex w-96 flex-col gap-2">
                 <div className="flex gap-2">
                   <Input
@@ -153,14 +154,14 @@ export function SettingsView() {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     onBlur={() => void patch({ steamWebApiKey: apiKey || null })}
-                    placeholder="Sin configurar"
+                    placeholder={t('ajustes.sinConfigurar')}
                     className="w-full font-mono text-[12px]"
                   />
                   <Button
                     variant="outline"
                     onClick={() => void api.settings.openPath('https://steamcommunity.com/dev/apikey')}
-                    aria-label="Obtener clave"
-                    title="Conseguir una clave en Steam"
+                    aria-label={t('ajustes.obtenerClave')}
+                    title={t('ajustes.obtenerClaveSteamPista')}
                   >
                     <ExternalLink size={14} />
                   </Button>
@@ -174,7 +175,7 @@ export function SettingsView() {
                   <Button size="sm" variant="outline" disabled={checkingKey || !apiKey}
                           onClick={() => void checkKey()}>
                     <RefreshCw size={13} className={checkingKey ? 'animate-spin' : undefined} />
-                    {checkingKey ? 'Comprobando…' : 'Comprobar clave'}
+                    {t(checkingKey ? 'ajustes.comprobando' : 'ajustes.comprobarClave')}
                   </Button>
                   {keyCheck && (
                     <span className={`text-[12px] leading-4 ${keyCheck.ok && keyCheck.publicProfile ? 'text-success' : keyCheck.ok ? 'text-warn' : 'text-danger'}`}>
@@ -192,12 +193,7 @@ export function SettingsView() {
             cuenta en la web de ellos, genera una clave y pega solo la clave.
           */}
           <Section title="Xbox">
-            <Row
-              label="Clave de OpenXBL"
-              hint={'Opcional. Con ella Atreus lee tus logros de Xbox de verdad, con sus fechas, ' +
-                'en vez de que los marques tú. La generas entrando con tu cuenta de Microsoft en ' +
-                'xbl.io: Atreus solo maneja la clave y puedes revocarla cuando quieras.'}
-            >
+            <Row label={t('ajustes.claveXbox')} hint={t('ajustes.claveXboxPista')}>
               <div className="flex w-96 flex-col gap-2">
                 <div className="flex gap-2">
                   <Input
@@ -205,14 +201,14 @@ export function SettingsView() {
                     value={xboxKey}
                     onChange={(event) => setXboxKey(event.target.value)}
                     onBlur={() => void patch({ xboxApiKey: xboxKey || null })}
-                    placeholder="Sin configurar"
+                    placeholder={t('ajustes.sinConfigurar')}
                     className="w-full font-mono text-[12px]"
                   />
                   <Button
                     variant="outline"
                     onClick={() => void api.settings.openPath('https://xbl.io/')}
-                    aria-label="Conseguir una clave"
-                    title="Conseguir una clave en xbl.io"
+                    aria-label={t('ajustes.obtenerClaveXbox')}
+                    title={t('ajustes.obtenerClaveXboxPista')}
                   >
                     <ExternalLink size={14} />
                   </Button>
@@ -221,7 +217,7 @@ export function SettingsView() {
                   <Button size="sm" variant="outline" disabled={checkingXbox || !xboxKey}
                           onClick={() => void checkXbox()}>
                     <RefreshCw size={13} className={checkingXbox ? 'animate-spin' : undefined} />
-                    {checkingXbox ? 'Comprobando…' : 'Comprobar clave'}
+                    {t(checkingXbox ? 'ajustes.comprobando' : 'ajustes.comprobarClave')}
                   </Button>
                   {xboxCheck && (
                     <span className={`text-[12px] leading-4 ${xboxCheck.ok && xboxCheck.titles > 0 ? 'text-success' : xboxCheck.ok ? 'text-warn' : 'text-danger'}`}>
@@ -233,7 +229,7 @@ export function SettingsView() {
             </Row>
           </Section>
 
-          <Section title="Biblioteca y comportamiento" defaultOpen>
+          <Section title={t('ajustes.secBiblioteca')} defaultOpen>
             {/* El idioma va el primero de esta sección: es lo que cambia todo
                 lo demás que se lee debajo. Se aplica al momento, sin reiniciar,
                 porque el traductor está suscrito a los ajustes. */}
@@ -251,13 +247,11 @@ export function SettingsView() {
                 ))}
               </div>
             </Row>
-            <Row label="Escanear al arrancar"
-                 hint="Refresca la biblioteca cada vez que se abre Atreus.">
+            <Row label={t('ajustes.escanearArranque')} hint={t('ajustes.escanearArranquePista')}>
               <Toggle checked={settings.scanOnStart}
                       onChange={(v) => void patch({ scanOnStart: v })} />
             </Row>
-            <Row label="Minimizar a la bandeja"
-                 hint="Cerrar la ventana la oculta en vez de salir de la app.">
+            <Row label={t('ajustes.minimizarBandeja')} hint={t('ajustes.minimizarBandejaPista')}>
               <Toggle checked={settings.minimizeToTray}
                       onChange={(v) => void patch({ minimizeToTray: v })} />
             </Row>
@@ -266,55 +260,53 @@ export function SettingsView() {
               de volver a verlo es este interruptor. Va aquí, en Ajustes, y no
               escondido: quien lo aceptó sin leer tiene que poder deshacerlo.
             */}
-            <Row label="Sonido al conseguir un platino"
-                 hint="La celebración suena con una recompensa sintetizada por la propia aplicación; no descarga ni reproduce ningún archivo.">
+            <Row label={t('ajustes.sonidoPlatino')} hint={t('ajustes.sonidoPlatinoPista')}>
               <Toggle checked={settings.celebrationSound}
                       onChange={(v) => void patch({ celebrationSound: v })} />
             </Row>
-            <Row label="Avisar antes de desbloquear logros"
-                 hint="Vuelve a mostrar la advertencia sobre desbloquear logros a mano la próxima vez que lo intentes.">
+            <Row label={t('ajustes.avisarLogros')} hint={t('ajustes.avisarLogrosPista')}>
               <Toggle checked={!settings.achievementRiskAccepted}
                       onChange={(v) => void patch({ achievementRiskAccepted: !v })} />
             </Row>
           </Section>
 
-          <Section title="Catálogo de definiciones">
+          <Section title={t('ajustes.secCatalogo')}>
             <Row
-              label="Carpeta de definiciones"
-              hint="Aquí van los JSON de cada juego. Deja uno nuevo y aparece al momento, sin reinstalar ni reiniciar la app."
+              label={t('ajustes.carpetaDefiniciones')}
+              hint={t('ajustes.carpetaDefinicionesPista')}
             >
               <Button variant="outline" onClick={() => void api.settings.openPath('defs')}>
-                <FolderCode size={14} /> Abrir carpeta
+                <FolderCode size={14} /> {t('ajustes.abrirCarpeta')}
               </Button>
             </Row>
 
             <Row
-              label="Origen para sincronizar"
-              hint="Carpeta, ZIP, JSON suelto o manifiesto atreus.catalog/v1 con versión, hashes y retiradas de seguridad."
+              label={t('ajustes.origenSincronizar')}
+              hint={t('ajustes.origenSincronizarPista')}
             >
               <div className="flex w-96 gap-2">
                 <Input
                   value={settings.catalogSource}
                   onChange={(e) => void patch({ catalogSource: e.target.value })}
-                  placeholder="Sin origen · solo definiciones locales"
+                  placeholder={t('ajustes.sinOrigen')}
                   className="w-full font-mono text-[12px]"
                 />
-                <Button variant="outline" onClick={pickCatalogFolder} aria-label="Elegir carpeta">
+                <Button variant="outline" onClick={pickCatalogFolder} aria-label={t('ajustes.elegirCarpeta')}>
                   <FolderOpen size={14} />
                 </Button>
               </div>
             </Row>
 
             <Row
-              label="Sincronizar ahora"
+              label={t('ajustes.sincronizarAhora')}
               hint={
-                catalog
-                  ? `${catalog.version}${
-                      catalog.updatedAt
-                        ? ` · última vez ${relative(catalog.updatedAt)}`
-                        : ''
-                    }`
-                  : 'Descarga las definiciones nuevas o actualizadas.'
+                !catalog
+                  ? t('ajustes.sincronizarAhoraPista')
+                  : catalog.updatedAt
+                    ? t('ajustes.catalogoUltimaVez', {
+                      version: catalog.version, cuando: relative(catalog.updatedAt),
+                    })
+                    : catalog.version
               }
             >
               <Button
@@ -323,13 +315,13 @@ export function SettingsView() {
                 disabled={syncing || !settings.catalogSource.trim()}
               >
                 <RefreshCw size={14} className={syncing ? 'animate-spin' : undefined} />
-                {syncing ? 'Sincronizando…' : 'Sincronizar'}
+                {t(syncing ? 'ajustes.sincronizando' : 'ajustes.sincronizar')}
               </Button>
             </Row>
 
             <Row
-              label="Actualizar contenido automáticamente"
-              hint="Al abrir Atreus y cada seis horas busca nuevas fichas de juego: mapas y proveedores de mods. Las guías se consultan al abrir cada juego."
+              label={t('ajustes.autoContenido')}
+              hint={t('ajustes.autoContenidoPista')}
             >
               <Toggle
                 checked={settings.autoSyncCatalog}
@@ -337,17 +329,17 @@ export function SettingsView() {
               />
             </Row>
 
-            <Row label="Carpeta de mods" hint="Los mods instalados viven aquí, aparte de los juegos.">
+            <Row label={t('ajustes.carpetaMods')} hint={t('ajustes.carpetaModsPista')}>
               <Button variant="outline" onClick={() => void api.settings.openPath('mods')}>
-                <Package size={14} /> Abrir carpeta
+                <Package size={14} /> {t('ajustes.abrirCarpeta')}
               </Button>
             </Row>
           </Section>
 
-          <Section title="Actualizaciones de Atreus">
+          <Section title={t('ajustes.secActualizaciones')}>
             <Row
-              label="Origen de versiones"
-              hint="Carpeta HTTPS de releases con latest.yml y el instalador de Atreus. Se configura una sola vez; después la app se actualiza desde aquí."
+              label={t('ajustes.origenVersiones')}
+              hint={t('ajustes.origenVersionesPista')}
             >
               <Input
                 value={settings.updateSource}
@@ -357,8 +349,8 @@ export function SettingsView() {
               />
             </Row>
             <Row
-              label="Buscar actualizaciones al arrancar"
-              hint="No interrumpe el inicio. Si hay una versión nueva, Atreus la muestra dentro de esta misma pantalla."
+              label={t('ajustes.buscarArranque')}
+              hint={t('ajustes.buscarArranquePista')}
             >
               <Toggle
                 checked={settings.checkForAppUpdates}
@@ -366,8 +358,8 @@ export function SettingsView() {
               />
             </Row>
             <Row
-              label="Descargar actualizaciones automáticamente"
-              hint="Solo descarga desde el origen HTTPS configurado. Se instalará al cerrar Atreus."
+              label={t('ajustes.descargarAuto')}
+              hint={t('ajustes.descargarAutoPista')}
             >
               <Toggle
                 checked={settings.autoDownloadUpdates}
@@ -375,29 +367,27 @@ export function SettingsView() {
                 onChange={(value) => void patch({ autoDownloadUpdates: value })}
               />
             </Row>
-            <Row label="Registro de la aplicación"
-                 hint="Todo lo que hace el backend queda aquí. Útil cuando algo falla en silencio.">
+            <Row label={t('ajustes.registro')} hint={t('ajustes.registroPista')}>
               <Button variant="outline" onClick={() => void api.app.openLogs()}>
-                <ScrollText size={14} /> Abrir carpeta
+                <ScrollText size={14} /> {t('ajustes.abrirCarpeta')}
               </Button>
             </Row>
             <Row
-              label="Buscar actualizaciones de la app"
-              hint={
-                `Versión instalada: ${version}. Esto solo busca versiones nuevas del ` +
-                'programa desde el origen configurado. El contenido de los juegos se actualiza ' +
-                'por separado, arriba, sin reinstalar nada.'
-              }
+              label={t('ajustes.buscarApp')}
+              hint={t('ajustes.buscarAppPista', { version })}
             >
               <div className="flex items-center gap-2">
                 {updateVersion && (
                   <Button variant="primary" onClick={installUpdate} disabled={installingUpdate}>
-                    <Package size={14} /> {installingUpdate ? `Descargando ${Math.round(updateProgress ?? 0)} %` : `Instalar ${updateVersion}`}
+                    <Package size={14} />
+                    {installingUpdate
+                      ? t('ajustes.descargandoPct', { pct: Math.round(updateProgress ?? 0) })
+                      : t('ajustes.instalarVersion', { version: updateVersion })}
                   </Button>
                 )}
                 <Button variant="outline" onClick={checkForUpdate} disabled={checkingUpdate}>
                   <RefreshCw size={14} className={checkingUpdate ? 'animate-spin' : undefined} />
-                  {checkingUpdate ? 'Buscando…' : 'Comprobar'}
+                  {t(checkingUpdate ? 'ajustes.buscando' : 'ajustes.comprobar')}
                 </Button>
               </div>
             </Row>
@@ -405,13 +395,8 @@ export function SettingsView() {
 
           <Card className="px-4 py-3">
             <div className="flex items-start gap-3">
-              <Badge tone="warn">Alcance</Badge>
-              <p className="text-[12px] leading-relaxed text-muted">
-                Atreus no modifica ni la memoria ni los archivos de tus juegos. Lee tu
-                biblioteca, habla con el cliente de Steam para los logros, y todo lo demás
-                —guías, mapas, rareza— son consultas a fuentes públicas. Los mods sí escriben
-                en la carpeta del juego, y siempre avisan antes de hacerlo.
-              </p>
+              <Badge tone="warn">{t('ajustes.alcance')}</Badge>
+              <p className="text-[12px] leading-relaxed text-muted">{t('ajustes.alcanceCuerpo')}</p>
             </div>
           </Card>
 

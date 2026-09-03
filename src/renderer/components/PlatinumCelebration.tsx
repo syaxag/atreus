@@ -5,6 +5,7 @@ import celebracion from '@/assets/celebracion.mp4';
 import { duration, hours, span } from '@/lib/format';
 import { ESTALLIDO_S, sonarPlatino } from '@/lib/sonido';
 import { useStore } from '@/store';
+import { useT } from '@/i18n';
 import { Button } from '@/components/ui';
 
 /**
@@ -35,6 +36,7 @@ const BUCLE_DESDE_S = 6.4;
 export function PlatinumCelebration({
   report, onClose,
 }: { report: PlatinumReport; onClose: () => void }) {
+  const t = useT();
   const conSonido = useStore((state) => state.settings?.celebrationSound ?? true);
   const video = useRef<HTMLVideoElement | null>(null);
   // El botón de cerrar aparece pasado el estallido: antes sería una invitación
@@ -57,7 +59,7 @@ export function PlatinumCelebration({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Platino conseguido en ${report.gameName}`}
+      aria-label={t('celebra.aria', { juego: report.gameName })}
       /*
         El fondo va **opaco del todo**, no traslúcido. Con el vídeo compuesto en
         modo `screen`, cualquier claridad que se cuele por detrás delata su
@@ -89,28 +91,28 @@ export function PlatinumCelebration({
             y cualquier texto puesto ahí se vuelve ilegible. */}
         <div className="celebra-texto mt-1 flex flex-col items-center px-6 text-center">
           <p className="text-[12px] font-semibold uppercase tracking-[0.32em] text-accent">
-            Platino conseguido
+            {t('celebra.titulo')}
           </p>
           <h1 className="mt-2 max-w-2xl text-[30px] font-semibold leading-tight">
             {report.gameName}
           </h1>
           <p className="mt-2 text-[14px] text-muted">
-            {report.total} de {report.total} logros · los tienes todos
+            {t('celebra.todos', { total: report.total })}
           </p>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            <Dato titulo="Te costó" valor={duration(report.playtimeMinutes)} />
+            <Dato titulo={t('celebra.teCosto')} valor={duration(report.playtimeMinutes)} />
             {report.firstUnlockAt && (
-              <Dato titulo="Lo perseguiste" valor={span(report.firstUnlockAt)} />
+              <Dato titulo={t('celebra.loPerseguiste')} valor={span(report.firstUnlockAt)} />
             )}
             {report.difficulty && (
               <Dato
-                titulo="Dificultad"
+                titulo={t('celebra.dificultad')}
                 valor={`${report.difficulty.score}/10`}
                 pie={report.difficulty.label} />
             )}
             {report.estimate && (
-              <Dato titulo="Estimado" valor={hours(report.estimate.totalHours)} />
+              <Dato titulo={t('celebra.estimado')} valor={hours(report.estimate.totalHours)} />
             )}
           </div>
 
@@ -119,7 +121,7 @@ export function PlatinumCelebration({
             className={`mt-7 transition-opacity duration-500 ${listo ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
             onClick={onClose}
           >
-            <X size={14} /> Cerrar
+            <X size={14} /> {t('celebra.cerrar')}
           </Button>
         </div>
       </div>

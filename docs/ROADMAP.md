@@ -33,12 +33,20 @@ aplicación hace falta, como mínimo, inglés.
 - [x] Rutas, Atlas y Taller. Con ellas cayeron dos cosas que hablaban castellano
       desde fuera del JSX: la escala de rareza, que `rarity()` devolvía como
       palabra fija, y los millares del catálogo de mods.
-- [ ] Actividad y el cuerpo de Ajustes.
+- [x] Actividad y el cuerpo de Ajustes, y con ellos la celebración del platino
+      y el recibimiento de la Colección, que se habían quedado atrás.
+- [x] **El registro de Actividad guarda claves, no frases.** Apuntaba
+      *"Biblioteca actualizada"* ya escrito, así que cambiar de idioma dejaba
+      el pasado de la sesión en el anterior. Ahora guarda la clave y sus
+      huecos y se traduce al pintarlo. Es, en pequeño, el contrato que le
+      falta al backend.
 - [ ] **La prosa que fabrica el backend.** Saltó al traducir la ficha: con la
       interfaz en inglés seguía diciendo *Exigente*, *"Con tus 16,4 h llevas 30
-      de 38 logros…"* y *"estadísticas globales de logros"*. No es un olvido de
-      traducción: son frases **ya redactadas** que el proceso principal manda
-      hechas por el IPC, y ninguna traducción del renderer puede tocarlas.
+      de 38 logros…"* y *"estadísticas globales de logros"*. También es lo que
+      contesta *"Clave válida, perfil público"* al comprobar la clave en
+      Ajustes. No es un olvido de traducción: son frases **ya redactadas** que
+      el proceso principal manda hechas por el IPC, y ninguna traducción del
+      renderer puede tocarlas.
 
       El arreglo de verdad no es traducir el backend, es que **deje de mandar
       prosa**: que `PlatinumDifficulty` lleve su tramo en vez de su etiqueta,

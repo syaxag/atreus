@@ -135,14 +135,14 @@ export function LibraryView() {
   }, [games, query, filter, sort, platinum, content]);
 
   async function addManual() {
-    const picked = await api.settings.pickFile('Elige el ejecutable del juego', [
-      { name: 'Ejecutables', extensions: ['exe'] },
+    const picked = await api.settings.pickFile(t('col.elegirExe'), [
+      { name: t('col.ejecutables'), extensions: ['exe'] },
     ]);
     if (!picked.ok) return pushToast('error', picked.error);
     if (!picked.data) return;
     const added = await api.library.addManual(picked.data);
     if (!added.ok) return pushToast('error', added.error);
-    pushToast('success', `${added.data.name} añadido`);
+    pushToast('success', t('col.juegoAnadido', { juego: added.data.name }));
   }
 
   return (
@@ -289,36 +289,37 @@ export function LibraryView() {
 function CollectionOnboarding({
   onScan, onAddManual, scanning,
 }: { onScan: () => Promise<void>; onAddManual: () => Promise<void>; scanning: boolean }) {
-  const steps = [
-    ['1', 'Detecta tu biblioteca', 'Busca juegos de Steam, Epic, GOG y Xbox.'],
-    ['2', 'Elige un juego', 'Atreus calcula tu progreso y lo que te falta.'],
-    ['3', 'Sigue tu ruta', 'Abre guías, mapas y tus próximos logros desde su ficha.'],
-  ] as const;
+  const t = useT();
+  const steps: [string, Clave, Clave][] = [
+    ['1', 'col.paso1', 'col.paso1Pista'],
+    ['2', 'col.paso2', 'col.paso2Pista'],
+    ['3', 'col.paso3', 'col.paso3Pista'],
+  ];
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center py-10 text-center">
       <Gem size={40} strokeWidth={1.25} className="text-accent" />
-      <h2 className="mt-4 text-[20px] font-semibold">Empieza tu primera ruta al platino</h2>
-      <p className="mt-1 max-w-lg text-[13px] text-muted">Atreus prepara tu colección en tres pasos, sin pedirte cuentas ni contraseñas.</p>
+      <h2 className="mt-4 text-[20px] font-semibold">{t('col.bienvenidaTitulo')}</h2>
+      <p className="mt-1 max-w-lg text-[13px] text-muted">{t('col.bienvenidaPista')}</p>
       <ol className="mt-7 grid w-full grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 text-left">
         {steps.map(([number, title, hint]) => (
           <li key={number} className="rounded-md border border-line bg-surface p-4">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">{number}</span>
-            <p className="mt-3 text-[13px] font-semibold">{title}</p>
-            <p className="mt-1 text-[12px] leading-5 text-muted">{hint}</p>
+            <p className="mt-3 text-[13px] font-semibold">{t(title)}</p>
+            <p className="mt-1 text-[12px] leading-5 text-muted">{t(hint)}</p>
           </li>
         ))}
       </ol>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Button variant="primary" onClick={() => void onScan()} disabled={scanning}>
           <RefreshCw size={14} className={scanning ? 'animate-spin' : undefined} />
-          {scanning ? 'Buscando juegos…' : '1. Escanear biblioteca'}
+          {t(scanning ? 'col.buscandoJuegos' : 'col.escanearAhora')}
         </Button>
         <Button variant="outline" onClick={() => void onAddManual()}>
-          <Plus size={14} /> Añadir un .exe
+          <Plus size={14} /> {t('col.anadirExe')}
         </Button>
       </div>
-      <p className="mt-4 flex items-center gap-1.5 text-[11px] text-faint"><Check size={13} className="text-success" /> Puedes cambiar carpetas y fuentes después en Ajustes.</p>
+      <p className="mt-4 flex items-center gap-1.5 text-[11px] text-faint"><Check size={13} className="text-success" /> {t('col.despuesAjustes')}</p>
     </div>
   );
 }
@@ -449,6 +450,7 @@ function summarize(
 function GameCard({
   game, index, summary,
 }: { game: Game; index: number; summary: PlatinumSummary | undefined }) {
+  const t = useT();
   const select = useStore((s) => s.select);
   const go = useStore((s) => s.go);
   const selectedId = useStore((s) => s.selectedId);
@@ -565,8 +567,8 @@ function GameCard({
           <button
             type="button"
             onClick={verCelebracion}
-            aria-label={`Ver la celebración del platino de ${game.name}`}
-            title="Ver la celebración"
+            aria-label={t('col.verCelebracion', { juego: game.name })}
+            title={t('col.verCelebracionCorto')}
             className="absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
           >
             {abriendo

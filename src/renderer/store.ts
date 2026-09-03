@@ -3,6 +3,7 @@ import type {
   Game, GameId, PlatinumReport, PlatinumSummary, ScanProgress, Settings,
 } from '@shared/types';
 import { api } from '@/lib/api';
+import { traducir, type Clave, type Huecos } from '@/i18n/traducir';
 
 export type Section = 'library' | 'activity' | 'game' | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
 
@@ -12,13 +13,28 @@ export interface Toast {
   message: string;
 }
 
+/**
+ * Un texto sin traducir todavía: la clave y sus huecos.
+ *
+ * El registro guarda esto y no la frase hecha. Traducir al apuntar la
+ * congelaría en el idioma de ese momento, y cambiar de idioma dejaría media
+ * lista en el anterior; así se traduce al pintarla, cada vez.
+ *
+ * Es, en pequeño, el contrato que le falta al backend: mandar con qué se
+ * compone la frase en vez de la frase.
+ */
+export interface Frase {
+  clave: Clave;
+  huecos?: Huecos;
+}
+
 /** Registro breve de lo ocurrido desde que se abrió Atreus. */
 export interface ActivityEntry {
   id: number;
   at: number;
   kind: 'scan' | 'game-started' | 'game-stopped' | 'platinum' | 'mods';
-  title: string;
-  detail: string | null;
+  title: Frase;
+  detail: Frase | null;
   gameId: GameId | null;
 }
 
@@ -111,9 +127,12 @@ export const useStore = create<State>((set, get) => ({
       set({ games: res.data });
       void get().loadPlatinum();
       get().addActivity({
-        kind: 'scan', title: 'Biblioteca actualizada', detail: `${res.data.length} juegos encontrados`, gameId: null,
+        kind: 'scan',
+        title: { clave: 'act.bibliotecaTitulo' },
+        detail: { clave: 'act.juegosEncontrados', huecos: { n: res.data.length } },
+        gameId: null,
       });
-      get().pushToast('success', `${res.data.length} juegos encontrados`);
+      get().pushToast('success', tr('act.juegosEncontrados', { n: res.data.length }));
     } else {
       get().pushToast('error', res.error);
     }
@@ -184,6 +203,21 @@ export const useStore = create<State>((set, get) => ({
   },
 }));
 
+/**
+ * El traductor fuera de React.
+ *
+ * Los avisos efímeros no se repintan al cambiar de idioma, así que se arman
+ * ya hechos. Lo que sí se queda —el registro de Actividad— guarda la clave.
+ */
+function tr(clave: Clave, huecos?: Huecos): string {
+  return traducir(useStore.getState().settings?.language ?? 'es', clave, huecos);
+}
+
+/** El nombre de un juego, o la palabra genérica si ya no está en la biblioteca. */
+function nombreDe(id: GameId): string {
+  return useStore.getState().games.find((game) => game.id === id)?.name ?? tr('act.juegoSinNombre');
+}
+
 /** Conecta los eventos push del backend al store. Llamar una vez al montar App. */
 export function wireEvents(): () => void {
   const store = useStore.getState();
@@ -199,10 +233,10 @@ export function wireEvents(): () => void {
       useStore.setState({ games });
       useStore.getState().addActivity({
         kind: 'scan',
-        title: 'Biblioteca actualizada',
+        title: { clave: 'act.bibliotecaTitulo' },
         detail: previos === games.length
-          ? `${games.length} juegos`
-          : `${games.length} juegos (${previos} antes)`,
+          ? { clave: 'act.nJuegos', huecos: { n: games.length } }
+          : { clave: 'act.nJuegosAntes', huecos: { n: games.length, antes: previos } },
         gameId: null,
       });
     }),
@@ -226,8 +260,8 @@ export function wireEvents(): () => void {
       if (!alreadyActive) {
         state.addActivity({
           kind: 'game-started',
-          title: `${state.games.find((game) => game.id === gameId)?.name ?? 'Juego'} iniciado`,
-          detail: 'Atreus está siguiendo esta sesión local.',
+          title: { clave: 'act.juegoIniciado', huecos: { juego: nombreDe(gameId) } },
+          detail: { clave: 'act.siguiendoSesion' },
           gameId,
         });
       }
@@ -239,8 +273,12 @@ export function wireEvents(): () => void {
       }));
       state.addActivity({
         kind: 'game-stopped',
-        title: `${state.games.find((game) => game.id === gameId)?.name ?? 'Juego'} cerrado`,
-        detail: minutes > 0 ? `${minutes} min registrados en esta sesión.` : 'Sesión terminada.',
+        title: { clave: 'act.juegoCerrado', huecos: { juego: nombreDe(gameId) } },
+        detail: minutes <= 0
+          ? { clave: 'act.sesionTerminada' }
+          : minutes === 1
+            ? { clave: 'act.unMinutoRegistrado' }
+            : { clave: 'act.minutosRegistrados', huecos: { n: minutes } },
         gameId,
       });
       /*
@@ -254,8 +292,13 @@ export function wireEvents(): () => void {
     api.on('platinum:achieved', (report) => {
       useStore.setState({ celebration: report });
       useStore.getState().addActivity({
-        kind: 'platinum', title: `${report.gameName} al 100 %`,
-        detail: `${report.unlocked} de ${report.total} logros completados.`, gameId: report.gameId,
+        kind: 'platinum',
+        title: { clave: 'act.alCien', huecos: { juego: report.gameName } },
+        detail: {
+          clave: 'act.logrosCompletados',
+          huecos: { hechos: report.unlocked, total: report.total },
+        },
+        gameId: report.gameId,
       });
       void useStore.getState().loadPlatinum();
     }),
@@ -263,8 +306,12 @@ export function wireEvents(): () => void {
       const state = useStore.getState();
       state.addActivity({
         kind: 'mods',
-        title: `Taller actualizado · ${state.games.find((game) => game.id === gameId)?.name ?? 'Juego'}`,
-        detail: `${mods.filter((mod) => mod.enabled).length} de ${mods.length} mods activos.`, gameId,
+        title: { clave: 'act.tallerActualizado', huecos: { juego: nombreDe(gameId) } },
+        detail: {
+          clave: 'act.modsActivos',
+          huecos: { activos: mods.filter((mod) => mod.enabled).length, total: mods.length },
+        },
+        gameId,
       });
     }),
     api.on('toast', ({ level, message }) => store.pushToast(level, message)),
