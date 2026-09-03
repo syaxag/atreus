@@ -39,6 +39,8 @@ const USER_AGENT = 'Atreus/0.1 (launcher personal)';
 const TIMEOUT_MS = 15_000;
 /** Un juego que no tuvo carátula no se vuelve a buscar hasta pasada una semana. */
 const MISS_TTL_MS = 7 * 24 * 60 * 60_000;
+/** Sube cuando cambian las fuentes de póster: invalida los fallos guardados. */
+const INTENTO_POSTERS = 2;
 
 interface IndexEntry {
   /** Nombre del archivo dentro de CACHE_DIR, o null si no se encontró nada. */
@@ -46,6 +48,14 @@ interface IndexEntry {
   /** De dónde salió, para poder diagnosticar. */
   source: string;
   at: number;
+  /**
+   * Qué lista de candidatas produjo este resultado.
+   *
+   * Al añadir el hero, los "aquí no hay póster" guardados dejaron de ser
+   * ciertos, y el plazo de una semana los habría dado por buenos. Con esto, un
+   * cambio en las fuentes reabre la búsqueda en vez de esperar a que caduque.
+   */
+  posterIntento?: number;
   /**
    * El póster vertical 2:3, que es con lo que se pinta la Colección.
    *
@@ -162,16 +172,24 @@ function normalize(value: string): string {
 }
 
 /**
- * El póster vertical de la biblioteca de Steam.
+ * Con qué se llena la tarjeta vertical de la Colección, por orden.
  *
- * Comprobado sobre la biblioteca de prueba: lo tienen cuatro de seis juegos.
- * Los que no son estrenos muy recientes cuyo arte aún no está en el CDN; para
- * esos la parrilla recorta el banner, que es peor pero no es un hueco.
+ * Primero el póster 600×900, que es el arte pensado para esto. Los estrenos
+ * muy recientes no lo tienen todavía en el CDN —comprobado con tres de la
+ * biblioteca de prueba— y ahí entra el **hero**, que mide 1920×620.
+ *
+ * El hero funciona porque recortarlo a 2:3 lo **reduce**: para una tarjeta de
+ * 217×325 el factor es 0,52, así que sale nítido y llena de borde a borde. El
+ * banner de 460×215, en cambio, habría que ampliarlo 1,5 veces, y eso es lo
+ * que se veía pixelado. Por eso el banner no está en esta lista: si un juego
+ * no tiene ni póster ni hero, es mejor la tarjeta de iniciales.
  */
 function steamPosterUrls(appId: string): string[] {
   return [
     `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900_2x.jpg`,
     `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_hero_2x.jpg`,
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_hero.jpg`,
   ];
 }
 
@@ -303,12 +321,15 @@ export async function completeCovers(
   // póster, y al revés, y no queremos que un fallo de uno tape al otro.
   for (const game of games) {
     const previous = cached[game.id];
-    if (previous && previous.poster !== undefined && (previous.poster || now - previous.at < MISS_TTL_MS)) continue;
+    const alDia = previous?.posterIntento === INTENTO_POSTERS;
+    if (previous && alDia && previous.poster !== undefined
+        && (previous.poster || now - previous.at < MISS_TTL_MS)) continue;
     try {
       const file = await downloadPoster(game);
       cached[game.id] = {
         ...(previous ?? { file: null, source: 'solo póster', at: now }),
         poster: file ? `${safeName(game.id)}-p.jpg` : null,
+        posterIntento: INTENTO_POSTERS,
         at: now,
       };
       changed = true;
