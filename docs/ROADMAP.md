@@ -25,11 +25,12 @@ aplicación hace falta, como mínimo, inglés.
 - [x] Primera superficie migrada: barra de título y barra lateral.
 - [x] Colección: cabecera, filtros, orden, buscador y avisos.
 - [x] La ficha del juego, entera.
+- [x] Trofeos, incluido el aviso de riesgo, que es la prosa que más importa.
 - [x] **Fechas y números siguen al idioma.** `format.ts` guarda la configuración
       regional en una variable de módulo y la fija el renderer al cambiar el
       ajuste. `span()` no lo cubría —compone "2 años y 3 meses" a mano, cosa que
       `Intl` no hace— y recibe las palabras del mismo diccionario.
-- [ ] Trofeos, Rutas, Atlas, Taller, Actividad y el cuerpo de Ajustes.
+- [ ] Rutas, Atlas, Taller, Actividad y el cuerpo de Ajustes.
 - [ ] **La prosa que fabrica el backend.** Saltó al traducir la ficha: con la
       interfaz en inglés seguía diciendo *Exigente*, *"Con tus 16,4 h llevas 30
       de 38 logros…"* y *"estadísticas globales de logros"*. No es un olvido de

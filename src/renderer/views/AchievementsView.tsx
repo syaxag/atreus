@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
+import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
 } from '@/components/ui';
@@ -24,14 +25,15 @@ type Tab = 'achievements' | 'stats' | 'backups';
  */
 type Sort = 'common' | 'rare' | 'name' | 'steam';
 
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'common', label: 'Más fáciles primero' },
-  { id: 'rare', label: 'Más raros primero' },
-  { id: 'name', label: 'Nombre' },
-  { id: 'steam', label: 'Orden del juego' },
+const SORTS: { id: Sort; label: Clave }[] = [
+  { id: 'common', label: 'tro.ordenFaciles' },
+  { id: 'rare', label: 'tro.ordenRaros' },
+  { id: 'name', label: 'tro.ordenNombre' },
+  { id: 'steam', label: 'tro.ordenJuego' },
 ];
 
 export function AchievementsView() {
+  const t = useT();
   const game = useStore((s) => s.selected());
   const pushToast = useStore((s) => s.pushToast);
   const openGuideSearch = useStore((s) => s.openGuideSearch);
@@ -302,23 +304,24 @@ export function AchievementsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Trofeos · ${game.name}`}
+        title={`${t('lateral.trofeos')} · ${game.name}`}
         subtitle={
           loading
-            ? 'Buscando los logros de este juego…'
+            ? t('tro.buscando')
             : error
               ? undefined
-              : `${unlockedTotal} de ${achievements.length} logros` +
-                (writable ? ` · ${stats.length} estadísticas` : '')
+              : t(writable ? 'tro.conEstadisticas' : 'tro.deLogros', {
+                hechos: unlockedTotal, total: achievements.length, stats: stats.length,
+              })
         }
         actions={writable ? (
           <div className="flex gap-1 rounded-sm border border-line p-0.5">
             <Button size="sm" variant={tab === 'achievements' ? 'primary' : 'ghost'}
-                    onClick={() => setTab('achievements')}>Logros</Button>
+                    onClick={() => setTab('achievements')}>{t('tro.pestanaLogros')}</Button>
             <Button size="sm" variant={tab === 'stats' ? 'primary' : 'ghost'}
-                    onClick={() => setTab('stats')}>Estadísticas</Button>
+                    onClick={() => setTab('stats')}>{t('tro.pestanaStats')}</Button>
             <Button size="sm" variant={tab === 'backups' ? 'primary' : 'ghost'}
-                    onClick={() => setTab('backups')}><History size={14} /> Historial</Button>
+                    onClick={() => setTab('backups')}><History size={14} /> {t('tro.pestanaHistorial')}</Button>
           </div>
         ) : undefined}
       />
@@ -326,16 +329,16 @@ export function AchievementsView() {
       {error ? (
         <Empty
           icon={<Lock size={40} strokeWidth={1.25} />}
-          title="No se pudo leer los logros"
+          title={t('tro.errorTitulo')}
           hint={error}
-          action={<Button variant="outline" onClick={load}><RotateCcw size={14} /> Reintentar</Button>}
+          action={<Button variant="outline" onClick={load}><RotateCcw size={14} /> {t('tro.reintentar')}</Button>}
         />
       ) : !loading && achievements.length === 0 ? (
         <Empty
           icon={<Trophy size={40} strokeWidth={1.25} />}
-          title="No hay lista de logros para este juego"
-          hint={set?.note ?? 'Atreus no ha encontrado ninguna lista publicada.'}
-          action={<Button variant="outline" onClick={load}><RotateCcw size={14} /> Reintentar</Button>}
+          title={t('tro.sinListaTitulo')}
+          hint={set?.note ?? t('tro.sinListaPista')}
+          action={<Button variant="outline" onClick={load}><RotateCcw size={14} /> {t('tro.reintentar')}</Button>}
         />
       ) : tab === 'achievements' ? (
         <>
@@ -346,12 +349,11 @@ export function AchievementsView() {
                 : <NotebookPen size={15} className="mt-0.5 shrink-0 text-accent" />}
               <div className="min-w-0">
                 <p className="text-[13px] font-medium">
-                  {readOnly ? `Solo lectura · ${set.source}` : 'Este es tu registro, no la plataforma'}
+                  {readOnly ? t('tro.soloLectura', { fuente: set.source }) : t('tro.tuRegistro')}
                 </p>
                 <p className="mt-0.5 text-[12px] leading-5 text-muted">
                   {set.note}
-                  {!readOnly && ' Marcar aquí no desbloquea nada: sirve para que la ficha del juego ' +
-                    'sepa por dónde vas y pueda calcular lo que te queda.'}
+                  {!readOnly && t('tro.tuRegistroPista')}
                 </p>
               </div>
             </div>
@@ -362,10 +364,14 @@ export function AchievementsView() {
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-[13px]">
                   <span className="font-semibold">{unlockedTotal}</span>
-                  <span className="text-muted"> de {achievements.length} logros</span>
+                  {/* La cifra va aparte porque lleva su propio peso; el resto
+                      es una frase entera, no un trozo recortado de otra. */}
+                  <span className="text-muted"> {t('tro.deTotalLogros', { total: achievements.length })}</span>
                 </p>
                 <p className="text-[13px] font-semibold tabular-nums">
-                  {((unlockedTotal / achievements.length) * 100).toFixed(1).replace('.', ',')} %
+                  {/* Por `percent()`, que sigue al idioma: aquí el separador
+                      decimal estaba puesto a mano y en inglés salía "78,9 %". */}
+                  {fmtPercent((unlockedTotal / achievements.length) * 100)}
                 </p>
               </div>
               <Progress
@@ -379,32 +385,34 @@ export function AchievementsView() {
             <div className="relative w-full max-w-72">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
               <Input value={query} onChange={(e) => setQuery(e.target.value)}
-                     placeholder="Buscar logro…" className="w-full pl-8" />
+                     placeholder={t('tro.buscarLogro')} className="w-full pl-8" />
             </div>
             <div className="flex flex-wrap gap-1">
               <Button size="sm" variant={onlyRemaining ? 'primary' : 'outline'}
                       onClick={() => setOnlyRemaining((value) => !value)}>
-                <Filter size={13} /> Solo los que faltan
+                <Filter size={13} /> {t('tro.soloFaltan')}
               </Button>
               <label className="flex items-center gap-1.5 text-[12px] text-faint">
-                Orden
+                {t('tro.orden')}
                 <select
                   value={sort}
                   onChange={(event) => setSort(event.target.value as Sort)}
                   className="h-7 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none"
                 >
                   {SORTS.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
+                    <option key={option.id} value={option.id}>{t(option.label)}</option>
                   ))}
                 </select>
               </label>
               {visible.length !== achievements.length && (
-                <span className="text-[12px] text-faint">{visible.length} de {achievements.length}</span>
+                <span className="text-[12px] text-faint">
+                  {t('tro.deN', { visibles: visible.length, total: achievements.length })}
+                </span>
               )}
               {!readOnly && <>
-                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(true))}>Marcar todos</Button>
-                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(false))}>Desmarcar</Button>
-                <Button size="sm" variant="outline" onClick={() => guard(invert)}>Invertir</Button>
+                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(true))}>{t('tro.marcarTodos')}</Button>
+                <Button size="sm" variant="outline" onClick={() => guard(() => setAll(false))}>{t('tro.desmarcar')}</Button>
+                <Button size="sm" variant="outline" onClick={() => guard(invert)}>{t('tro.invertir')}</Button>
               </>}
             </div>
           </div>
@@ -415,7 +423,7 @@ export function AchievementsView() {
                 {Array.from({ length: 10 }, (_, i) => <Skeleton key={i} className="h-11" />)}
               </div>
             ) : visible.length === 0 ? (
-              <Empty title="Ningún logro coincide" hint="Prueba con otro término de búsqueda." />
+              <Empty title={t('tro.sinCoincidencias')} hint={t('tro.sinCoincidenciasPista')} />
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3">
                 {visible.map((a) => {
@@ -459,8 +467,8 @@ export function AchievementsView() {
                           <p className={cn('truncate text-[13px] font-medium', !on && 'text-muted')}>
                             {a.displayName}
                           </p>
-                          {a.hidden && <Badge>oculto</Badge>}
-                          {a.protected && <Badge tone="warn">protegido</Badge>}
+                          {a.hidden && <Badge>{t('tro.oculto')}</Badge>}
+                          {a.protected && <Badge tone="warn">{t('tro.protegido')}</Badge>}
                           {/* La rareza global es lo que dice si este logro es
                               el que va a costar el platino, así que va junto al
                               nombre y no escondida en un detalle. */}
@@ -492,11 +500,11 @@ export function AchievementsView() {
                               variant="ghost"
                               onClick={() => openGuideSearch(game.id, a.displayName)}
                             >
-                              <BookOpen size={12} /> Buscar guía
+                              <BookOpen size={12} /> {t('tro.buscarGuia')}
                             </Button>
                             {needsMap(a) && (
                               <Button size="sm" variant="ghost" onClick={() => go('maps')}>
-                                <MapIcon size={12} /> Ver mapa
+                                <MapIcon size={12} /> {t('tro.verMapa')}
                               </Button>
                             )}
                           </div>
@@ -595,43 +603,42 @@ export function AchievementsView() {
 
       <Modal
         open={confirmOpen && writable}
-        title="Confirmar los cambios en Steam"
+        title={t('tro.confirmarTitulo')}
         icon={<Save size={16} className="text-accent" />}
         onClose={() => setConfirmOpen(false)}
         footer={<>
-          <Button variant="ghost" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
+          <Button variant="ghost" onClick={() => setConfirmOpen(false)}>{t('tro.cancelar')}</Button>
           <Button variant="primary" disabled={saving}
                   onClick={() => { setConfirmOpen(false); void commit(); }}>
-            <Save size={14} /> Escribir en Steam
+            <Save size={14} /> {t('tro.escribirSteam')}
           </Button>
         </>}
       >
         <p className="text-[13px] leading-6 text-muted">
-          Se van a escribir <strong className="text-fg">{unlockingCount}</strong>{' '}
-          {unlockingCount === 1 ? 'desbloqueo' : 'desbloqueos'} y{' '}
-          <strong className="text-fg">{lockingCount}</strong>{' '}
-          {lockingCount === 1 ? 'bloqueo' : 'bloqueos'}
-          {Object.keys(statPatch).length > 0 &&
-            `, además de ${Object.keys(statPatch).length} estadística${Object.keys(statPatch).length === 1 ? '' : 's'}`}.
+          {t('tro.seVanAEscribir', {
+            desbloqueos: unlockingCount,
+            bloqueos: lockingCount,
+            stats: Object.keys(statPatch).length === 0
+              ? ''
+              : Object.keys(statPatch).length === 1
+                ? t('tro.ademasUnaStat')
+                : t('tro.ademasStats', { n: Object.keys(statPatch).length }),
+          })}
         </p>
-        <p className="mt-3 text-[12px] leading-5 text-faint">
-          Antes de escribir, Atreus guarda una copia del estado actual en el Historial: si algo
-          sale mal, o te arrepientes, se puede volver atrás desde ahí.
-        </p>
+        <p className="mt-3 text-[12px] leading-5 text-faint">{t('tro.copiaAntes')}</p>
       </Modal>
 
       {pendingCount > 0 && (
         <div className="flex shrink-0 items-center justify-between border-t-2 border-accent bg-elevated px-6 py-3">
           <p className="text-[13px]">
-            <span className="font-semibold text-accent-hover">{pendingCount}</span>
-            {pendingCount === 1 ? ' cambio sin guardar' : ' cambios sin guardar'}
+            {pendingCount === 1 ? t('tro.unCambio') : t('tro.nCambios', { n: pendingCount })}
           </p>
           <div className="flex gap-2">
             <Button
               variant="ghost"
               onClick={() => { setAchPatch({}); setStatPatch({}); setStatDrafts({}); }}
             >
-              Descartar
+              {t('tro.descartar')}
             </Button>
             <Button
               variant="primary"
@@ -726,54 +733,44 @@ function AchievementIcon({ achievement, unlocked }: { achievement: Achievement; 
 function RiskDialog({
   open, onAccept, onCancel,
 }: { open: boolean; onAccept: () => void; onCancel: () => void }) {
+  const t = useT();
   return (
     <Modal
       open={open}
-      title="Antes de desbloquear logros a mano"
+      title={t('tro.avisoTitulo')}
       icon={<ShieldAlert size={18} className="text-warn" />}
       onClose={onCancel}
       footer={<>
-        <Button variant="ghost" onClick={onCancel}>Mejor no</Button>
-        <Button variant="primary" onClick={onAccept}>Lo entiendo, continuar</Button>
+        <Button variant="ghost" onClick={onCancel}>{t('tro.avisoMejorNo')}</Button>
+        <Button variant="primary" onClick={onAccept}>{t('tro.avisoContinuar')}</Button>
       </>}
     >
-      <p className="text-[13px] leading-6">
-        Estás a punto de marcar logros como conseguidos sin haberlos jugado. Atreus se lo pide al
-        propio cliente de Steam, con tu cuenta y en tu equipo, así que el logro queda igual que
-        cualquier otro: con su fecha, en tu perfil y contando para tu porcentaje.
-      </p>
+      <p className="text-[13px] leading-6">{t('aviso.entradilla')}</p>
 
       <div className="mt-4 flex flex-col gap-3">
-        <Point tone="ok" title="No es baneable">
-          Steam permite que un juego escriba sus propios logros; es la misma llamada que usa
-          cualquier partida. Nadie ha sido expulsado por esto y no altera archivos del juego ni
-          de Steam. Aun así, lo haces bajo tu responsabilidad.
+        <Point tone="ok" title={t('tro.avisoNoBaneable')}>
+          {t('aviso.noBaneableCuerpo')}
         </Point>
 
-        <Point tone="warn" title="Sí puede arruinarte el juego">
-          Esto es lo que de verdad hay que pensar. Un platino es el recuerdo de lo que te costó:
-          el jefe que repetiste veinte veces, el coleccionable que no encontrabas, la partida en
-          difícil que terminaste de madrugada. Si lo desbloqueas de golpe, el número sube pero
-          esa historia no existe, y no se puede recuperar. También te destripa el juego: muchos
-          logros llevan en el nombre el final, el giro o el personaje que aún no conocías.
+        <Point tone="warn" title={t('tro.avisoArruina')}>
+          {t('aviso.arruinaCuerpo')}
         </Point>
 
-        <Point tone="warn" title="No hay vuelta atrás limpia">
-          Atreus guarda una copia antes de escribir y puedes restaurarla desde el Historial, pero
-          la fecha original de un logro que ya tenías no se recupera, y algunos juegos vuelven a
-          conceder solos los que dependen de tu partida guardada.
+        <Point tone="warn" title={t('tro.avisoSinVuelta')}>
+          {t('aviso.sinVueltaCuerpo')}
         </Point>
       </div>
 
+      {/* La salida va partida en dos claves con el enlace en medio: una sola
+          cadena con etiquetas dentro obligaría a traducir HTML, y eso es
+          justo donde una traducción rompe la interfaz. */}
       <p className="mt-4 rounded-sm border border-line bg-inset px-3 py-2.5 text-[12px] leading-5 text-muted">
-        Si lo que quieres es <strong className="text-fg">llegar al platino jugando</strong>, cierra
-        esto y usa el resto de Atreus: la ficha del juego te dice qué te falta y por dónde empezar,
-        Guías trae el texto completo de cómo se hace, y Mapas te enseña dónde está cada cosa.
+        {t('aviso.salidaAntes')}
+        <strong className="text-fg">{t('tro.avisoJugandoFuerte')}</strong>
+        {t('aviso.salidaDespues')}
       </p>
 
-      <p className="mt-3 text-[11px] leading-5 text-faint">
-        Este aviso solo sale una vez. Puedes volver a activarlo en Ajustes.
-      </p>
+      <p className="mt-3 text-[11px] leading-5 text-faint">{t('aviso.soloUnaVez')}</p>
     </Modal>
   );
 }
