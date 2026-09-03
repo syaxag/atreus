@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { duration, PLATFORM_LABEL, relative } from '@/lib/format';
+import { useT, type Clave } from '@/i18n';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
 import type { ContentAvailability, Game, PlatinumSummary } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
@@ -35,28 +36,29 @@ function scanPercent(progress: { phase: string } | null): number {
  * mods de cada juego: cuestan red y tardan. Presentarlas como nueve fichas
  * iguales prometía lo mismo de todas.
  */
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: 'Todos' },
-  { id: 'in-progress', label: 'En curso' },
-  { id: 'complete', label: 'Al 100 %' },
-  { id: 'untouched', label: 'Sin empezar' },
-  { id: 'favorites', label: 'Favoritos' },
-  { id: 'solo', label: 'Solo' },
+const FILTERS: { id: Filter; label: Clave }[] = [
+  { id: 'all', label: 'col.todos' },
+  { id: 'in-progress', label: 'col.enCurso' },
+  { id: 'complete', label: 'col.completos' },
+  { id: 'untouched', label: 'col.sinEmpezar' },
+  { id: 'favorites', label: 'col.favoritos' },
+  { id: 'solo', label: 'col.soloUnJugador' },
 ];
 
-const CONTENT_FILTERS: { id: Filter; label: string }[] = [
-  { id: 'guides', label: 'Con guía legible' },
-  { id: 'maps', label: 'Con mapa' },
-  { id: 'mods', label: 'Con mods' },
+const CONTENT_FILTERS: { id: Filter; label: Clave }[] = [
+  { id: 'guides', label: 'col.conGuia' },
+  { id: 'maps', label: 'col.conMapa' },
+  { id: 'mods', label: 'col.conMods' },
 ];
 
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'progress', label: 'Más cerca del platino' },
-  { id: 'played', label: 'Más jugados' },
-  { id: 'name', label: 'Nombre' },
+const SORTS: { id: Sort; label: Clave }[] = [
+  { id: 'progress', label: 'col.ordenProgreso' },
+  { id: 'played', label: 'col.ordenJugado' },
+  { id: 'name', label: 'col.ordenNombre' },
 ];
 
 export function LibraryView() {
+  const t = useT();
   const games = useStore((s) => s.games);
   const loading = useStore((s) => s.loadingLibrary);
   const scanning = useStore((s) => s.scanning);
@@ -146,20 +148,20 @@ export function LibraryView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title="Colección"
+        title={t('col.titulo')}
         subtitle={
           scanning && progress
             ? progress.message
-            : summarize(games, platinum)
+            : summarize(games, platinum, t)
         }
         actions={
           <>
             <Button variant="outline" onClick={addManual}>
-              <Plus size={14} /> Añadir .exe
+              <Plus size={14} /> {t('col.anadirExe')}
             </Button>
             <Button variant="primary" onClick={scan} disabled={scanning}>
               <RefreshCw size={14} className={scanning ? 'animate-spin' : undefined} />
-              {scanning ? 'Escaneando…' : 'Escanear'}
+              {t(scanning ? 'col.escaneando' : 'col.escanear')}
             </Button>
           </>
         }
@@ -183,7 +185,7 @@ export function LibraryView() {
             id="library-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar en tu colección…"
+            placeholder={t('col.buscar')}
             className="w-full pl-8 pr-14"
           />
           {/* El atajo existía desde el principio y no lo sabía nadie. Se
@@ -202,7 +204,7 @@ export function LibraryView() {
               variant={filter === f.id ? 'primary' : 'ghost'}
               onClick={() => setFilter(f.id)}
             >
-              {f.label}
+              {t(f.label)}
             </Button>
           ))}
 
@@ -215,22 +217,22 @@ export function LibraryView() {
               size="sm"
               variant={filter === f.id ? 'primary' : 'ghost'}
               onClick={() => setFilter(f.id)}
-              title="Comprueba en línea qué tiene cada juego de tu colección"
+              title={t('col.filtroEnLinea')}
             >
               <Globe size={11} className={filter === f.id ? undefined : 'text-faint'} />
-              {f.label}
+              {t(f.label)}
             </Button>
           ))}
         </div>
         <label className="ml-auto flex items-center gap-2 text-[12px] text-faint">
-          Ordenar por
+          {t('col.ordenarPor')}
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as Sort)}
             className="h-7 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none"
           >
             {SORTS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
+              <option key={option.id} value={option.id}>{t(option.label)}</option>
             ))}
           </select>
         </label>
@@ -249,15 +251,12 @@ export function LibraryView() {
             {loadingContent ? (
               <>
                 <LoaderCircle size={14} className="shrink-0 animate-spin text-accent" />
-                <span className="text-muted">
-                  Comprobando guías, mapas y mods de {games.length} juegos. La primera vez
-                  tarda; después el resultado se reutiliza durante diez minutos.
-                </span>
+                <span className="text-muted">{t('col.comprobando', { n: games.length })}</span>
               </>
             ) : (
               <>
                 <Check size={14} className="shrink-0 text-success" />
-                <span className="text-muted">Contenido comprobado {comprobadoHace}.</span>
+                <span className="text-muted">{t('col.comprobado', { cuando: comprobadoHace ?? '' })}</span>
               </>
             )}
           </div>
@@ -274,8 +273,8 @@ export function LibraryView() {
         ) : (
           <Empty
             icon={<Gem size={40} strokeWidth={1.25} />}
-            title="Ningún juego coincide"
-            hint="Prueba con otro término o cambia el filtro."
+            title={t('col.sinCoincidencias')}
+            hint={t('col.sinCoincidenciasPista')}
           />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
@@ -449,18 +448,28 @@ function score(summary: PlatinumSummary | undefined): number {
   return summary.percent;
 }
 
-function summarize(games: Game[], platinum: Record<string, PlatinumSummary>): string {
+function summarize(
+  games: Game[],
+  platinum: Record<string, PlatinumSummary>,
+  t: (clave: Clave, huecos?: Record<string, string | number>) => string,
+): string {
   const known = games
     .map((game) => platinum[game.id])
     .filter((s): s is PlatinumSummary => !!s && s.total > 0);
   const platinos = known.filter((s) => s.complete).length;
   const enCurso = known.filter((s) => s.unlocked > 0 && !s.complete).length;
-  if (known.length === 0) return `${games.length} juegos · calculando su progreso…`;
-  // Se cuentan platinos, no porcentajes: es la unidad de esta aplicación.
-  const partes = [`${games.length} juegos`];
-  partes.push(platinos === 1 ? '1 platino' : `${platinos} platinos`);
-  if (enCurso > 0) partes.push(`${enCurso} en curso`);
-  return partes.join(' · ');
+  if (known.length === 0) return t('col.calculando', { n: games.length });
+  if (enCurso === 0) return t('col.resumen', { n: games.length });
+  /*
+   * El singular tiene su propia clave y no se compone.
+   *
+   * Decía "1 platinums": el número iba por un hueco y la palabra estaba fija en
+   * plural. Con dos idiomas y más por venir, la frase entera por caso es lo
+   * único que sobrevive a las lenguas que declinan de otra manera.
+   */
+  return t(platinos === 1 ? 'col.resumenUnPlatino' : 'col.resumenPlatinos', {
+    n: games.length, platinos, curso: enCurso,
+  });
 }
 
 function GameCard({

@@ -23,8 +23,9 @@ aplicación hace falta, como mínimo, inglés.
       evento del contrato se quede a medias.
 - [x] **Selector en Ajustes**, que aplica al momento y se guarda.
 - [x] Primera superficie migrada: barra de título y barra lateral.
-- [ ] El resto de las vistas, una por una: Colección, ficha, Trofeos, Rutas,
-      Atlas, Taller, Actividad, Ajustes.
+- [x] Colección: cabecera, filtros, orden, buscador y avisos.
+- [ ] El resto de las vistas, una por una: ficha, Trofeos, Rutas, Atlas,
+      Taller, Actividad y el cuerpo de Ajustes.
 - [ ] Fechas y números por idioma. `format.ts` tiene `'es-ES'` incrustado en
       seis sitios.
 - [ ] Un tercer idioma es solo un archivo de datos más. Portugués es el
