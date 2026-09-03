@@ -355,19 +355,30 @@ Tres alturas, y cada una ve lo que las otras no.
 | Comando | Qué caza | Tarda |
 |---|---|---|
 | `npm run typecheck` | contratos entre procesos, claves de traducción que falten, y los propios tests | segundos |
-| `npm test` | aritmética, parsers, lo que se guarda en disco y la prosa que compone el renderer | ~1 s |
+| `npm test` | aritmética, parsers, disco, la prosa del renderer y las vistas pintadas contra jsdom | ~3 s |
 | `npm run smoke` | que la aplicación arranque, se recorra entera y persista de verdad | ~3 min |
 
-El renderer no tiene pruebas de componentes: hacerlas exigiría un DOM de
-mentira y un transformador de JSX, y el proyecto tiene cuatro dependencias en
-total. Lo que sí se prueba es **su lógica**, que por eso vive fuera de los
-`.tsx`: `lib/format.ts` (fechas y números, que siguen al idioma), `lib/perfil.ts`
-(las cuentas del Perfil, incluida la racha), `lib/platino.ts`, `lib/aviso.ts` y
-`lib/contenido.ts` (la prosa que antes venía hecha del backend). Una vista que
-necesite una cuenta la saca a un módulo; ahí se prueba.
+Del renderer se prueban dos cosas distintas.
 
-Los tests importan de `src/` tal como está escrito, sin extensión, gracias a
-`test/resolver.mjs`. El que se adapta es el arnés, no lo que se publica.
+**Su lógica**, que por eso vive fuera de los `.tsx`: `lib/format.ts` (fechas y
+números, que siguen al idioma), `lib/perfil.ts` (las cuentas del Perfil,
+incluida la racha), `lib/platino.ts`, `lib/aviso.ts` y `lib/contenido.ts` (la
+prosa que antes venía hecha del backend). Una vista que necesite una cuenta la
+saca a un módulo; ahí se prueba, y de paso deja de estar duplicada entre vistas.
+
+**Y las vistas pintadas**, contra jsdom (`test/dom.ts`). Ahí entra solo lo que
+no ve nadie más: los estados límite —una biblioteca sin nada calculado, una
+lista vacía— y el comportamiento de un diálogo, incluido que Escape lo cierre.
+Ni estilos ni maquetación: jsdom no aplica CSS, así que un test que buscara
+«PLATINOS» estaría comprobando la hoja de estilos y no el contenido. Para ver
+si algo se ve bien está abrir la aplicación.
+
+Todo eso necesita `test/resolver.mjs`, que hace tres cosas que en producción
+hacen Vite y el compilador: resolver los alias `@/` y `@shared/`, completar las
+extensiones que el proyecto no escribe, y traducir el JSX con esbuild —que ya
+venía con Vite—. Las imágenes y los vídeos que importa una vista se sustituyen
+por una cadena: lo que se prueba no es la carátula. **El que se adapta es el
+arnés, no lo que se publica.**
 
 ## Persistencia (`%APPDATA%/Atreus/`)
 

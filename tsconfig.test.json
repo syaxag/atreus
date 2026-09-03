@@ -14,7 +14,14 @@
      * código de la aplicación no se hace: ahí resuelven Vite y el compilador.
      */
     "allowImportingTsExtensions": true,
-    "types": ["node"],
+    /*
+     * Con DOM: los tests de vistas pintan componentes contra jsdom, así que
+     * ven `window`, `document` y `HTMLElement` como los ve el renderer.
+     */
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    /** Los tests de vistas importan `.tsx`, igual que el renderer. */
+    "jsx": "react-jsx",
+    "types": ["node", "jsdom"],
     "paths": {
       "@shared/*": ["src/shared/*"],
       "@/*": ["src/renderer/*"]
@@ -25,5 +32,5 @@
    * verdad se usa. Meter `src/**` entero traería el renderer sin su
    * configuración y mil cuatrocientos errores que no son de nadie.
    */
-  "include": ["test/**/*"]
+  "include": ["test/**/*", "src/renderer/env.d.ts"]
 }
