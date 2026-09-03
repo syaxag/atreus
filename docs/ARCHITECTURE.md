@@ -348,6 +348,27 @@ nuevo nunca ha requerido reempaquetar nada.
 
 ---
 
+## Qué comprueba cada cosa
+
+Tres alturas, y cada una ve lo que las otras no.
+
+| Comando | Qué caza | Tarda |
+|---|---|---|
+| `npm run typecheck` | contratos entre procesos, claves de traducción que falten, y los propios tests | segundos |
+| `npm test` | aritmética, parsers, lo que se guarda en disco y la prosa que compone el renderer | ~1 s |
+| `npm run smoke` | que la aplicación arranque, se recorra entera y persista de verdad | ~3 min |
+
+El renderer no tiene pruebas de componentes: hacerlas exigiría un DOM de
+mentira y un transformador de JSX, y el proyecto tiene cuatro dependencias en
+total. Lo que sí se prueba es **su lógica**, que por eso vive fuera de los
+`.tsx`: `lib/format.ts` (fechas y números, que siguen al idioma), `lib/perfil.ts`
+(las cuentas del Perfil, incluida la racha), `lib/platino.ts`, `lib/aviso.ts` y
+`lib/contenido.ts` (la prosa que antes venía hecha del backend). Una vista que
+necesite una cuenta la saca a un módulo; ahí se prueba.
+
+Los tests importan de `src/` tal como está escrito, sin extensión, gracias a
+`test/resolver.mjs`. El que se adapta es el arnés, no lo que se publica.
+
 ## Persistencia (`%APPDATA%/Atreus/`)
 
 ```

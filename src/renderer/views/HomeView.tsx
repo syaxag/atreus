@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { useStore } from '@/store';
 import { duration, percent as fmtPercent, PLATFORM_LABEL, relative } from '@/lib/format';
 import { useT } from '@/i18n';
+import { empezado } from '@/lib/perfil';
 import { GameCover } from '@/components/GameCover';
 import { Badge, Button, Card, Empty, Progress, Skeleton, ViewHeader } from '@/components/ui';
 
@@ -58,7 +59,7 @@ export function HomeView() {
     if (jugados.length > 0) {
       return jugados.reduce((a, b) => ((b.lastPlayed ?? 0) > (a.lastPlayed ?? 0) ? b : a));
     }
-    const empezados = games.filter((game) => cerca(platinum[game.id]));
+    const empezados = games.filter((game) => empezado(platinum[game.id]));
     if (empezados.length > 0) {
       return empezados.reduce((a, b) =>
         ((platinum[b.id]?.percent ?? 0) > (platinum[a.id]?.percent ?? 0) ? b : a));
@@ -87,7 +88,7 @@ export function HomeView() {
    * título no puede prometer una cercanía que depende de tu biblioteca.
    */
   const aUnPaso = useMemo(() => games
-    .filter((game) => game.id !== protagonista?.id && cerca(platinum[game.id]))
+    .filter((game) => game.id !== protagonista?.id && empezado(platinum[game.id]))
     .sort((a, b) => (platinum[b.id]?.percent ?? 0) - (platinum[a.id]?.percent ?? 0))
     .slice(0, CERCA), [games, platinum, protagonista]);
 
@@ -178,11 +179,6 @@ export function HomeView() {
       </div>
     </div>
   );
-}
-
-/** Empezado y sin terminar: lo único que tiene un paso siguiente. */
-function cerca(summary: PlatinumSummary | undefined): boolean {
-  return !!summary && summary.total > 0 && summary.unlocked > 0 && !summary.complete;
 }
 
 function Titulo({

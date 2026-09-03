@@ -9,9 +9,9 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:mock": "cross-env VITE_MOCK=1 electron-vite dev",
-    "test": "node --test --experimental-strip-types \"test/*.test.ts\"",
+    "test": "node --test --experimental-strip-types --import ./test/resolver.mjs \"test/*.test.ts\"",
     "smoke": "node scripts/smoke.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.test.json",
     "icon": "node scripts/make-icon.mjs",
     "build": "npm run typecheck && npm test && electron-vite build",
     "pack": "npm run build && electron-builder --dir",

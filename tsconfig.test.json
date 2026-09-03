@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    /*
+     * Sin `composite`: heredado de la configuración del main obligaría a
+     * listar cada archivo que un test alcanza, y lo que se quiere es
+     * justamente que TypeScript siga los imports por su cuenta.
+     */
+    "composite": false,
+    /*
+     * Los tests importan `../src/algo.ts` con la extensión puesta, porque es
+     * lo que Node necesita para cargarlos sin un empaquetador delante. En el
+     * código de la aplicación no se hace: ahí resuelven Vite y el compilador.
+     */
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@/*": ["src/renderer/*"]
+    }
+  },
+  /*
+   * Solo los tests: de ahí TypeScript sigue los imports y comprueba lo que de
+   * verdad se usa. Meter `src/**` entero traería el renderer sin su
+   * configuración y mil cuatrocientos errores que no son de nadie.
+   */
+  "include": ["test/**/*"]
+}
