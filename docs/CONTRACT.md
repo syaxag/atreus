@@ -30,6 +30,7 @@ El contrato son dos archivos:
 | `guides` | Buscar guías y traer su texto completo |
 | `maps` | Localizar el mapa interactivo del juego |
 | `mods` | Instalar, ordenar y desplegar mods |
+| `content` | Qué guías, mapas y mods tiene de verdad cada juego de la Colección |
 | `progress` | Checklist y notas locales por juego |
 | `settings`, `catalog`, `app` | Infraestructura |
 
@@ -122,6 +123,56 @@ acto, sin `StoreStats`, así que no se persiste nada— y el juego llega a la in
 usaban los juegos de Xbox. Y si un guardado se acepta a medias, `rejected` permite
 decirlo en vez de cantar un éxito que no ha sido.
 
+## Sexta tanda: decir qué hay antes de que lo pidan
+
+**Dentro** — `content.availability` y el tipo `ContentAvailability`.
+
+La Colección podía filtrar por progreso, pero no por lo que Atreus sabe
+ofrecer de cada juego. Este canal devuelve, por juego, cuántas guías hay y
+cuántas se pueden leer dentro, cuántos mapas y cuántos mods — preguntando a
+las **mismas fuentes** que abren esas vistas, no a una etiqueta del catálogo,
+que envejecería mintiendo.
+
+Cuesta red, así que solo se llama al usar uno de esos tres filtros. El main
+agrupa de tres en tres, cachea diez minutos **por juego** (mediante el
+`updatedAt` de cada ficha, no una marca única para toda la lista: con una
+sola, quitar un juego dejaba la lista «fresca» sin él y los filtros lo
+trataban en silencio como si no tuviera nada) y `content.invalidate()` la
+tira cuando un escaneo cambia la biblioteca.
+
+**Dentro** — `mods.previewDeploy` y el tipo `ModDeployPreview`.
+
+El canal llevaba en `IPC_CHANNELS` desde la reescritura **sin handler**: el
+aviso de arranque de `register.ts` lo cantaba en cada sesión, que es
+exactamente para lo que existe. Ahora enumera, sin escribir nada, qué archivo
+va a cada sitio, cuáles existen ya —y por tanto se respaldan— y qué mod gana
+cada ruta en disputa. Sustituye a un `window.confirm` que contaba conflictos
+sin decir cuáles eran.
+
+Un detalle que importa a quien lo pinte: `files` lleva **un solo mod por
+ruta**, el que gana. Un mod que pierde todas las suyas no aparece ahí, así que
+los nombres de `conflicts` hay que resolverlos contra `mods.list`, no contra
+`preview.files`.
+
+**Cambia** — `guides.list` y `maps.list` aceptan `refresh`.
+
+Las cachés de guías (una hora) y del directorio de mapas (un día) están para
+no repetir búsquedas, pero dejaban al usuario sin forma de decir "vuelve a
+mirar" después de que el juego publicara una guía nueva. Con `refresh` en
+true se ignora la caché; el botón de Actualizar de esas dos vistas es lo
+único que lo pone.
+
+**Se corrige** — `mods.discover` **no** falla si el juego no declara
+proveedor: devuelve lista vacía. El comentario decía lo contrario desde antes
+de que `discoverFresh` se escribiera así.
+
+**Las fechas del contrato van en segundos.** `PlatinumReport.updatedAt` y
+`PlatinumSummary.updatedAt` estaban en milisegundos, y en cuanto la ficha del
+juego los pasó por `relative()` la línea de fuentes decía "dentro de mil
+setecientos millones de segundos". Todo epoch que cruza el puente —incluido
+`ContentAvailability.updatedAt`— es en segundos, como `unlockedAt`,
+`installedAt` y `lastPlayed`.
+
 ## Cómo se implementa
 
 ```ts
@@ -159,6 +210,12 @@ simulada (150-400 ms), para levantar la interfaz sin Steam ni juegos abiertos
 
 Si el mock miente, la interfaz parece rota donde no lo está: cuando se añade un canal,
 se añade también aquí.
+
+Y también al revés, que es peor porque no se nota: el mock de `previewDeploy` no
+deduplicaba por ruta como sí hace el backend, así que devolvía los dos mods de un
+conflicto donde el real devuelve solo el que gana. La vista parecía correcta probándola
+y enseñaba un identificador en la aplicación de verdad. **Un mock más generoso que el
+backend es un fallo del mock**, no una comodidad.
 
 ## Verificación
 

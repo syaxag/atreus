@@ -101,17 +101,29 @@ function adoptFile(sourcePath: string): boolean {
   }
 }
 
-async function download(url: string, destination: string): Promise<void> {
-  const response = await net.fetch(url, { redirect: 'follow' });
-  if (!response.ok) throw new Error(`HTTP ${response.status} al descargar el catálogo`);
-  const buffer = Buffer.from(await response.arrayBuffer());
-  writeFileSync(destination, buffer);
-}
+/**
+ * Descarga con timeout.
+ *
+ * La sincronización corre sola en segundo plano y se reprograma sola: sin
+ * cortar, un origen que acepta la conexión y no contesta nunca dejaría la
+ * tarea colgada hasta cerrar la aplicación, sin ruido y sin reintento.
+ */
+const DOWNLOAD_TIMEOUT_MS = 30_000;
 
 async function downloadBuffer(url: string): Promise<Buffer> {
-  const response = await net.fetch(url, { redirect: 'follow' });
-  if (!response.ok) throw new Error(`HTTP ${response.status} al descargar el catálogo`);
-  return Buffer.from(await response.arrayBuffer());
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  try {
+    const response = await net.fetch(url, { redirect: 'follow', signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status} al descargar el catálogo`);
+    return Buffer.from(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function download(url: string, destination: string): Promise<void> {
+  writeFileSync(destination, await downloadBuffer(url));
 }
 
 function manifest(value: unknown): value is CatalogManifest {

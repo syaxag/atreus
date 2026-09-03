@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  BookOpen, Clock, Gamepad2, Gauge, Hourglass, Map, NotebookPen, Package, Play, RefreshCw,
-  Sparkles, Target, Trophy,
+  BookOpen, Clock, Gamepad2, Gauge, Hourglass, LoaderCircle, Map, NotebookPen, Package, Play,
+  RefreshCw, Sparkles, Target, Trophy,
 } from 'lucide-react';
 import type { PlatinumReport } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
@@ -324,10 +324,19 @@ function NextStep({
             </p>
           </div>
         </div>
-        <Button size="sm" variant="primary" onClick={() => go(readableGuideCount ? 'guides' : 'achievements')}>
-          {readableGuideCount ? <BookOpen size={13} /> : <Trophy size={13} />}
-          {readableGuideCount ? 'Abrir rutas' : 'Ver logros'}
-        </Button>
+        {/* Mientras la búsqueda no ha vuelto no se sabe a dónde manda este
+            botón, y anunciar "Ver logros" para cambiarlo a "Abrir rutas" un
+            segundo después es peor que esperar. */}
+        {readableGuideCount === null ? (
+          <Button size="sm" variant="primary" disabled>
+            <LoaderCircle size={13} className="animate-spin" /> Buscando rutas…
+          </Button>
+        ) : (
+          <Button size="sm" variant="primary" onClick={() => go(readableGuideCount > 0 ? 'guides' : 'achievements')}>
+            {readableGuideCount > 0 ? <BookOpen size={13} /> : <Trophy size={13} />}
+            {readableGuideCount > 0 ? 'Abrir rutas' : 'Ver logros'}
+          </Button>
+        )}
       </div>
     </Card>
   );

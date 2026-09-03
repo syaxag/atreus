@@ -195,6 +195,7 @@ export interface PlatinumReport {
   sources: string[];
   /** Motivo por el que falta algo, si falta. */
   warning: string | null;
+  /** Cuándo se calculó, en segundos, como todas las fechas del contrato. */
   updatedAt: number;
 }
 
@@ -207,7 +208,7 @@ export interface PlatinumSummary {
   percent: number;
   complete: boolean;
   playtimeMinutes: number | null;
-  /** null mientras no se haya calculado nunca. */
+  /** En segundos; null mientras no se haya calculado nunca. */
   updatedAt: number | null;
 }
 
@@ -288,6 +289,7 @@ export interface ContentAvailability {
   readableGuides: number;
   maps: number;
   mods: number;
+  /** Cuándo se comprobó este juego, en segundos. */
   updatedAt: number;
 }
 

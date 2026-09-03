@@ -149,9 +149,26 @@ export const useStore = create<State>((set, get) => ({
   openGuideSearch: (selectedId, query) => set({ selectedId, section: 'guides', guideSearch: query }),
   clearGuideSearch: () => set({ guideSearch: null }),
 
-  addActivity: (entry) => set((state) => ({
-    activities: [{ ...entry, id: ++toastSeq, at: Math.floor(Date.now() / 1000) }, ...state.activities].slice(0, 60),
-  })),
+  /*
+   * Un evento repetido del mismo tipo y del mismo juego actualiza al anterior
+   * en vez de apilarse. Sin esto, activar cuatro mods llenaba el registro de
+   * "Taller actualizado" idénticos y echaba fuera lo que sí importaba: cada
+   * cambio en el Taller emite `mods:updated`.
+   */
+  addActivity: (entry) => set((state) => {
+    const ahora = Math.floor(Date.now() / 1000);
+    const ultima = state.activities[0];
+    const nueva = { ...entry, id: ++toastSeq, at: ahora };
+    const repetida = ultima
+      && ultima.kind === entry.kind
+      && ultima.gameId === entry.gameId
+      && ahora - ultima.at < 60;
+    return {
+      activities: repetida
+        ? [{ ...nueva, id: ultima.id }, ...state.activities.slice(1)]
+        : [nueva, ...state.activities].slice(0, 60),
+    };
+  }),
 
   pushToast: (level, message) => {
     const id = ++toastSeq;
@@ -172,7 +189,23 @@ export function wireEvents(): () => void {
   const store = useStore.getState();
   const offs = [
     api.on('library:scan-progress', (p) => useStore.setState({ scanProgress: p })),
-    api.on('library:updated', (games) => useStore.setState({ games })),
+    /*
+     * El escaneo de arranque y la recarga de definiciones ocurren en el main,
+     * no en `scan()`: llegan por aquí. Sin apuntarlo, Actividad decía "aún no
+     * hay actividad" justo después de encontrar toda la biblioteca.
+     */
+    api.on('library:updated', (games) => {
+      const previos = useStore.getState().games.length;
+      useStore.setState({ games });
+      useStore.getState().addActivity({
+        kind: 'scan',
+        title: 'Biblioteca actualizada',
+        detail: previos === games.length
+          ? `${games.length} juegos`
+          : `${games.length} juegos (${previos} antes)`,
+        gameId: null,
+      });
+    }),
     // El cálculo en segundo plano va rellenando la biblioteca juego a juego.
     api.on('platinum:summaries', (list) => {
       const byId: Record<GameId, PlatinumSummary> = {};

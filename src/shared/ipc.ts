@@ -132,7 +132,11 @@ export interface AtreusApi {
     saveProfile(profile: ModProfile): Promise<Result<ModProfile>>;
     activateProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
     deleteProfile(gameId: GameId, profileId: string): Promise<Result<void>>;
-    /** Catálogo público del juego. Falla si no declara proveedor. */
+    /**
+     * Catálogo público del juego. Un juego sin proveedor declarado devuelve
+     * lista vacía, no un error: "aquí no hay nada" y "algo se ha roto" se
+     * cuentan distinto en la interfaz.
+     */
     discover(gameId: GameId): Promise<Result<RemoteMod[]>>;
     installRemote(gameId: GameId, mod: RemoteMod): Promise<Result<Mod>>;
   };

@@ -63,6 +63,11 @@ export function LibraryView() {
 
   const needsContent = filter === 'guides' || filter === 'maps' || filter === 'mods';
   const contentComplete = games.length > 0 && games.every((game) => content[game.id] !== undefined);
+  /** La comprobación más antigua de las que hay: es la edad real del índice. */
+  const comprobadoHace = useMemo(() => {
+    const marcas = Object.values(content).map((item) => item.updatedAt);
+    return marcas.length > 0 ? relative(Math.min(...marcas)) : null;
+  }, [content]);
 
   /*
    * Comprobar toda la biblioteca cuesta red, por eso ocurre solo cuando el
@@ -198,6 +203,32 @@ export function LibraryView() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        {/* Estos tres filtros preguntan de verdad a las guías, los mapas y los
+            catálogos de mods de cada juego. Es lento la primera vez y hace
+            falta decirlo: si no, la colección desaparece sin explicación. */}
+        {needsContent && (loadingContent || comprobadoHace !== null) && (
+          <div
+            className="mb-4 flex items-center gap-2.5 rounded-sm border border-line bg-surface px-3.5 py-2.5 text-[12px]"
+            role="status"
+            aria-live="polite"
+          >
+            {loadingContent ? (
+              <>
+                <LoaderCircle size={14} className="shrink-0 animate-spin text-accent" />
+                <span className="text-muted">
+                  Comprobando guías, mapas y mods de {games.length} juegos. La primera vez
+                  tarda; después el resultado se reutiliza durante diez minutos.
+                </span>
+              </>
+            ) : (
+              <>
+                <Check size={14} className="shrink-0 text-success" />
+                <span className="text-muted">Contenido comprobado {comprobadoHace}.</span>
+              </>
+            )}
+          </div>
+        )}
+
         {loading || loadingContent ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {Array.from({ length: 8 }, (_, i) => (

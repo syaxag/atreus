@@ -54,7 +54,7 @@ function pending(): GameId[] {
       const s = resumen.get(game.id);
       if (!s || s.updatedAt === null) return true;
       if (s.complete) return false;
-      return game.lastPlayed !== null && game.lastPlayed * 1000 > s.updatedAt;
+      return game.lastPlayed !== null && game.lastPlayed > s.updatedAt;
     })
     .map((game) => game.id);
 }

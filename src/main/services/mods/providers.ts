@@ -49,6 +49,19 @@ async function fetchJson<T>(url: string): Promise<T> {
   }
 }
 
+/** Lo mismo, para las páginas que hay que leer como HTML. */
+async function fetchText(url: string, headers: Record<string, string>): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await net.fetch(url, { headers, signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── Thunderstore ──────────────────────────────────────────────
 interface TsVersion {
   version_number: string;
@@ -291,9 +304,12 @@ async function listWorkshop(appId: string): Promise<RemoteMod[]> {
   const known = new Set(local.map((item) => item.id));
   const url = `https://steamcommunity.com/workshop/browse/?appid=${encodeURIComponent(appId)}&section=readytouseitems&browsesort=toprated`;
   try {
-    const response = await net.fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Atreus/0.1' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const html = await response.text();
+    // Con timeout como el resto: sin él, una conexión a Steam que se queda
+    // colgada deja esperando para siempre a quien haya pedido el catálogo, y
+    // el índice de contenido de la Colección lo pide para todos los juegos.
+    const html = await fetchText(url, {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Atreus/0.1',
+    });
     const remote: RemoteMod[] = [];
     // Steam cambió las clases CSS de la página, pero conserva las fichas y el
     // título como enlaces. Esta forma no depende del nombre CSS minificado.

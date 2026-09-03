@@ -8,7 +8,7 @@ import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
-import { extract, flattenSingleRoot, listFiles, treeSize, SUPPORTED } from './archive';
+import { extract, flattenSingleRoot, listFiles, treeSize, RAR, SUPPORTED } from './archive';
 import { detectMeta, detectPackagedMeta, looksValid } from './detect';
 import { deploy as deployFiles, purge as purgeFiles, findConflicts, resolveRoot, isDeployed } from './deploy';
 import {
@@ -102,6 +102,7 @@ export async function install(gameId: GameId, archivePath?: string): Promise<Mod
   const packaged = isPackaged(gameId, source);
   const lower = source.toLowerCase();
   if (!packaged && !SUPPORTED.some((ext) => lower.endsWith(ext))) {
+    if (lower.endsWith('.rar')) throw new Error(RAR);
     const extra = packagedExtensions(gameId);
     throw new Error(
       `Formato no soportado. Se admiten: ${[...SUPPORTED, ...extra].join(', ')}`,

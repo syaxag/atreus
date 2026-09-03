@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, session, shell } from 'electron';
 import { join } from 'node:path';
 import { ensurePaths, paths } from './paths';
 import { log } from './logger';
@@ -135,6 +135,43 @@ function createWindow(): void {
     if (url.startsWith('https://')) shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  /*
+   * El <webview> de los mapas se queda con lo mínimo.
+   *
+   * `webviewTag: true` deja que la etiqueta traiga sus propias preferencias, y
+   * quien las escribe es el HTML del renderer: fijarlas aquí es lo que impide
+   * que una futura etiqueta —o una inyección en esa página— pida integración
+   * con Node o un preload. Se borra el preload, se apaga Node y se aísla el
+   * contexto, pase lo que pase en la etiqueta.
+   */
+  mainWindow.webContents.on('will-attach-webview', (_e, webPreferences, params) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    // `allowpopups` es un atributo de presencia: se quita, no se pone a false.
+    delete params['allowpopups'];
+  });
+
+  /*
+   * Un mapa es una página web ajena: no tiene por qué pedir el micrófono, la
+   * cámara ni la ubicación, y nada de lo que Atreus hace depende de
+   * concederlo. Se deniega todo sin preguntar, y queda en el registro.
+   *
+   * Hay que hacerlo en la partición del <webview>, que es una sesión distinta
+   * de la de la ventana: ponerlo solo en la ventana no cubriría los mapas,
+   * que son justo lo único que carga páginas de fuera.
+   */
+  for (const [nombre, ses] of [
+    ['ventana', mainWindow.webContents.session],
+    ['mapas', session.fromPartition('atreus-maps')],
+  ] as const) {
+    ses.setPermissionRequestHandler((_contents, permission, callback) => {
+      logger.warn(`permiso denegado en la sesión de ${nombre}: ${permission}`);
+      callback(false);
+    });
+  }
 
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (devUrl) {

@@ -27,6 +27,9 @@ let profiles: ModProfile[] = structuredClone(MOCK_PROFILES);
 const snapshots = new Map<string, SteamSnapshot[]>();
 /** Marcas manuales del mock: `${gameId}|${apiName}`. */
 const manualMarks = new Set<string>();
+/** Las fechas del contrato van en segundos, nunca en milisegundos. */
+const ahora = () => Math.floor(Date.now() / 1000);
+
 /** Mapas que el usuario añade a mano durante la sesión del mock. */
 const extraMaps: InteractiveMap[] = [];
 const completionProgress = new Map<string, CompletionProgress>();
@@ -34,7 +37,7 @@ const completionProgress = new Map<string, CompletionProgress>();
 function defaultProgress(gameId: string): CompletionProgress {
   return {
     gameId,
-    updatedAt: Date.now(),
+    updatedAt: ahora(),
     notes: '',
     items: [
       { id: 'main-story', label: 'Completar la historia principal', kind: 'mission', done: false },
@@ -98,7 +101,7 @@ function buildMockReport(game: Game): PlatinumReport {
       })),
     sources: ['Modo mock: datos de ejemplo'],
     warning: null,
-    updatedAt: Date.now(),
+    updatedAt: ahora(),
   };
 }
 
@@ -590,7 +593,7 @@ export const mockApi: AtreusApi = {
   content: {
     async availability() {
       await wait(450, 900);
-      const now = Date.now();
+      const now = ahora();
       const items: ContentAvailability[] = games.map((game, index) => ({
         gameId: game.id,
         // El mock alterna resultados para poder comprobar los tres filtros.
@@ -608,7 +611,7 @@ export const mockApi: AtreusApi = {
     async get(gameId) { await wait(40, 90); return ok(structuredClone(completionProgress.get(gameId) ?? defaultProgress(gameId))); },
     async save(value) {
       await wait(40, 90);
-      const saved = { ...structuredClone(value), updatedAt: Date.now() };
+      const saved = { ...structuredClone(value), updatedAt: ahora() };
       completionProgress.set(saved.gameId, saved);
       return ok(structuredClone(saved));
     },

@@ -143,7 +143,10 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
     remaining: [],
     sources: tracked > 0 ? ['Sesiones observadas por Atreus'] : [],
     warning: null,
-    updatedAt: Date.now(),
+    // En segundos, como todas las fechas del contrato: la interfaz las pasa
+    // por `relative()`, y en milisegundos decía "dentro de mil millones de
+    // segundos" donde debía poner "hace un momento".
+    updatedAt: Math.floor(Date.now() / 1000),
   };
 
   let set: AchievementSet;

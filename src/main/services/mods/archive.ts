@@ -99,7 +99,22 @@ function countFiles(dir: string): number {
   return total;
 }
 
-export const SUPPORTED = ['.zip', '.7z', '.rar'];
+/**
+ * Formatos que Atreus sabe extraer de verdad.
+ *
+ * `.rar` estuvo aquí y era mentira: el `7za.exe` que trae 7zip-bin es la
+ * versión reducida, sin el códec Rar —`7za i` solo lista 7z, cab, bzip2,
+ * gzip, lzma, tar, xz y zip—, así que la extracción fallaba con un error
+ * crudo del binario después de haberlo ofrecido en el selector.
+ */
+export const SUPPORTED = ['.zip', '.7z'];
+
+/**
+ * Un `.rar` llega de vez en cuando porque medio internet publica mods así.
+ * Decir qué hacer vale más que repetir la lista de lo admitido.
+ */
+export const RAR = 'Atreus no puede abrir un .rar: el extractor que lleva no incluye '
+  + 'ese formato. Descomprímelo y vuelve a empaquetarlo como .zip o .7z.';
 
 /**
  * Lee un JSON de dentro de un zip sin extraerlo.
@@ -158,9 +173,8 @@ export async function extract(archivePath: string, destination: string): Promise
   mkdirSync(destination, { recursive: true });
 
   if (lower.endsWith('.zip')) return extractZip(archivePath, destination);
-  if (lower.endsWith('.7z') || lower.endsWith('.rar')) {
-    return extractWith7za(archivePath, destination);
-  }
+  if (lower.endsWith('.7z')) return extractWith7za(archivePath, destination);
+  if (lower.endsWith('.rar')) throw new Error(RAR);
   throw new Error(`Formato no soportado. Se admiten: ${SUPPORTED.join(', ')}`);
 }
 

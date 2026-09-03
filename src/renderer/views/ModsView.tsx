@@ -11,7 +11,9 @@ import { bytes } from '@/lib/format';
 import { Badge, Button, Card, Empty, Modal, Skeleton, Toggle, ViewHeader } from '@/components/ui';
 
 /** Extensiones que el backend sabe extraer. Ver services/mods/archive.ts. */
-const ARCHIVE_RE = /\.(zip|7z|rar)$/i;
+const ARCHIVE_RE = /\.(zip|7z)$/i;
+/** El extractor que trae Atreus no lleva el códec Rar, y conviene decirlo. */
+const RAR_RE = /\.rar$/i;
 type InstalledSort = 'order' | 'name' | 'recent' | 'status';
 
 export function ModsView() {
@@ -111,7 +113,9 @@ export function ModsView() {
       .filter((path): path is string => typeof path === 'string' && ARCHIVE_RE.test(path));
 
     if (paths.length === 0) {
-      pushToast('warn', 'Suelta un archivo .zip, .7z o .rar');
+      pushToast('warn', files.some((f) => RAR_RE.test(f.path ?? ''))
+        ? 'Atreus no puede abrir un .rar. Vuelve a empaquetarlo como .zip o .7z.'
+        : 'Suelta un archivo .zip o .7z');
       return;
     }
     for (const path of paths) await install(path);
@@ -346,7 +350,7 @@ export function ModsView() {
           <div className="pointer-events-none absolute inset-3 z-10 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-accent bg-accent-soft">
             <Upload size={28} className="text-accent" />
             <p className="text-[13px] font-medium">Suelta el archivo para instalarlo</p>
-            <p className="text-[12px] text-muted">.zip · .7z · .rar</p>
+            <p className="text-[12px] text-muted">.zip · .7z</p>
           </div>
         )}
 
@@ -381,7 +385,7 @@ export function ModsView() {
           <Empty
             icon={<Package size={40} strokeWidth={1.25} />}
             title="Sin mods instalados"
-            hint="Arrastra aquí un .zip, .7z o .rar, o usa el botón. Los archivos se guardan aparte y se despliegan al juego por enlace duro, así que se pueden revertir sin residuos."
+            hint="Arrastra aquí un .zip o un .7z, o usa el botón. Los archivos se guardan aparte y se despliegan al juego por enlace duro, así que se pueden revertir sin residuos."
             action={
               <Button variant="primary" onClick={() => install()}>
                 <Plus size={14} /> Instalar mod

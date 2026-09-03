@@ -9,7 +9,15 @@ const logger = log('content');
 
 /** La Colección no debe volver a consultar tres catálogos al cambiar de filtro. */
 const CACHE_TTL_MS = 10 * 60_000;
-let cache: { at: number; items: ContentAvailability[] } | null = null;
+/**
+ * La caché va por juego, no en bloque.
+ *
+ * Con una sola marca de tiempo para toda la lista, quitar un juego la dejaba
+ * «fresca» sin él: ese juego no se volvía a mirar hasta que expiraba el turno
+ * entero, y mientras tanto los filtros lo trataban en silencio como si no
+ * tuviera nada. Cada ficha lleva ya su `updatedAt`, así que es él quien manda.
+ */
+const cache = new Map<GameId, ContentAvailability>();
 let pending: Promise<ContentAvailability[]> | null = null;
 
 /** Ejecuta trabajos en paralelo sin abrir una conexión por cada juego a la vez. */
@@ -49,8 +57,29 @@ async function inspect(game: Game): Promise<ContentAvailability> {
     readableGuides: guides.filter((guide) => guide.readable).length,
     maps: maps.length,
     mods: mods.length,
-    updatedAt: Date.now(),
+    updatedAt: Math.floor(Date.now() / 1000),
   };
+}
+
+async function run(): Promise<ContentAvailability[]> {
+  const games = listGames();
+  const limite = Date.now() - CACHE_TTL_MS;
+
+  // Solo se miran los que faltan o han caducado: cambiar de filtro con la
+  // biblioteca ya comprobada no gasta una sola petición.
+  const faltan = games.filter((game) => (cache.get(game.id)?.updatedAt ?? 0) * 1000 < limite);
+  if (faltan.length > 0) {
+    logger.info(`comprobando el contenido de ${faltan.length} de ${games.length} juegos`);
+    for (const item of await pooled(faltan, 3, inspect)) cache.set(item.gameId, item);
+  }
+
+  // Un juego que ya no está en la biblioteca tampoco debe seguir aquí.
+  const vivos = new Set(games.map((game) => game.id));
+  for (const id of [...cache.keys()]) if (!vivos.has(id)) cache.delete(id);
+
+  return games
+    .map((game) => cache.get(game.id))
+    .filter((item): item is ContentAvailability => item !== undefined);
 }
 
 /**
@@ -59,18 +88,12 @@ async function inspect(game: Game): Promise<ContentAvailability> {
  * usuario quizá nunca abra.
  */
 export async function availability(): Promise<ContentAvailability[]> {
-  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.items;
-  pending ??= pooled(listGames(), 3, inspect)
-    .then((items) => {
-      cache = { at: Date.now(), items };
-      return items;
-    })
-    .finally(() => { pending = null; });
+  pending ??= run().finally(() => { pending = null; });
   return pending;
 }
 
 /** El escaneo puede haber cambiado la biblioteca. */
 export function invalidate(gameId?: GameId): void {
-  if (!cache || !gameId) { cache = null; return; }
-  cache = { ...cache, items: cache.items.filter((item) => item.gameId !== gameId) };
+  if (gameId) cache.delete(gameId);
+  else cache.clear();
 }
