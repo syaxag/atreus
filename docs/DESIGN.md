@@ -70,6 +70,36 @@ literal en un componente** — siempre `var(--…)`.
 - **Nunca animar propiedades de layout.** Solo `opacity` y `transform`.
 - Respetar `prefers-reduced-motion`.
 
+El movimiento aquí no decora: dice que algo ha cambiado, de dónde viene o que
+la aplicación sigue viva. Si una animación no responde a ninguna de esas tres
+cosas, sobra.
+
+| Clase | Qué anuncia |
+|---|---|
+| `animate-view` | Se ha cambiado de vista |
+| `animate-rise` | Entra una tarjeta o una fila, escalonada por su posición |
+| `animate-modal` | Un diálogo se pone delante de todo lo demás |
+| `animate-marca` | La barra morada de la sección activa, creciendo desde su centro |
+| `animate-flota` | Un estado vacío: no hay nada, pero no está colgado |
+| `animate-toast-in` / `-out` | Un aviso que llega y se va |
+| `skeleton` | Contenido en camino (un reflejo que cruza, no un parpadeo) |
+| `animate-sweep` | Un proceso sin porcentaje conocido |
+
+Dos que no son clases y merecen la misma disciplina:
+
+- **La barra de progreso se llena al aparecer**, con `transform: scaleX()`. Es
+  el componente que más se repite en la aplicación; verla crecer una vez hace
+  que una parrilla se lea como un progreso y no como un gráfico. Va por
+  `transform` y no por `width` para no rehacer el diseño en cada fotograma de
+  cada tarjeta visible.
+- **El marcador de platinos sube contando** (`useContador`). Solo él: es el
+  número que da nombre a la aplicación. Contar cada cifra de cada tarjeta sería
+  ruido, y contar algo que no ha cambiado por decisión del usuario es mentira.
+
+Las animaciones infinitas se cortan a una repetición bajo `prefers-reduced-motion`
+en vez de acelerarse: acortar una a 0,01 ms la repetiría cien mil veces por
+segundo, que es justo lo contrario de lo que pide quien la desactiva.
+
 ## Layout de la ventana
 
 ```
@@ -105,8 +135,12 @@ literal en un componente** — siempre `var(--…)`.
 ## Componentes: notas concretas
 
 - **Toggle**: pista 36×20, `--border-strong` apagado → `--accent` encendido.
-- **Tarjeta de juego**: carátula 3:4, radio `--r-md`, hover eleva `translateY(-2px)`
-  y el borde pasa a `--accent`.
+- **Tarjeta de juego**: carátula 16:9, radio `--r-md`, hover eleva la tarjeta, la
+  carátula se acerca un 7 % y el borde pasa a `--accent`. Toda la tarjeta abre la
+  ficha menos sus controles, que son botones de verdad; **el nombre es el botón**,
+  y con él vuelven el foco de teclado, el nombre accesible y el tooltip del título
+  recortado. Nada de un botón invisible por encima con el contenido en
+  `pointer-events: none`: eso apaga los tooltips de todo lo que tape.
 - **Fila de logro**: 44px, icono 32×32. Desbloqueado = icono a color + check morado.
   Bloqueado = icono en escala de grises al 40%.
 - **Banda de cambios pendientes**: fija abajo, `--bg-elevated`, borde superior morado.

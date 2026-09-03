@@ -2,6 +2,8 @@ import { Gem, Trophy, Compass, Map, Package, Settings2, Activity } from 'lucide-
 import { useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { Progress } from '@/components/ui';
+import { useContador } from '@/lib/contar';
 import { useStore, type Section } from '@/store';
 
 /**
@@ -47,6 +49,10 @@ export function Sidebar() {
     };
   }, [platinum]);
 
+  // El marcador sube contando: es el número que da nombre a la aplicación y
+  // el que cambia cuando de verdad ha pasado algo.
+  const platinosMostrados = useContador(marcador.platinos);
+
   return (
     <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col border-r border-line bg-surface">
       <button
@@ -55,7 +61,7 @@ export function Sidebar() {
         className="flex items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
       >
         <span className="text-[26px] font-semibold leading-none tabular-nums text-fg">
-          {marcador.platinos}
+          {platinosMostrados}
         </span>
         <span className="min-w-0">
           <span className="block text-[11px] uppercase tracking-wide text-accent">
@@ -97,7 +103,7 @@ export function Sidebar() {
           )}
         >
           {section === 'game' && (
-            <span className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-full bg-accent" />
+            <span className="animate-marca absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-full bg-accent" />
           )}
           <p className="text-[11px] uppercase tracking-wide text-faint">Persiguiendo</p>
           <p className="mt-0.5 truncate text-[13px] font-medium" title={selected.name}>
@@ -105,12 +111,12 @@ export function Sidebar() {
           </p>
           {summary && summary.total > 0 && (
             <>
-              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-inset">
-                <div
-                  className={cn('h-full rounded-full', summary.complete ? 'bg-success' : 'bg-accent')}
-                  style={{ width: `${summary.percent}%` }}
-                />
-              </div>
+              <Progress
+                value={summary.percent}
+                tone={summary.complete ? 'success' : 'accent'}
+                className="mt-1.5 h-1"
+                label={`${selected.name}: ${summary.unlocked} de ${summary.total} trofeos`}
+              />
               <p className={cn('mt-1 text-[11px]', summary.complete ? 'text-success' : 'text-faint')}>
                 {summary.complete
                   ? 'Platino conseguido'
@@ -151,7 +157,7 @@ function Item({
       title={disabled ? 'Elige un juego en la Colección' : undefined}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex h-9 items-center gap-2.5 rounded-sm px-3 text-[13px] font-medium',
+        'group/item relative flex h-9 items-center gap-2.5 rounded-sm px-3 text-[13px] font-medium',
         'transition-colors duration-[120ms] ease-atreus',
         disabled
           ? 'cursor-not-allowed text-faint/60'
@@ -160,11 +166,20 @@ function Item({
             : 'text-muted hover:bg-elevated hover:text-fg',
       )}
     >
-      {/* Barra morada de 2px: la única marca de estado activo. */}
+      {/* Barra morada de 2px: la única marca de estado activo. Crece desde su
+          centro para que el salto entre secciones se vea llegar. */}
       {active && !disabled && (
-        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />
+        <span className="animate-marca absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />
       )}
-      <Icon size={16} strokeWidth={1.75} />
+      <Icon
+        size={16}
+        strokeWidth={1.75}
+        className={cn(
+          'transition-transform duration-[180ms] ease-atreus',
+          !disabled && 'group-hover/item:scale-110',
+          active && 'scale-110',
+        )}
+      />
       {label}
     </button>
   );

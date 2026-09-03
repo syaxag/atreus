@@ -257,6 +257,57 @@ body {
   animation: atreus-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/*
+ * Entrada de un diálogo.
+ *
+ * Aparecer de golpe en el centro de la pantalla se lee como un salto: el
+ * modal viene de un poco más abajo y un pelo más pequeño, 240 ms, que es lo
+ * que el sistema reserva para lo que tapa a lo demás.
+ */
+@keyframes atreus-modal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal {
+  animation: atreus-modal 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/*
+ * La marca de sección activa crece desde su centro en vez de encenderse.
+ * Es lo único morado de la barra lateral, así que merece que se vea llegar.
+ */
+@keyframes atreus-marca {
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+.animate-marca {
+  animation: atreus-marca 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/*
+ * El icono de un estado vacío respira.
+ *
+ * Una pantalla sin contenido es donde más se nota que la aplicación está
+ * quieta; tres píxeles cada cuatro segundos bastan para que no parezca
+ * colgada, y son pocos como para no pedir atención.
+ */
+@keyframes atreus-flota {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+.animate-flota {
+  animation: atreus-flota 4s ease-in-out infinite;
+}
+
 /* Salida de los toasts, para que no desaparezcan de golpe. */
 @keyframes atreus-toast-out {
   to {

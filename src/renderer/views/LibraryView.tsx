@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Check, Search, RefreshCw, Star, Play, Gem, Plus, Trophy, Users, LoaderCircle,
+  Check, Search, RefreshCw, Star, Play, Gem, Globe, Plus, Trophy, Users, LoaderCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
@@ -27,6 +27,14 @@ function scanPercent(progress: { phase: string } | null): number {
   return Math.round(((index + 1) / SCAN_PHASES.length) * 100);
 }
 
+/*
+ * Dos familias de filtro, y conviene que se noten distintas.
+ *
+ * Las cinco primeras salen de lo que Atreus ya sabe y son instantáneas. Las
+ * tres últimas van a preguntar a las guías, a los mapas y a los catálogos de
+ * mods de cada juego: cuestan red y tardan. Presentarlas como nueve fichas
+ * iguales prometía lo mismo de todas.
+ */
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'in-progress', label: 'En curso' },
@@ -34,6 +42,9 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'untouched', label: 'Sin empezar' },
   { id: 'favorites', label: 'Favoritos' },
   { id: 'solo', label: 'Solo' },
+];
+
+const CONTENT_FILTERS: { id: Filter; label: string }[] = [
   { id: 'guides', label: 'Con guía legible' },
   { id: 'maps', label: 'Con mapa' },
   { id: 'mods', label: 'Con mods' },
@@ -176,7 +187,7 @@ export function LibraryView() {
             className="w-full pl-8"
           />
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((f) => (
             <Button
               key={f.id}
@@ -184,6 +195,22 @@ export function LibraryView() {
               variant={filter === f.id ? 'primary' : 'ghost'}
               onClick={() => setFilter(f.id)}
             >
+              {f.label}
+            </Button>
+          ))}
+
+          {/* La raya separa lo que Atreus ya sabe de lo que va a ir a mirar. */}
+          <span className="mx-1 h-4 w-px shrink-0 bg-line-strong" aria-hidden="true" />
+
+          {CONTENT_FILTERS.map((f) => (
+            <Button
+              key={f.id}
+              size="sm"
+              variant={filter === f.id ? 'primary' : 'ghost'}
+              onClick={() => setFilter(f.id)}
+              title="Comprueba en línea qué tiene cada juego de tu colección"
+            >
+              <Globe size={11} className={filter === f.id ? undefined : 'text-faint'} />
               {f.label}
             </Button>
           ))}
@@ -431,16 +458,22 @@ function GameCard({
       // El escalonado se corta pronto: con veinte tarjetas ya se ha leído el
       // gesto, y esperar a la número cuarenta solo sería lentitud disfrazada.
       style={{ animationDelay: `${Math.min(index, 14) * 22}ms` }}
+      /*
+       * Toda la tarjeta abre, menos sus controles.
+       *
+       * Antes había un botón invisible cubriéndola entera y el contenido iba
+       * con `pointer-events: none` para dejar pasar el clic; eso también
+       * apagaba los tooltips, y el nombre recortado se quedaba sin su `title`
+       * justo donde más falta hace. Preguntar por el botón más cercano
+       * devuelve el ratón a su sitio: el teclado entra por el nombre, que es
+       * un botón de verdad y lleva el nombre accesible de la tarjeta.
+       */
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('button')) return;
+        open();
+      }}
     >
-      {/* El botón de abrir es hermano de los controles de favorito y lanzar.
-          Así no hay botones dentro de otro botón para teclado o lectores. */}
-      <button
-        type="button"
-        onClick={open}
-        aria-label={`Abrir ficha de ${game.name}`}
-        className="absolute inset-0 z-0 rounded-md focus-visible:outline-accent"
-      />
-      <div className="relative z-10 flex aspect-[16/9] pointer-events-none items-center justify-center overflow-hidden bg-inset">
+      <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-inset">
         <GameCoverImage game={game} />
 
         <button
@@ -448,7 +481,6 @@ function GameCard({
           onClick={(e) => { e.stopPropagation(); void toggleFavorite(game.id); }}
           aria-label={game.favorite ? 'Quitar de favoritos' : 'Marcar favorito'}
           className={cn(
-            'pointer-events-auto',
             'absolute right-2 top-2 rounded-sm bg-surface/80 p-1.5 backdrop-blur-sm transition-all duration-[120ms]',
             'focus-visible:opacity-100',
             game.favorite
@@ -467,7 +499,7 @@ function GameCard({
             onClick={verCelebracion}
             aria-label={`Ver la celebración del platino de ${game.name}`}
             title="Ver la celebración"
-            className="pointer-events-auto absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
+            className="absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
           >
             {abriendo
               ? <LoaderCircle size={20} className="animate-spin text-accent" />
@@ -479,14 +511,23 @@ function GameCard({
           type="button"
           onClick={launch}
           aria-label={`Lanzar ${game.name}`}
-          className="pointer-events-auto absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
+          className="absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Play size={13} fill="currentColor" />
         </button>
       </div>
 
-      <div className="relative z-10 pointer-events-none flex flex-col gap-1.5 p-3">
-        <p className="truncate text-[13px] font-medium" title={game.name}>{game.name}</p>
+      <div className="flex flex-col gap-1.5 p-3">
+        {/* El nombre es el botón: es la entrada de teclado a la ficha y el
+            nombre accesible de la tarjeta, y ahora vuelve a tener tooltip. */}
+        <button
+          type="button"
+          onClick={open}
+          title={game.name}
+          className="truncate rounded-sm text-left text-[13px] font-medium transition-colors duration-[120ms] hover:text-accent-hover"
+        >
+          {game.name}
+        </button>
 
         {/* El progreso hacia el platino es lo primero que se mira en esta
             aplicación, así que ocupa el sitio que antes tenían las etiquetas. */}

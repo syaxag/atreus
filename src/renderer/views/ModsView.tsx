@@ -418,7 +418,7 @@ export function ModsView() {
               <Empty title="Ningún mod coincide" hint="Prueba otro término de búsqueda." />
             ) : <div className="flex flex-col gap-2">
             {visibleMods.map((mod) => (
-              <Card key={mod.id} className={cn('defer-render px-4 py-3', !mod.enabled && 'opacity-60')}>
+              <Card key={mod.id} hover className={cn('defer-render px-4 py-3', !mod.enabled && 'opacity-60')}>
                 <div className="flex items-center gap-3">
                   <span className="w-6 shrink-0 text-center font-mono text-[12px] text-faint">
                     {mod.order + 1}

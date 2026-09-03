@@ -34,7 +34,7 @@ export function ActivityView() {
               {activeGames.map((game) => (
                 <button key={game.id} type="button" onClick={() => open(game.id)}
                   className="flex items-center gap-2 rounded-sm border border-[var(--success-line)] bg-surface px-3 py-2 text-[13px] font-medium text-fg transition-colors hover:bg-elevated">
-                  <span className="h-2 w-2 rounded-full bg-success" /> {game.name}
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-success" /> {game.name}
                 </button>
               ))}
             </div>
@@ -45,11 +45,18 @@ export function ActivityView() {
             hint="Cuando escanees, abras un juego o modifiques el Taller, aparecerá aquí." />
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-2">
-            {activities.map((entry) => {
+            {activities.map((entry, index) => {
               const Icon = ICONS[entry.kind];
               const game = entry.gameId ? games.find((item) => item.id === entry.gameId) : null;
               return (
-                <Card key={entry.id} className="flex items-start gap-3 p-3.5">
+                <Card
+                  key={entry.id}
+                  hover
+                  className="animate-rise flex items-start gap-3 p-3.5"
+                  // Lo reciente entra primero; a partir de la décima el
+                  // escalonado ya no aporta y solo sería espera.
+                  style={{ animationDelay: `${Math.min(index, 9) * 26}ms` }}
+                >
                   <div className="mt-0.5 rounded-sm bg-accent-soft p-2 text-accent"><Icon size={15} /></div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">

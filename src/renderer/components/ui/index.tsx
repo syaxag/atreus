@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 /**
@@ -127,9 +127,26 @@ export function Slider({
 }
 
 // ── Card ──────────────────────────────────────────────────────
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
+/**
+ * `hover` es para las tarjetas que son **filas de una lista**, no para los
+ * paneles. Un panel que se ilumina al pasar por encima promete que se puede
+ * pulsar; una fila de una lista larga, en cambio, necesita decir dónde está el
+ * cursor cuando hay veinte iguales seguidas.
+ */
+export function Card({
+  className, children, hover, style,
+}: { className?: string; children: ReactNode; hover?: boolean; style?: CSSProperties }) {
   return (
-    <div className={cn('rounded-md border border-line bg-surface', className)}>{children}</div>
+    <div
+      style={style}
+      className={cn(
+        'rounded-md border border-line bg-surface',
+        hover && 'transition-colors duration-[120ms] ease-atreus hover:border-line-strong hover:bg-elevated',
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -170,8 +187,8 @@ export function Empty({
   icon, title, hint, action,
 }: { icon?: ReactNode; title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      {icon && <div className="text-faint">{icon}</div>}
+    <div className="animate-view flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      {icon && <div className="animate-flota text-faint">{icon}</div>}
       <div>
         <p className="text-[15px] font-medium text-fg">{title}</p>
         {hint && <p className="mt-1 max-w-sm text-[13px] text-muted">{hint}</p>}
@@ -206,6 +223,21 @@ export function Progress({
   value, tone = 'accent', className, label,
 }: { value: number; tone?: 'accent' | 'success'; className?: string; label?: string }) {
   const clamped = Math.max(0, Math.min(100, value));
+
+  /*
+   * Se llena al aparecer, en vez de estar ya lleno.
+   *
+   * Es la barra que más se repite en la aplicación: verla crecer una vez es lo
+   * que hace que una parrilla de dieciséis juegos se lea como un progreso y no
+   * como un gráfico estático. Se pinta desde cero y se sube al valor en el
+   * fotograma siguiente, que es cuando el navegador ya tiene con qué animar.
+   */
+  const [dibujado, setDibujado] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDibujado(clamped));
+    return () => cancelAnimationFrame(frame);
+  }, [clamped]);
+
   return (
     <div
       role="progressbar"
@@ -215,12 +247,17 @@ export function Progress({
       aria-label={label ?? 'Progreso de logros'}
       className={cn('h-1.5 w-full overflow-hidden rounded-full bg-inset', className)}
     >
+      {/*
+        Escala en vez de ancho: el sistema de diseño solo anima `opacity` y
+        `transform`, y animar el ancho obliga al motor a rehacer el diseño en
+        cada fotograma de cada tarjeta visible.
+      */}
       <div
         className={cn(
-          'h-full rounded-full transition-[width] duration-500 ease-atreus',
+          'h-full origin-left rounded-full transition-transform duration-500 ease-atreus',
           tone === 'success' ? 'bg-success' : 'bg-accent',
         )}
-        style={{ width: `${clamped}%` }}
+        style={{ transform: `scaleX(${dibujado / 100})` }}
       />
     </div>
   );
@@ -322,7 +359,7 @@ export function Modal({
         onClick={(event) => event.stopPropagation()}
         className={cn(
           'flex max-h-full w-full flex-col overflow-hidden rounded-md border border-line bg-surface shadow-2xl',
-          'focus:outline-none',
+          'focus:outline-none animate-modal',
           wide ? 'max-w-3xl' : 'max-w-lg',
         )}
       >
