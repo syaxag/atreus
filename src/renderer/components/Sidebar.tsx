@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { Progress } from '@/components/ui';
 import { useContador } from '@/lib/contar';
+import { useT, type Clave } from '@/i18n';
 import { useStore, type Section } from '@/store';
 
 /**
@@ -29,24 +30,26 @@ import { useStore, type Section } from '@/store';
  */
 interface Destino {
   id: Section;
-  label: string;
+  /** Clave de traducción, no el texto: el nombre lo pone el idioma activo. */
+  label: Clave;
   icon: LucideIcon;
-  hint?: string;
+  hint?: Clave;
 }
 
 const GENERALES: Destino[] = [
-  { id: 'library', label: 'Colección', icon: Gem },
-  { id: 'activity', label: 'Actividad', icon: Activity },
+  { id: 'library', label: 'lateral.coleccion', icon: Gem },
+  { id: 'activity', label: 'lateral.actividad', icon: Activity },
 ];
 
 const DEL_JUEGO: Destino[] = [
-  { id: 'achievements', label: 'Trofeos', icon: Trophy, hint: 'logros, rareza e historial' },
-  { id: 'guides', label: 'Rutas', icon: Compass, hint: 'guías con su texto completo' },
-  { id: 'maps', label: 'Atlas', icon: Map, hint: 'mapas interactivos' },
-  { id: 'mods', label: 'Taller', icon: Package, hint: 'instalar y ordenar mods' },
+  { id: 'achievements', label: 'lateral.trofeos', icon: Trophy, hint: 'lateral.trofeosPista' },
+  { id: 'guides', label: 'lateral.rutas', icon: Compass, hint: 'lateral.rutasPista' },
+  { id: 'maps', label: 'lateral.atlas', icon: Map, hint: 'lateral.atlasPista' },
+  { id: 'mods', label: 'lateral.taller', icon: Package, hint: 'lateral.tallerPista' },
 ];
 
 export function Sidebar() {
+  const t = useT();
   const section = useStore((s) => s.section);
   const go = useStore((s) => s.go);
   const selected = useStore((s) => s.selected());
@@ -80,7 +83,7 @@ export function Sidebar() {
     <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col overflow-y-auto border-r border-line bg-surface">
       <button
         onClick={() => go('library')}
-        title="Ir a tu colección"
+        title={t('lateral.irColeccion')}
         className="flex shrink-0 items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
       >
         <span className="text-[26px] font-semibold leading-none tabular-nums text-fg">
@@ -88,10 +91,12 @@ export function Sidebar() {
         </span>
         <span className="min-w-0">
           <span className="block text-[11px] uppercase tracking-wide text-accent">
-            {marcador.platinos === 1 ? 'platino' : 'platinos'}
+            {t(marcador.platinos === 1 ? 'lateral.platino' : 'lateral.platinos')}
           </span>
           <span className="block truncate text-[11px] text-faint">
-            {marcador.enCurso > 0 ? `${marcador.enCurso} en curso` : 'nada empezado'}
+            {marcador.enCurso > 0
+              ? t('lateral.enCurso', { n: marcador.enCurso })
+              : t('lateral.nadaEmpezado')}
           </span>
         </span>
       </button>
@@ -107,7 +112,7 @@ export function Sidebar() {
         ))}
       </div>
 
-      <Grupo titulo={selected ? 'Sobre este juego' : 'Necesitan un juego'} />
+      <Grupo titulo={t(selected ? 'lateral.grupoConJuego' : 'lateral.grupoSinJuego')} />
 
       {selected ? (
         <>
@@ -119,7 +124,7 @@ export function Sidebar() {
           <button
             onClick={() => go('game')}
             aria-current={section === 'game' ? 'page' : undefined}
-            title={`Abrir la ficha de ${selected.name}`}
+            title={t('lateral.abrirFicha', { juego: selected.name })}
             className={cn(
               'group relative mx-2 rounded-sm px-2.5 py-2 text-left',
               'transition-colors duration-[120ms] ease-atreus',
@@ -132,7 +137,7 @@ export function Sidebar() {
             {/* Sin un segundo rótulo encima: el del grupo ya dice de qué va
                 esto, y dos etiquetas en mayúsculas seguidas no informan más. */}
             <p className="flex items-center gap-1 text-[13px] font-medium">
-              <span className="min-w-0 truncate" title={`Abrir la ficha de ${selected.name}`}>
+              <span className="min-w-0 truncate" title={t('lateral.abrirFicha', { juego: selected.name })}>
                 {selected.name}
               </span>
               <ChevronRight
@@ -146,12 +151,14 @@ export function Sidebar() {
                   value={summary.percent}
                   tone={summary.complete ? 'success' : 'accent'}
                   className="mt-1.5 h-1"
-                  label={`${selected.name}: ${summary.unlocked} de ${summary.total} trofeos`}
+                  label={t('lateral.progresoDe', {
+                    juego: selected.name, hechos: summary.unlocked, total: summary.total,
+                  })}
                 />
                 <p className={cn('mt-1 text-[11px]', summary.complete ? 'text-success' : 'text-faint')}>
                   {summary.complete
-                    ? 'Platino conseguido'
-                    : `${summary.unlocked}/${summary.total} trofeos`}
+                    ? t('lateral.platinoConseguido')
+                    : t('lateral.trofeosDe', { hechos: summary.unlocked, total: summary.total })}
                 </p>
               </>
             )}
@@ -178,14 +185,13 @@ export function Sidebar() {
          */
         <div className="mx-2 rounded-sm border border-dashed border-line px-3 py-3">
           <p className="text-[12px] leading-5 text-muted">
-            Cuando tengas un juego elegido, aquí estarán sus trofeos, sus rutas,
-            sus mapas y su taller.
+            {t('lateral.sinJuego')}
           </p>
           <button
             onClick={() => go('library')}
             className="mt-2 flex items-center gap-1 text-[12px] font-medium text-accent transition-colors hover:text-accent-hover"
           >
-            Ir a la Colección <ChevronRight size={12} />
+            {t('lateral.irAColeccion')} <ChevronRight size={12} />
           </button>
         </div>
       )}
@@ -204,7 +210,7 @@ export function Sidebar() {
         <button
           onClick={() => go('settings')}
           aria-current={section === 'settings' ? 'page' : undefined}
-          title="Carpetas, claves, catálogo y actualizaciones"
+          title={t('lateral.ajustesPista')}
           className={cn(
             'group/item flex h-8 flex-1 items-center gap-2.5 rounded-sm px-2.5 text-[13px] font-medium',
             'transition-colors duration-[120ms] ease-atreus',
@@ -218,9 +224,9 @@ export function Sidebar() {
             strokeWidth={1.75}
             className="shrink-0 transition-transform duration-[240ms] ease-atreus group-hover/item:rotate-45"
           />
-          Ajustes
+          {t('lateral.ajustes')}
         </button>
-        <span className="shrink-0 px-1.5 font-mono text-[10px] text-faint" title="Versión instalada">
+        <span className="shrink-0 px-1.5 font-mono text-[10px] text-faint" title={t('lateral.version')}>
           {version ?? ''}
         </span>
       </div>
@@ -244,6 +250,7 @@ function Item({
   sangrado?: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       onClick={onClick}
@@ -271,10 +278,10 @@ function Item({
         )}
       />
       <span className="min-w-0">
-        {label}
+        {t(label)}
         {hint && (
           <span className="block truncate text-[11px] font-normal leading-tight text-faint">
-            {hint}
+            {t(hint)}
           </span>
         )}
       </span>

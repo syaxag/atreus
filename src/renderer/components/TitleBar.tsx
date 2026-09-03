@@ -1,5 +1,6 @@
 import { Minus, Square, X } from 'lucide-react';
 import { api, usingMock } from '@/lib/api';
+import { useT } from '@/i18n';
 import { Badge } from '@/components/ui';
 
 /**
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui';
  * La zona con `.drag` mueve la ventana; los botones llevan `.no-drag`.
  */
 export function TitleBar() {
+  const t = useT();
   return (
     <div className="drag flex h-[var(--titlebar-h)] shrink-0 items-center justify-between border-b border-line bg-surface pl-4">
       <div className="flex items-center gap-2.5">
@@ -14,19 +16,19 @@ export function TitleBar() {
         <span className="text-[13px] font-semibold tracking-tight">Atreus</span>
         {usingMock && (
           <span className="no-drag">
-            <Badge tone="warn">datos de prueba</Badge>
+            <Badge tone="warn">{t('barra.datosPrueba')}</Badge>
           </span>
         )}
       </div>
 
       <div className="no-drag flex h-full">
-        <WindowButton onClick={() => api.app.minimize()} label="Minimizar">
+        <WindowButton onClick={() => api.app.minimize()} label={t('barra.minimizar')}>
           <Minus size={14} />
         </WindowButton>
-        <WindowButton onClick={() => api.app.maximize()} label="Maximizar">
+        <WindowButton onClick={() => api.app.maximize()} label={t('barra.maximizar')}>
           <Square size={11} />
         </WindowButton>
-        <WindowButton onClick={() => api.app.close()} label="Cerrar" danger>
+        <WindowButton onClick={() => api.app.close()} label={t('barra.cerrar')} danger>
           <X size={14} />
         </WindowButton>
       </div>

@@ -3,12 +3,14 @@ import { ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCod
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
+import { IDIOMAS, useT } from '@/i18n';
 import { Badge, Button, Card, Input, Toggle, ViewHeader } from '@/components/ui';
 
 interface KeyCheck { ok: boolean; persona: string | null; publicProfile: boolean; message: string }
 interface XboxCheck { ok: boolean; gamertag: string | null; titles: number; message: string }
 
 export function SettingsView() {
+  const t = useT();
   const settings = useStore((s) => s.settings);
   const [checkingKey, setCheckingKey] = useState(false);
   const [keyCheck, setKeyCheck] = useState<KeyCheck | null>(null);
@@ -232,6 +234,23 @@ export function SettingsView() {
           </Section>
 
           <Section title="Biblioteca y comportamiento" defaultOpen>
+            {/* El idioma va el primero de esta sección: es lo que cambia todo
+                lo demás que se lee debajo. Se aplica al momento, sin reiniciar,
+                porque el traductor está suscrito a los ajustes. */}
+            <Row label={t('ajustes.idioma')} hint={t('ajustes.idiomaPista')}>
+              <div className="flex gap-1 rounded-sm border border-line p-0.5">
+                {IDIOMAS.map((idioma) => (
+                  <Button
+                    key={idioma.id}
+                    size="sm"
+                    variant={settings.language === idioma.id ? 'primary' : 'ghost'}
+                    onClick={() => void patch({ language: idioma.id })}
+                  >
+                    {t(idioma.clave)}
+                  </Button>
+                ))}
+              </div>
+            </Row>
             <Row label="Escanear al arrancar"
                  hint="Refresca la biblioteca cada vez que se abre Atreus.">
               <Toggle checked={settings.scanOnStart}
