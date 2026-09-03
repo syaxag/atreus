@@ -7,9 +7,9 @@ import type { PlatinumReport } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
-import { duration, hours, PLATFORM_LABEL, percent, rarity, relative, span } from '@/lib/format';
+import { duration, hours, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span } from '@/lib/format';
 import {
-  Badge, Button, Card, DifficultyMeter, Empty, Progress, Skeleton, ViewHeader,
+  Badge, Button, Card, DifficultyMeter, Empty, ProgressRing, Skeleton,
 } from '@/components/ui';
 
 /**
@@ -79,17 +79,51 @@ export function GameView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ViewHeader
-        title={game.name}
-        subtitle={`${PLATFORM_LABEL[game.platform] ?? game.platform} · última partida ${relative(game.lastPlayed)}`}
-        actions={<>
-          {isRunning && <Badge tone="success">En ejecución</Badge>}
-          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)} title="Volver a calcular el informe">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Actualizar
-          </Button>
-          <Button variant="primary" onClick={() => void play()}><Play size={14} fill="currentColor" /> Jugar</Button>
-        </>}
-      />
+      {/*
+        La ficha se abre con la carátula del juego, no con un título sobre gris.
+        El arte ya estaba en la aplicación —de fondo de ventana, al 20 % y bajo
+        otra capa al 85 %, o sea invisible—; aquí se usa de verdad, con dos
+        degradados que le devuelven el contraste al texto sin apagarla.
+      */}
+      <header className="relative shrink-0 overflow-hidden border-b border-line">
+        {game.headerUrl && (
+          <>
+            <div
+              aria-hidden="true"
+              className="animate-hero absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url("${game.headerUrl}")` }}
+            />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[var(--bg-surface)] via-[var(--bg-surface)]/90 to-transparent" />
+            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-transparent" />
+          </>
+        )}
+        <div className="relative flex flex-wrap items-end justify-between gap-4 px-6 py-5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{PLATFORM_LABEL[game.platform] ?? game.platform}</Badge>
+              {isRunning && (
+                <Badge tone="success">
+                  <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                  En ejecución
+                </Badge>
+              )}
+              {game.multiplayer && <Badge tone="warn">Multijugador</Badge>}
+            </div>
+            <h1 className="mt-2 truncate text-[28px] font-semibold leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,.8)]">
+              {game.name}
+            </h1>
+            <p className="mt-0.5 text-[12px] text-muted">
+              {duration(game.playtimeMinutes)} jugadas · última partida {relative(game.lastPlayed)}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)} title="Volver a calcular el informe">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : undefined} /> Actualizar
+            </Button>
+            <Button variant="primary" onClick={() => void play()}><Play size={14} fill="currentColor" /> Jugar</Button>
+          </div>
+        </div>
+      </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {loading && !report ? <ReportSkeleton gameName={game.name} /> : report ? (
@@ -141,22 +175,36 @@ function Report({
           className="pointer-events-none absolute right-8 top-1/2 h-[84%] w-auto -translate-y-1/2 drop-shadow-[0_12px_34px_rgba(109,40,217,.55)]"
         />
       </>}
-      <div className="relative flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <div className="relative flex flex-wrap items-center gap-6">
+        {/* El anillo es el titular: la cifra dentro, y el trazo recorriendo el
+            círculo al abrir. Sin logros no se dibuja un cero, que miente. */}
+        {hasAchievements && (
+          <ProgressRing
+            value={report.percent}
+            tone={report.complete ? 'success' : 'accent'}
+            label={`${report.gameName}: ${report.unlocked} de ${report.total} logros`}
+          >
+            <span className="text-[28px] font-semibold leading-none tabular-nums">
+              {Math.round(report.percent)}
+              <span className="text-[15px] font-medium text-muted"> %</span>
+            </span>
+            <span className="mt-1 text-[11px] tabular-nums text-faint">
+              {report.unlocked}/{report.total}
+            </span>
+          </ProgressRing>
+        )}
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Trophy size={16} className={report.complete ? 'text-success' : 'text-accent'} />
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">
               {report.complete ? 'Platino conseguido' : 'Camino al platino'}
             </h2>
           </div>
-          <p className="mt-2 text-[40px] font-semibold leading-none">
-            {hasAchievements ? `${report.percent.toFixed(1).replace('.', ',')} %` : '—'}
-          </p>
-          <p className="mt-1 text-[13px] text-muted">
+          <p className="mt-2 text-[15px] leading-6 text-fg">
             {hasAchievements
               ? report.complete
-                ? `${report.total} de ${report.total} logros · los tienes todos`
-                : `${report.unlocked} de ${report.total} logros · faltan ${report.total - report.unlocked}`
+                ? `Los ${report.total} logros, todos tuyos.`
+                : <>Te faltan <span className="font-semibold text-accent">{report.total - report.unlocked}</span> logros de {report.total}.</>
               : 'Sin datos de logros para este juego'}
           </p>
           {/* Un platino se enseña. El botón deja revivir la celebración cuando
@@ -177,16 +225,9 @@ function Report({
               100,0 % y el trofeo. Y así no se pisan. */}
         </div>
       </div>
-      {hasAchievements && (
-        <Progress
-          value={report.percent}
-          tone={report.complete ? 'success' : 'accent'}
-          // Al 100 % la barra se queda corta a propósito: a lo ancho le cruzaba
-          // la base al trofeo, y la barra llena ya se lee de sobra.
-          className={report.complete ? 'relative mt-4 h-2 max-w-[58%]' : 'mt-4 h-2'}
-          label={`${report.unlocked} de ${report.total} logros`}
-        />
-      )}
+      {/* Aquí había una barra de progreso a lo ancho de la tarjeta. Con el
+          anillo delante contaba lo mismo dos veces, y de las dos la barra era
+          la que menos decía. El valor accesible lo lleva el anillo. */}
       {report.warning && (
         <p className="mt-3 rounded-sm border border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] px-3 py-2 text-[12px] leading-5 text-warn">
           {report.warning}
@@ -266,23 +307,47 @@ function Report({
           </Button>
         </div>
         <Card className="divide-y divide-line">
-          {report.remaining.slice(0, 8).map((item) => (
-            <div key={item.apiName} className="flex items-center gap-3 px-4 py-2.5">
-              {item.iconUrl
-                ? <img src={item.iconUrl} alt="" className="h-8 w-8 shrink-0 rounded-sm opacity-70" />
-                : <div className="h-8 w-8 shrink-0 rounded-sm bg-inset" />}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium">
-                  {item.hidden && !item.displayName ? 'Logro oculto' : item.displayName}
-                </p>
-                <p className="truncate text-[12px] text-muted">{item.description || 'Sin descripción'}</p>
+          {report.remaining.slice(0, 8).map((item, index) => {
+            const token = rarityToken(item.globalPercent);
+            const legendario = item.globalPercent !== null && item.globalPercent < 1;
+            return (
+              <div
+                key={item.apiName}
+                className="animate-rise group flex items-center gap-3 px-4 py-2.5 transition-colors duration-[120ms] hover:bg-elevated"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                {/* La banda de rareza a la izquierda del icono: en una lista de
+                    ocho, es lo que deja ver de un vistazo cuál es el que duele. */}
+                <span
+                  aria-hidden="true"
+                  className="h-8 w-0.5 shrink-0 rounded-full"
+                  style={{ background: `var(${token})` }}
+                />
+                {item.iconUrl
+                  ? <img src={item.iconUrl} alt=""
+                         className="h-8 w-8 shrink-0 rounded-sm opacity-70 transition-opacity duration-[120ms] group-hover:opacity-100" />
+                  : <div className="h-8 w-8 shrink-0 rounded-sm bg-inset" />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium">
+                    {item.hidden && !item.displayName ? 'Logro oculto' : item.displayName}
+                  </p>
+                  <p className="truncate text-[12px] text-muted">{item.description || 'Sin descripción'}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p
+                    className="text-[12px] font-semibold tabular-nums"
+                    style={{
+                      color: `var(${token})`,
+                      textShadow: legendario ? '0 0 12px var(--rare-legendario-glow)' : undefined,
+                    }}
+                  >
+                    {percent(item.globalPercent)}
+                  </p>
+                  <p className="text-[11px] text-faint">{rarity(item.globalPercent)}</p>
+                </div>
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[12px] font-medium tabular-nums">{percent(item.globalPercent)}</p>
-                <p className="text-[11px] text-faint">{rarity(item.globalPercent)}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
         {report.remaining.length > 8 && (
           <p className="mt-2 text-[12px] text-faint">

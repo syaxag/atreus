@@ -6,8 +6,8 @@
  * que ya viene con Node. Todo se rasteriza a mano con distancias con signo, que
  * es lo que permite que el borde siga limpio a 16 píxeles.
  *
- * La marca: una loseta morada con la **A** calada en negativo, apoyada en una
- * peana que la convierte en una copa. En negativo en vez de en positivo a
+ * La marca: una loseta morada con la **A** calada en negativo dentro de un
+ * anillo de completado abierto por abajo. En negativo en vez de en positivo a
  * propósito — a tamaño de pestaña, una silueta llena se distingue de un
  * vistazo y un trazo fino se deshace.
  *
@@ -96,26 +96,49 @@ function segment(px, py, ax, ay, bx, by) {
 const mix = (a, b, t) => a + (b - a) * t;
 
 /**
- * La A sobre su peana: una letra y un trofeo a la vez.
+ * Distancia al anillo de completado, abierto por abajo.
  *
- * El travesaño iba inclinado como un rayo, guiño al icono de cheats. Los
- * cheats se fueron de la aplicación hace tiempo y el guiño se quedó apuntando
- * a nada, así que la marca no decía qué hace esto.
+ * Es un indicador de progreso, que es el idioma con el que se lee el 100 % de
+ * un juego desde hace quince años: la marca deja de ser una letra cualquiera y
+ * pasa a decir qué hace esto. El hueco va centrado abajo y mide unos 74º.
+ */
+const HUECO_DESDE = 0.66; // radianes, medidos desde el eje +X hacia abajo
+const HUECO_HASTA = 2.48;
+const RADIO = 0.72;
+
+/** Grosores por forma. El anillo manda; la letra va más fina para no comérselo. */
+const GRUESO_ANILLO = 0.115;
+const GRUESO_LETRA = 0.082;
+
+function ringDistance(u, v) {
+  const angulo = Math.atan2(v, u);
+  // Dentro del hueco no hay anillo: se devuelve una distancia grande en vez de
+  // recortar la geometría, que es lo mismo y no complica el muestreo.
+  if (angulo > HUECO_DESDE && angulo < HUECO_HASTA) return 9;
+  return Math.abs(Math.hypot(u, v) - RADIO);
+}
+
+/**
+ * La A dentro del anillo.
  *
- * Ahora las dos patas bajan desde el vértice y se apoyan en una base ancha. La
- * silueta se lee como una copa a primer golpe y como una A al mirarla, que es
- * exactamente lo que persigue quien usa Atreus. Todo son barras rectas y
- * gruesas: a 16 píxeles un trazo fino se deshace y una peana se ve.
+ * El travesaño iba inclinado como un rayo, guiño al icono de cheats; los
+ * cheats se fueron de la aplicación y el guiño se quedó apuntando a nada.
+ *
+ * La letra es pequeña y gruesa a propósito: tiene que caber dentro del anillo
+ * sin tocarlo y seguir leéndose a 16 píxeles, donde un trazo fino se deshace.
  */
 function letterDistance(u, v) {
+  // Cada forma resta su propio grosor, así que lo que sale ya está en la escala
+  // "dentro si es <= 0" y el anillo puede ser más grueso que la letra. Con un
+  // umbral único para todo, la A se hinchaba hasta tocar el anillo y el contra
+  // se cerraba: a 16 píxeles quedaba un borrón.
   return Math.min(
-    // Patas, del vértice a la base.
-    segment(u, v, -0.395, 0.28, -0.02, -0.555),
-    segment(u, v, 0.395, 0.28, 0.02, -0.555),
+    ringDistance(u, v) - GRUESO_ANILLO,
+    // Patas, del vértice a los pies.
+    segment(u, v, -0.215, 0.26, -0.012, -0.27) - GRUESO_LETRA,
+    segment(u, v, 0.215, 0.26, 0.012, -0.27) - GRUESO_LETRA,
     // Travesaño recto: es el que cierra el contra de la letra.
-    segment(u, v, -0.235, 0.08, 0.235, 0.08),
-    // Peana. Más ancha que la huella de las patas, como la de un trofeo.
-    segment(u, v, -0.48, 0.475, 0.48, 0.475),
+    segment(u, v, -0.115, 0.125, 0.115, 0.125) - GRUESO_LETRA,
   );
 }
 
@@ -139,7 +162,7 @@ function draw(size) {
 
           const k = (v + 1) / 2; // 0 arriba, 1 abajo
 
-          if (letterDistance(u, v) <= 0.118) {
+          if (letterDistance(u, v) <= 0) {
             // La letra calada: el fondo de la app, con un punto de luz arriba
             // para que no parezca un agujero plano.
             const lift = Math.max(0, 0.35 - k) * 0.5;

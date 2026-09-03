@@ -43,6 +43,11 @@ literal en un componente** — siempre `var(--…)`.
 
 1. **Un solo acento.** Si en una pantalla hay más de un elemento morado compitiendo,
    sobra uno. El morado señala *lo activo*, no *lo importante*.
+   **Una excepción, y está declarada**: la escala de rareza de un logro
+   (`--rare-*`). No es decoración, codifica un dato ordinal —qué porcentaje del
+   mundo tiene ese logro— y es el idioma con el que cualquiera que juegue lee
+   una lista de botín. Un "0,4 %" en gris se lee igual que un "38 %"; en oro,
+   no. Solo se usa donde hay una rareza que mostrar.
 2. **Jerarquía por peso y espaciado, no por color.** El gris hace el trabajo.
 3. **Bordes de 1px, nunca sombras difusas** salvo en elementos flotantes reales.
 4. **Radio**: `--r-sm 6px` (controles) · `--r-md 10px` (tarjetas) · `--r-lg 14px` (modales).
@@ -147,14 +152,23 @@ segundo, que es justo lo contrario de lo que pide quien la desactiva.
 
 ## La marca
 
-Una loseta morada con la **A** calada en negativo, apoyada en una peana ancha:
-se lee como una copa a primer golpe y como una A al mirarla, que es exactamente
-lo que persigue quien usa esto. Antes el travesaño iba inclinado como un rayo,
-guiño al icono de cheats; los cheats se fueron de la aplicación y el guiño se
-quedó señalando a nada.
+Una loseta morada con la **A** calada en negativo dentro de un **anillo de
+completado abierto por abajo**.
 
-Todo son barras rectas y gruesas porque el examen de un icono es a **16 píxeles**:
-ahí un trazo fino se deshace y una peana se ve.
+El anillo no es adorno: es un indicador de progreso, que es el idioma con el
+que se lee el 100 % de un juego desde hace quince años. Así la marca dice qué
+hace esto en vez de ser una letra en una loseta. Antes el travesaño iba
+inclinado como un rayo, guiño al icono de cheats; los cheats se fueron de la
+aplicación y el guiño se quedó señalando a nada.
+
+**Cada forma lleva su propio grosor**, y eso no es un detalle: con un umbral
+único para todo, la A se hinchaba hasta tocar el anillo y su contra se cerraba
+—a 16 píxeles quedaba un borrón—. El anillo va a 0,115 y la letra a 0,082.
+
+El examen de un icono es a **16 píxeles**, y se hace de verdad: extrayendo el
+fotograma real del `.ico`, no reduciendo el grande. `System.Drawing.Icon` de
+.NET no sirve para mirarlo —no sabe leer un ICO con carga PNG y devuelve
+ruido—; hay que sacar el PNG del contenedor a mano.
 
 Vive en dos sitios y tienen que dibujar **la misma geometría**: `scripts/make-icon.mjs`
 (que rasteriza el `.ico` y el `.png` con distancias con signo) y el `<Mark>` de
@@ -162,6 +176,23 @@ Vive en dos sitios y tienen que dibujar **la misma geometría**: `scripts/make-i
 desacompasados —una A maciza aquí, una de trazo allí— y la aplicación se
 presentaba con dos marcas distintas según dónde la miraras. **Al tocar una hay
 que tocar la otra.**
+
+## La ficha del juego
+
+Es la pantalla para la que existe la aplicación y era la más plana: un título
+sobre gris y tarjetas grises debajo. Tres cosas la sostienen ahora:
+
+- **Se abre con el arte del juego.** La carátula ya estaba en la aplicación —de
+  fondo de ventana, al 20 % y bajo otra capa al 85 %, o sea invisible—. En la
+  cabecera se usa de verdad, con dos degradados que le devuelven el contraste al
+  texto sin apagarla.
+- **El titular es un anillo, no una cifra.** Una barra vale para una fila de una
+  lista; para el titular de una ficha se queda corta. El anillo se lee entero de
+  un vistazo y se dibuja al abrir. Donde hay anillo **no hay barra**: contaban lo
+  mismo dos veces.
+- **La rareza tiene color.** Una banda a la izquierda de cada logro pendiente y
+  el porcentaje en el color de su tramo. En una lista de ocho, es lo que deja
+  ver de un golpe cuál es el que duele.
 
 ## Componentes: notas concretas
 

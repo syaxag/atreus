@@ -106,3 +106,19 @@ export function rarity(value: number | null): string {
   if (value < 40) return 'Poco común';
   return 'Común';
 }
+
+/**
+ * Color de la rareza, en la misma escala que `rarity()`.
+ *
+ * Devuelve el token, no el color: el componente lo mete en `var(...)`. Es la
+ * única escala de color de la aplicación y codifica un dato ordinal, no un
+ * gusto — ver la nota de theme.css.
+ */
+export function rarityToken(value: number | null): string {
+  if (value === null) return '--text-faint';
+  if (value < 1) return '--rare-legendario';
+  if (value < 5) return '--rare-ultra';
+  if (value < 15) return '--rare-raro';
+  if (value < 40) return '--rare-poco';
+  return '--rare-comun';
+}

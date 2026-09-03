@@ -263,6 +263,75 @@ export function Progress({
   );
 }
 
+// ── Anillo de progreso ────────────────────────────────────────
+/**
+ * El progreso hacia el platino, en redondo.
+ *
+ * La barra vale para una fila de una lista; para el titular de una ficha se
+ * queda corta. Un anillo con la cifra dentro es como se lleva enseñando el
+ * completado de un juego desde hace más de una década, y se lee entero de un
+ * vistazo en vez de haber que medirlo contra su carril.
+ *
+ * Se dibuja con `stroke-dashoffset`, que anima sin tocar el diseño, y arranca
+ * vacío para que el trazo se vea recorrer el círculo al abrir la ficha.
+ */
+export function ProgressRing({
+  value, size = 132, stroke = 10, tone = 'accent', label, children,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  tone?: 'accent' | 'success';
+  label?: string;
+  children?: ReactNode;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const [dibujado, setDibujado] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDibujado(clamped));
+    return () => cancelAnimationFrame(frame);
+  }, [clamped]);
+
+  const radio = (size - stroke) / 2;
+  const vuelta = 2 * Math.PI * radio;
+  const color = tone === 'success' ? 'var(--success)' : 'var(--accent)';
+
+  return (
+    <div
+      // El valor accesible va aquí, no en el `<svg>`: es lo que sustituye a la
+      // barra que había antes, y sin esto un lector de pantalla solo oiría la
+      // cifra suelta de dentro sin saber de qué es.
+      role="progressbar"
+      aria-valuenow={Math.round(clamped)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label ?? 'Progreso hacia el platino'}
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle
+          cx={size / 2} cy={size / 2} r={radio}
+          fill="none" stroke="var(--bg-inset)" strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={radio}
+          fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={vuelta}
+          strokeDashoffset={vuelta - (vuelta * dibujado) / 100}
+          style={{
+            transition: 'stroke-dashoffset 900ms var(--ease)',
+            filter: `drop-shadow(0 0 6px ${tone === 'success' ? 'rgba(52,211,153,.45)' : 'var(--accent-glow)'})`,
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── Medidor de dificultad ─────────────────────────────────────
 /** Diez muescas, de 1 a 10. Es la escala con la que ya cuenta la gente. */
 export function DifficultyMeter({ score, className }: { score: number; className?: string }) {
