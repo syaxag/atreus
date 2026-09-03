@@ -1,5 +1,5 @@
 /**
- * Pone el icono y los datos de versión en `Atreus.exe`.
+ * Pone el icono y los datos de versión en `Atreus.exe`, cuando hace falta.
  *
  * electron-builder sabe hacerlo con `signAndEditExecutable`, pero en esta
  * máquina no puede: para ello descarga y descomprime su paquete `winCodeSign`,
@@ -12,12 +12,23 @@
  * proyecto y no necesita ningún privilegio. Se ejecuta después de empaquetar la
  * aplicación y **antes** de construir el instalador, así que el NSIS recoge el
  * ejecutable ya marcado.
+ *
+ * **Con certificado se aparta.** Entonces electron-builder ya ha puesto el
+ * icono y ha firmado el ejecutable, y este paso corre después: rcedit modifica
+ * el binario, y modificar un binario firmado invalida la firma. Sería el peor
+ * de los fallos posibles, porque el instalador se construiría igual y el
+ * estropicio solo se vería en la máquina de quien lo instala.
  */
 const { join } = require('node:path');
 const { existsSync } = require('node:fs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') return;
+
+  if (process.env.CSC_LINK || process.env.WIN_CSC_LINK) {
+    console.log('  • hay certificado: el icono y la firma los pone electron-builder');
+    return;
+  }
 
   const { productFilename, version } = context.packager.appInfo;
   const exe = join(context.appOutDir, `${productFilename}.exe`);

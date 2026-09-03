@@ -111,14 +111,13 @@ Atreus-<version>-setup.exe.blockmap
 ```
 
 Con un repositorio de GitHub también se puede fijar `publish` en
-`package.json` para automatizar la publicación:
+`electron-builder.cjs` para automatizar la publicación:
 
-```jsonc
-"build": {
-  "publish": [
-    { "provider": "github", "owner": "TU-USUARIO", "repo": "atreus" }
-  ]
-}
+```js
+module.exports = {
+  // …
+  publish: [{ provider: 'github', owner: 'TU-USUARIO', repo: 'atreus' }],
+};
 ```
 
 Después:

@@ -22,16 +22,7 @@ certificado no hay firma: no es un ajuste, es una compra.
 
 ### Cómo se enciende
 
-Está preparado, apagado a propósito y en un solo sitio. En `package.json`:
-
-```jsonc
-"win": {
-  "signAndEditExecutable": false   // ← poner en true cuando haya certificado
-}
-```
-
-Con esa opción en `true`, electron-builder firma solo si encuentra el
-certificado en el entorno:
+No hay que tocar nada. Basta con que el certificado esté en el entorno:
 
 ```bash
 CSC_LINK=file:///C:/ruta/certificado.pfx
@@ -39,24 +30,37 @@ CSC_KEY_PASSWORD=…
 npm run dist
 ```
 
-### Por qué está apagado
+`electron-builder.cjs` mira esas variables y decide: con certificado enciende
+`signAndEditExecutable`, y sin él lo deja apagado. Por eso el empaquetado vive
+en un archivo `.cjs` y no en `package.json`: tiene una decisión que tomar, y un
+interruptor que hay que acordarse de mover el día que exista el certificado es
+una trampa puesta a propósito.
 
-Por dos motivos que conviene saber antes de tocarlo:
+### Qué cambia al encenderla
 
-1. **Sin certificado no aporta nada** y sí quita: con `signAndEditExecutable`
-   activo, electron-builder se encarga también del icono y los datos de versión
-   del `.exe`, y para eso descarga su paquete `winCodeSign`, que trae enlaces
-   simbólicos de macOS. Crear un enlace simbólico en Windows exige modo
-   desarrollador o permisos de administrador; sin eso la descompresión falla,
-   el paso se salta **en silencio** y el ejecutable se queda con el icono y el
-   nombre de Electron. Eso es lo que se veía en el instalador.
-2. Por eso el icono y la versión los pone `scripts/after-pack.cjs` con
-   `rcedit`, que es una dependencia normal y no necesita ningún privilegio.
+Ese interruptor hace **dos cosas a la vez**, y saberlo evita un fallo feo:
 
-Al encender la firma habrá que resolver lo mismo: **modo desarrollador de
-Windows activado**, o construir desde una consola de administrador, o hacerlo
-en un runner de CI donde eso no sea un problema. Y revisar que `after-pack` y
-electron-builder no se pisen el uno al otro con el icono.
+1. Firma el ejecutable.
+2. Le pone también el icono y los datos de versión, que hoy hace
+   `scripts/after-pack.cjs` con `rcedit`.
+
+Por eso `after-pack.cjs` **se aparta cuando hay certificado**. No es un detalle
+de estilo: ese paso corre *después* de la firma, `rcedit` modifica el binario, y
+modificar un binario firmado invalida la firma. El instalador se construiría
+igual y el estropicio solo se vería en la máquina de quien lo instala.
+
+### El obstáculo que queda
+
+Para lo segundo, electron-builder descarga su paquete `winCodeSign`, que trae
+enlaces simbólicos de macOS. Crear un enlace simbólico en Windows exige modo
+desarrollador o permisos de administrador; sin eso la descompresión falla, el
+paso se salta **en silencio** y el ejecutable se queda con el icono y el nombre
+de Electron. Eso es lo que se veía en el instalador antes de que `rcedit`
+tomara el relevo.
+
+Así que el día que haya certificado hará falta además: **modo desarrollador de
+Windows activado**, o construir desde una consola de administrador, o hacerlo en
+un runner de CI donde eso no sea un problema.
 
 ---
 
@@ -72,8 +76,9 @@ aplicación de escritorio.
 Va en tres sitios, a propósito:
 
 - `LICENSE` en la raíz del repositorio.
-- El instalador la enseña y pide aceptarla (`build.nsis.license`).
-- Viaja junto a la app instalada (`build.extraResources`), no solo dentro del
+- El instalador la enseña y pide aceptarla (`nsis.license` en
+  `electron-builder.cjs`).
+- Viaja junto a la app instalada (`extraResources`), no solo dentro del
   instalador.
 
 **Esto no es asesoramiento legal.** El texto dice con claridad qué se permite y
@@ -110,6 +115,13 @@ npm run dist
 
 que encadena `typecheck`, los tests y el empaquetado. Si algo de eso falla, no
 hay instalador: es a propósito.
+
+Para probar el empaquetado sin construir el instalador —más rápido, y suficiente
+para ver si el ejecutable sale bien marcado—:
+
+```bash
+npm run pack
+```
 
 Comprobar además, con la app **instalada** y no en desarrollo:
 
