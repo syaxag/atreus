@@ -387,3 +387,10 @@ Lo vigila `npm run smoke`, que comprueba que ningún archivo de Atreus acabe en
 una carpeta con `Cache_Data` dentro. Esa comprobación es de **disposición**, no
 de supervivencia, y el motivo importa: Chromium limpia cuando le toca, no en
 cada arranque, así que reiniciar dos veces daba verde con el fallo puesto.
+
+Leer y escribir ese archivo vive en `summaries.ts`, **sin tocar Electron**, por
+lo mismo que `estimate.ts` vive aparte: para poder probarlo. Ahí se comprueba
+con archivos de mentira en un directorio temporal que lo guardado se relee,
+que lo escrito por una versión anterior se completa al leerlo, y que un archivo
+ilegible se aparta como `.roto` en vez de llevarse por delante la biblioteca
+entera en silencio, que es lo que hacía.

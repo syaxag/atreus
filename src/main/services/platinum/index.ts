@@ -1,18 +1,20 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type {
   Achievement, AchievementSet, GameId, PlatinumReport, PlatinumSummary, SourceRef,
 } from '@shared/types';
-import { join } from 'node:path';
 import { paths } from '../../paths';
 import { log } from '../../logger';
 import { getGame, listGames } from '../catalog';
 import * as achievements from '../achievements';
 import { steamMinutes, trackedMinutes } from '../playtime';
 import { difficultyOf, estimateOf } from './estimate';
+import { guardarResumenes, leerResumenes, resumenDe, SUMMARY_SCHEMA } from './summaries';
 import { registrar } from './celebrated';
 import { emit } from '../../ipc/emit';
 
 const logger = log('platinum');
+
+export { SUMMARY_SCHEMA } from './summaries';
 
 /**
  * El informe de platino: cuánto llevas, cuánto falta y cómo de duro es.
@@ -47,65 +49,23 @@ const summaryFile = join(paths.root, 'platinum.json');
 let summaries: Record<GameId, PlatinumSummary> | null = null;
 
 /**
- * Los resúmenes guardados, o nada si no hay con qué empezar.
+ * Los resúmenes guardados, cargados una sola vez.
  *
- * El `catch` de esta función borraba **todos** los resúmenes sin decirlo: un
- * byte mal en el archivo y la biblioteca aparecía sin barras, sin que nadie
- * supiera por qué y sin forma de mirar qué había pasado. Sigue sin ser fatal
- * —el calentamiento los recalcula—, pero ahora se entera quien lea el registro
- * y el archivo roto se aparta en vez de sobrescribirse.
+ * Leerlos y darles forma vive en `summaries.ts`, que no toca Electron y por
+ * eso se puede probar con un archivo de mentira. Aquí solo queda la caché en
+ * memoria y contar lo que haya que contar.
  */
 function loadSummaries(): Record<GameId, PlatinumSummary> {
   if (summaries) return summaries;
-  try {
-    const raw = JSON.parse(readFileSync(summaryFile, 'utf8')) as unknown;
-    const leido = raw && typeof raw === 'object' ? (raw as Record<GameId, PlatinumSummary>) : {};
-    /*
-     * Los resúmenes guardados por una versión anterior no traen los campos
-     * nuevos. Se rellenan al leer, no al usar: si no, cada sitio que los mire
-     * tendría que acordarse de que pueden faltar, y el contrato dice que no.
-     */
-    summaries = Object.fromEntries(Object.entries(leido).map(([id, resumen]) => [id, {
-      ...resumen,
-      difficulty: resumen.difficulty ?? null,
-      next: resumen.next ?? null,
-      rarest: resumen.rarest ?? null,
-      lastUnlockAt: resumen.lastUnlockAt ?? null,
-      unlockDays: resumen.unlockDays ?? [],
-      schema: resumen.schema ?? 1,
-    }]));
-  } catch (e) {
-    // Que no exista es lo normal la primera vez y no hay nada que contar.
-    if (existsSync(summaryFile)) {
-      const roto = `${summaryFile}.roto`;
-      try {
-        renameSync(summaryFile, roto);
-        logger.warn(`no se pudo leer ${summaryFile}, apartado en ${roto}:`, e);
-      } catch {
-        logger.warn(`no se pudo leer ni apartar ${summaryFile}:`, e);
-      }
-    }
-    summaries = {};
+  const { resumenes, ilegible } = leerResumenes(summaryFile);
+  if (ilegible) {
+    logger.warn(ilegible.apartadoEn
+      ? `no se pudo leer ${ilegible.archivo}, apartado en ${ilegible.apartadoEn}: ${ilegible.error}`
+      : `no se pudo leer ni apartar ${ilegible.archivo}: ${ilegible.error}`);
   }
+  summaries = resumenes;
   return summaries;
 }
-
-/** Un día desde la época, que es la unidad en la que se cuenta una racha. */
-const DIA = 86_400;
-
-/**
- * Con qué versión del cálculo se guardó un resumen.
- *
- * Sube cuando el resumen empieza a llevar algo que antes no llevaba. El
- * calentamiento recalcula lo que se quedó atrás, y por eso existe: sin esto,
- * la dificultad y el siguiente logro de la tarjeta solo aparecerían en los
- * juegos que volvieras a jugar, que es una función a medias disfrazada de
- * función entera.
- *
- * 2 — dificultad, siguiente logro, el más raro que tienes, último desbloqueo
- *     y días con actividad.
- */
-export const SUMMARY_SCHEMA = 2;
 
 /**
  * Guarda el resumen para la biblioteca, salvo cuando sería mentira.
@@ -121,36 +81,9 @@ function rememberSummary(report: PlatinumReport, unlocked: Achievement[]): void 
   if (isSteam && report.tracking !== 'steam') return;
 
   const store = loadSummaries();
-  store[report.gameId] = {
-    gameId: report.gameId,
-    unlocked: report.unlocked,
-    total: report.total,
-    percent: report.percent,
-    complete: report.complete,
-    playtimeMinutes: report.playtimeMinutes,
-    tracking: report.tracking,
-    difficulty: report.difficulty
-      ? { score: report.difficulty.score, tier: report.difficulty.tier }
-      : null,
-    // El primero de `remaining` es el más común de los que faltan, que es por
-    // donde conviene seguir. Lo mismo que enseña la ficha.
-    next: report.remaining[0]
-      ? {
-        name: report.remaining[0].displayName,
-        hidden: report.remaining[0].hidden,
-        percent: report.remaining[0].globalPercent,
-      }
-      : null,
-    rarest: rarestOf(unlocked),
-    lastUnlockAt: report.lastUnlockAt,
-    unlockDays: recentDays(unlocked),
-    schema: SUMMARY_SCHEMA,
-    updatedAt: report.updatedAt,
-  };
+  store[report.gameId] = resumenDe(report, unlocked);
   try {
-    const temp = `${summaryFile}.tmp`;
-    writeFileSync(temp, JSON.stringify(store, null, 2), 'utf8');
-    renameSync(temp, summaryFile);
+    guardarResumenes(summaryFile, store);
   } catch (e) {
     logger.warn('no se pudo guardar el resumen de platinos:', e);
   }
@@ -189,33 +122,6 @@ export function summariesFor(): PlatinumSummary[] {
         updatedAt: null,
       };
   });
-}
-
-/**
- * El logro más raro que ya tienes en este juego.
- *
- * Mira los conseguidos, no los que faltan: es la vitrina, no la lista de la
- * compra. Sin rareza publicada no hay vitrina que enseñar.
- */
-function rarestOf(unlocked: Achievement[]): { name: string; percent: number } | null {
-  let mejor: Achievement | null = null;
-  for (const item of unlocked) {
-    if (item.globalPercent === null) continue;
-    if (!mejor || item.globalPercent < mejor.globalPercent!) mejor = item;
-  }
-  return mejor ? { name: mejor.displayName, percent: mejor.globalPercent! } : null;
-}
-
-/** Los días con algún desbloqueo dentro de los últimos noventa, sin repetir. */
-function recentDays(unlocked: Achievement[]): number[] {
-  const desde = Math.floor(Date.now() / 1000 / DIA) - 90;
-  const dias = new Set<number>();
-  for (const item of unlocked) {
-    if (!item.unlockTime || item.unlockTime <= 0) continue;
-    const dia = Math.floor(item.unlockTime / DIA);
-    if (dia >= desde) dias.add(dia);
-  }
-  return [...dias].sort((a, b) => a - b);
 }
 
 // ── Informe completo ──────────────────────────────────────────
