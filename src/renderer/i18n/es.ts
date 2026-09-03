@@ -158,6 +158,40 @@ export const es = {
   'ficha.confianzaMedia': 'estimación razonable',
   'ficha.confianzaAlta': 'estimación fiable',
 
+  // ── Fuentes de los datos ──
+  'fuente.ninguna': '—',
+  'fuente.steamCliente': 'Cliente de Steam',
+  'fuente.steamWebapi': 'Steam Web API',
+  'fuente.steamCatalogo': 'Catálogo público de Steam (AppID {appId})',
+  'fuente.xbox': 'Xbox Live · OpenXBL',
+  'fuente.steamRareza': 'Steam · estadísticas globales de logros',
+  'fuente.steamHoras': 'Steam · horas jugadas de la cuenta local',
+  'fuente.sesiones': 'Sesiones observadas por Atreus',
+
+  // ── Plataformas, tal como entran en una frase ──
+  'plat.steam': 'Steam',
+  'plat.epic': 'Epic Games',
+  'plat.gog': 'GOG',
+  'plat.xbox': 'Xbox',
+  'plat.ea': 'EA',
+  'plat.battlenet': 'Battle.net',
+  'plat.manual': 'un juego añadido a mano',
+
+  // ── Por qué el progreso es como es ──
+  'nota.sinLogros': 'Este juego no publica logros.',
+  'nota.noEscribible': 'Steam no deja desbloquear los logros de este juego desde fuera: los concede el servidor de su editor, y el cliente rechaza cualquier intento —venga de Atreus o de lo que sea—. El progreso que ves es el real y se actualiza solo; estos hay que ganárselos jugando.',
+  'nota.xboxSoloLectura': 'Estos son tus logros reales de Xbox, con sus fechas. Xbox no permite desbloquearlos desde fuera del juego: no existe ninguna API para eso, ni oficial ni de terceros, así que aquí solo se leen.',
+  'nota.steamCerrado': 'Steam no está abierto, así que el progreso viene de la Web API. Es el real, pero para escribir logros hace falta el cliente.',
+  'nota.sinLista': 'Steam no publica una lista de logros para este juego.',
+  'nota.ilegible': 'No se pudo leer la lista de logros.',
+  'nota.ilegibleDetalle': 'No se pudo leer la lista de logros ({detalle}).',
+  'nota.noEnSteam': '{juego} no existe en Steam, y {plataforma} no publica sus logros sin iniciar sesión. Puedes seguir usando Rutas, Atlas y tu propia lista de objetivos.',
+  'nota.manual': '{plataforma} no publica tus logros sin iniciar sesión, así que la lista es la de la versión de Steam y el progreso lo marcas tú.',
+  'nota.manualXbox': ' Si quieres que se lean solos, genera una clave de OpenXBL y pégala en Ajustes.',
+  'nota.steamFallo': 'No se pudo hablar con el cliente de Steam. La lista es la real, pero el progreso es el que hayas marcado tú.',
+  'nota.steamFalloDetalle': 'No se pudo hablar con el cliente de Steam ({detalle}). La lista es la real, pero el progreso es el que hayas marcado tú.',
+  'nota.sinRareza': 'Steam no publica la rareza de este juego: la dificultad es una estimación gruesa.',
+
   // ── Ficha: la prosa que antes venía hecha del backend ──
   'ficha.difMuyAsequible': 'Muy asequible',
   'ficha.difAsequible': 'Asequible',
@@ -534,6 +568,19 @@ export const es = {
   'ajustes.descargandoAviso': 'Descargando actualización; Atreus se reiniciará al terminar.',
   'ajustes.alcance': 'Alcance',
   'ajustes.alcanceCuerpo': 'Atreus no modifica ni la memoria ni los archivos de tus juegos. Lee tu biblioteca, habla con el cliente de Steam para los logros, y todo lo demás —guías, mapas, rareza— son consultas a fuentes públicas. Los mods sí escriben en la carpeta del juego, y siempre avisan antes de hacerlo.',
+
+  // ── Ajustes: lo que contesta una comprobación de clave ──
+  'ajustes.tuCuenta': 'tu cuenta',
+  'ajustes.claveFormato': 'La clave no tiene el formato de Steam: son 32 caracteres hexadecimales.',
+  'ajustes.claveSinSteamId': 'No se pudo averiguar tu SteamID. Abre Steam una vez y vuelve a comprobar.',
+  'ajustes.claveRechazada': 'Steam no aceptó la clave. Comprueba que la has copiado entera.',
+  'ajustes.claveCorrecta': 'Clave correcta, conectada a {cuenta}.',
+  'ajustes.clavePerfilPrivado': 'Clave correcta ({cuenta}), pero tu perfil es privado: Steam no deja leer los logros. Ponlo en público en la privacidad de tu perfil.',
+  'ajustes.xboxSinClave': 'No hay ninguna clave de OpenXBL guardada.',
+  'ajustes.xboxRechazada': 'OpenXBL no aceptó la clave. Genera una nueva en xbl.io y vuelve a pegarla.',
+  'ajustes.xboxConectadoUno': 'Conectado como {cuenta}: 1 juego en tu historial de Xbox.',
+  'ajustes.xboxConectado': 'Conectado como {cuenta}: {n} juegos en tu historial de Xbox.',
+  'ajustes.xboxHistorialVacio': 'Conectado como {cuenta}, pero tu historial de juegos viene vacío. Comprueba en la privacidad de tu cuenta que el historial de juego sea visible.',
 
   // ── Ajustes: idioma ──
   'ajustes.idioma': 'Idioma',

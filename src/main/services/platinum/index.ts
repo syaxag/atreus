@@ -1,6 +1,6 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import type {
-  Achievement, AchievementSet, GameId, PlatinumReport, PlatinumSummary,
+  Achievement, AchievementSet, GameId, PlatinumReport, PlatinumSummary, SourceRef,
 } from '@shared/types';
 import { join } from 'node:path';
 import { paths } from '../../paths';
@@ -141,7 +141,7 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
     estimate: null,
     difficulty: null,
     remaining: [],
-    sources: tracked > 0 ? ['Sesiones observadas por Atreus'] : [],
+    sources: tracked > 0 ? [{ id: 'atreus-sessions' }] : [],
     warning: null,
     // En segundos, como todas las fechas del contrato: la interfaz las pasa
     // por `relative()`, y en milisegundos decía "dentro de mil millones de
@@ -154,11 +154,11 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
     set = await achievements.list(gameId, { avoidClient });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return { ...base, warning: `No se pudieron leer los logros: ${message}` };
+    return { ...base, warning: { kind: 'unreadable', detail: message } };
   }
 
   if (set.items.length === 0) {
-    return { ...base, warning: set.note ?? 'Este juego no tiene logros.' };
+    return { ...base, warning: set.note ?? { kind: 'noAchievements' } };
   }
 
   const unlockedList = set.items.filter((a) => a.unlocked);
@@ -176,12 +176,12 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
   });
 
   const hasRarity = set.items.some((a) => a.globalPercent !== null);
-  const sources = [set.source];
-  if (hasRarity) sources.push('Steam · estadísticas globales de logros');
+  const sources: SourceRef[] = [set.source];
+  if (hasRarity) sources.push({ id: 'steam-rarity' });
   if (game.platform === 'steam' && steamMinutes(game.nativeId) !== null) {
-    sources.push('Steam · horas jugadas de la cuenta local');
+    sources.push({ id: 'steam-playtime' });
   }
-  if (tracked > 0) sources.push('Sesiones observadas por Atreus');
+  if (tracked > 0) sources.push({ id: 'atreus-sessions' });
 
   const report: PlatinumReport = {
     ...base,
@@ -206,9 +206,7 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
         hidden: a.hidden,
       })),
     sources,
-    warning: set.note ?? (hasRarity
-      ? null
-      : 'Steam no publica la rareza de este juego: la dificultad es una estimación gruesa.'),
+    warning: set.note ?? (hasRarity ? null : { kind: 'noRarity' }),
   };
 
   /*

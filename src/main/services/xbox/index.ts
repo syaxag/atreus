@@ -1,5 +1,5 @@
 import { net } from 'electron';
-import type { Achievement } from '@shared/types';
+import type { Achievement, XboxKeyStatus } from '@shared/types';
 import { log } from '../../logger';
 import { getSettings } from '../settings';
 import {
@@ -142,7 +142,8 @@ export interface XboxKeyCheck {
   gamertag: string | null;
   /** Cuántos juegos ve Atreus en tu historial. */
   titles: number;
-  message: string;
+  /** Qué ha pasado. La frase la escribe Ajustes, que sabe el idioma. */
+  status: XboxKeyStatus;
 }
 
 /**
@@ -153,7 +154,7 @@ export interface XboxKeyCheck {
  */
 export async function checkKey(): Promise<XboxKeyCheck> {
   if (!available()) {
-    return { ok: false, gamertag: null, titles: 0, message: 'No hay ninguna clave de OpenXBL guardada.' };
+    return { ok: false, gamertag: null, titles: 0, status: 'noKey' };
   }
   forget();
 
@@ -163,7 +164,7 @@ export async function checkKey(): Promise<XboxKeyCheck> {
       ok: false,
       gamertag: null,
       titles: 0,
-      message: 'OpenXBL no aceptó la clave. Genera una nueva en xbl.io y vuelve a pegarla.',
+      status: 'rejected',
     };
   }
   account = { at: Date.now(), ...parsed };
@@ -173,9 +174,6 @@ export async function checkKey(): Promise<XboxKeyCheck> {
     ok: true,
     gamertag: parsed.gamertag,
     titles: list.length,
-    message: list.length > 0
-      ? `Conectado como ${parsed.gamertag ?? parsed.xuid}: ${list.length} juegos en tu historial de Xbox.`
-      : `Conectado como ${parsed.gamertag ?? parsed.xuid}, pero tu historial de juegos viene vacío. ` +
-        'Comprueba en la privacidad de tu cuenta que el historial de juego sea visible.',
+    status: list.length > 0 ? 'ok' : 'emptyHistory',
   };
 }

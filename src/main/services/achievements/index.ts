@@ -1,4 +1,4 @@
-import type { Achievement, AchievementPatch, AchievementSet, GameId } from '@shared/types';
+import type { Achievement, AchievementPatch, AchievementSet, GameId, Notice } from '@shared/types';
 import { log } from '../../logger';
 import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
@@ -33,21 +33,17 @@ const logger = log('achievements');
  * la rareza, y esas sí están siempre.
  */
 
-/**
- * Lo que se le cuenta al usuario cuando Steam rechaza toda escritura.
+/*
+ * De aquí no sale prosa.
  *
- * No es un fallo de Atreus ni algo que se pueda rodear: el juego tiene sus
- * logros marcados para que solo los conceda el servidor de su editor, y el
- * cliente de Steam los rechaza vengan de donde vengan. Merece decirse con
- * todas las letras, porque antes la aplicación decía "hecho" y no pasaba nada.
+ * Lo que se le cuenta al usuario —de dónde viene la lista, por qué el progreso
+ * no es automático, por qué Steam rechaza una escritura— viaja como caso y
+ * datos, y la frase la escribe el renderer. Antes salía redactada de aquí y se
+ * quedaba en castellano por mucho que Ajustes dijera otra cosa.
  */
-const NO_ESCRIBIBLE =
-  'Steam no deja desbloquear los logros de este juego desde fuera: los concede el servidor de su ' +
-  'editor, y el cliente rechaza cualquier intento —venga de Atreus o de lo que sea—. El progreso ' +
-  'que ves es el real y se actualiza solo; estos hay que ganárselos jugando.';
 
-function empty(gameId: GameId, note: string): AchievementSet {
-  return { gameId, tracking: 'none', writable: false, source: '—', note, items: [] };
+function empty(gameId: GameId, note: Notice): AchievementSet {
+  return { gameId, tracking: 'none', writable: false, source: { id: 'none' }, note, items: [] };
 }
 
 /** Convierte una entrada del catálogo público en un logro con tu estado. */
@@ -91,11 +87,20 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
     // Cuando el catálogo dice que un juego no tiene logros suele saber por qué
     // —Fortnite tiene pases, Minecraft avances—, y explicarlo vale más que un
     // "no hay" a secas.
-    return empty(gameId, definition.notes ?? 'Este juego no publica logros.');
+    return empty(gameId, definition.notes
+      ? { kind: 'definition', text: definition.notes }
+      : { kind: 'noAchievements' });
   }
 
-  // ── Camino bueno: el cliente de Steam ──
-  let steamProblem: string | null = null;
+  /*
+   * ── Camino bueno: el cliente de Steam ──
+   *
+   * El fallo se apunta en dos piezas: que lo hubo, y el mensaje del sistema si
+   * lo dio. Antes iban en una sola cadena, y para poder decir "no se pudo leer
+   * la lista" sin detalle había que inventarse una frase que hiciera de aviso.
+   */
+  let steamFailed = false;
+  let steamDetail: string | null = null;
   if (game.platform === 'steam' && !options.avoidClient) {
     try {
       const items = await steam.achievements(game.nativeId);
@@ -105,15 +110,16 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
           gameId,
           tracking: 'steam',
           writable,
-          source: 'Cliente de Steam',
-          note: writable ? null : NO_ESCRIBIBLE,
+          source: { id: 'steam-client' },
+          note: writable ? null : { kind: 'noWrite' },
           items,
         };
       }
-      steamProblem = 'Steam no devolvió ningún logro para este juego.';
+      steamFailed = true;
     } catch (e) {
-      steamProblem = e instanceof Error ? e.message : String(e);
-      logger.info(`${game.name}: Steam no disponible (${steamProblem}), se usa el catálogo público`);
+      steamFailed = true;
+      steamDetail = e instanceof Error ? e.message : String(e);
+      logger.info(`${game.name}: Steam no disponible (${steamDetail}), se usa el catálogo público`);
     }
   }
 
@@ -126,10 +132,8 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
         tracking: 'steam',
         // Xbox Live no acepta escrituras de terceros: se lee, no se toca.
         writable: false,
-        source: 'Xbox Live · OpenXBL',
-        note: 'Estos son tus logros reales de Xbox, con sus fechas. Xbox no permite ' +
-          'desbloquearlos desde fuera del juego: no existe ninguna API para eso, ni oficial ' +
-          'ni de terceros, así que aquí solo se leen.',
+        source: { id: 'xbox-openxbl' },
+        note: { kind: 'xboxReadOnly' },
         items: fromXbox,
       };
     }
@@ -153,11 +157,8 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
         gameId,
         tracking: 'steam',
         writable: false,
-        source: 'Steam Web API',
-        note: options.avoidClient
-          ? null
-          : 'Steam no está abierto, así que el progreso viene de la Web API. Es el real, pero para ' +
-            'escribir logros hace falta el cliente.',
+        source: { id: 'steam-webapi' },
+        note: options.avoidClient ? null : { kind: 'steamClosed' },
         items: fromApi.map((item) => {
           const extra = art.get(item.displayName.toLowerCase());
           return extra
@@ -171,14 +172,15 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
   // ── Último camino: el catálogo público, con tu registro ──
   if (!appId) {
     return empty(gameId, game.platform === 'steam'
-      ? steamProblem ?? 'No se pudo leer la lista de logros.'
-      : `${game.name} no existe en Steam, y ${platformName(game.platform)} no publica sus logros sin ` +
-        'iniciar sesión. Puedes seguir usando Guías, Mapas y tu propia lista de objetivos.');
+      ? { kind: 'unreadable', detail: steamDetail }
+      : { kind: 'notOnSteam', game: game.name, platform: game.platform });
   }
 
   const catalog = await achievementCatalog(appId);
   if (catalog.length === 0) {
-    return empty(gameId, steamProblem ?? 'Steam no publica una lista de logros para este juego.');
+    return empty(gameId, steamFailed
+      ? { kind: 'unreadable', detail: steamDetail }
+      : { kind: 'noList' });
   }
 
   const marks = marksFor(gameId);
@@ -186,11 +188,10 @@ export async function list(gameId: GameId, options: ListOptions = {}): Promise<A
     gameId,
     tracking: 'manual',
     writable: false,
-    source: `Catálogo público de Steam (AppID ${appId})`,
+    source: { id: 'steam-catalog', appId },
     note: game.platform === 'steam'
-      ? `No se pudo hablar con el cliente de Steam (${steamProblem}). La lista es la real, ` +
-        'pero el progreso es el que hayas marcado tú.'
-      : manualNote(game.platform),
+      ? { kind: 'manualSteamFailed', detail: steamDetail }
+      : { kind: 'manual', platform: game.platform },
     items: catalog.map((entry) => fromCatalog(entry, marks)),
   };
 }
@@ -219,32 +220,4 @@ export async function refresh(gameId: GameId): Promise<void> {
     forgetCatalog(appId);
     webapi.forgetPlayerAchievements(appId);
   }
-}
-
-/**
- * Por qué el progreso lo pone el usuario, dicho de forma que se pueda actuar.
- *
- * En Xbox hay salida —una clave de OpenXBL— y merece la pena decirlo aquí, que
- * es donde el usuario se está encontrando el problema, y no escondido en
- * Ajustes.
- */
-function manualNote(platform: string): string {
-  const base = `${platformName(platform)} no publica tus logros sin iniciar sesión, así que la lista ` +
-    'es la de la versión de Steam y el progreso lo marcas tú.';
-  return platform === 'xbox'
-    ? `${base} Si quieres que se lean solos, genera una clave de OpenXBL y pégala en Ajustes.`
-    : base;
-}
-
-function platformName(platform: string): string {
-  const names: Record<string, string> = {
-    epic: 'Epic Games',
-    xbox: 'Xbox',
-    ea: 'EA',
-    gog: 'GOG',
-    battlenet: 'Battle.net',
-    manual: 'un juego añadido a mano',
-    steam: 'Steam',
-  };
-  return names[platform] ?? platform;
 }

@@ -106,7 +106,7 @@ function buildMockReport(game: Game): PlatinumReport {
         globalPercent: a.globalPercent,
         hidden: a.hidden,
       })),
-    sources: ['Modo mock: datos de ejemplo'],
+    sources: [{ id: 'steam-catalog', appId: '000000' }, { id: 'steam-rarity' }],
     warning: null,
     updatedAt: ahora(),
   };
@@ -263,7 +263,9 @@ export const mockApi: AtreusApi = {
 
     async checkKey() {
       await wait(400, 800);
-      return ok({ ok: true, persona: 'Usuario de prueba', publicProfile: true, message: 'Clave correcta (modo mock).' });
+      return ok({
+        ok: true, persona: 'Usuario de prueba', publicProfile: true, status: 'ok' as const,
+      });
     },
 
     async resetAll() {
@@ -278,7 +280,7 @@ export const mockApi: AtreusApi = {
   xbox: {
     async checkKey() {
       await wait(500, 900);
-      return ok({ ok: true, gamertag: 'JugadorDePrueba', titles: 42, message: 'Conectado (modo mock): 42 juegos en el historial.' });
+      return ok({ ok: true, gamertag: 'JugadorDePrueba', titles: 42, status: 'ok' as const });
     },
   },
 
@@ -298,7 +300,7 @@ export const mockApi: AtreusApi = {
           gameId,
           tracking: 'steam' as const,
           writable: true,
-          source: 'Cliente de Steam',
+          source: { id: 'steam-client' },
           note: null,
           items: achievements,
         });
@@ -310,8 +312,8 @@ export const mockApi: AtreusApi = {
           gameId,
           tracking: 'steam' as const,
           writable: false,
-          source: 'Xbox Live · OpenXBL',
-          note: 'Estos son tus logros reales de Xbox, con sus fechas. Xbox no permite desbloquearlos desde fuera del juego: no existe ninguna API para eso, ni oficial ni de terceros, así que aquí solo se leen.',
+          source: { id: 'xbox-openxbl' },
+          note: { kind: 'xboxReadOnly' as const },
           items: achievements,
         });
       }
@@ -320,8 +322,8 @@ export const mockApi: AtreusApi = {
         gameId,
         tracking: 'manual' as const,
         writable: false,
-        source: 'Catálogo público de Steam (AppID 000000)',
-        note: 'Esta plataforma no publica tus logros sin iniciar sesión, así que la lista es la de la versión de Steam y el progreso lo marcas tú.',
+        source: { id: 'steam-catalog' as const, appId: '000000' },
+        note: { kind: 'manual' as const, platform: game.platform },
         items: achievements.map((a) => ({ ...a, unlocked: manualMarks.has(`${gameId}|${a.apiName}`) })),
       });
     },

@@ -9,7 +9,7 @@ import type {
   Achievement, AchievementPatch, AchievementSet, CompletionProgress, Game, GameId, GameStat,
   ContentAvailability, GuideCategory, GuideDocument, GuideEntry, InteractiveMap, Mod, ModDeployPreview,
   ModProfile, PlatinumReport, PlatinumSummary, RemoteMod, Result, ScanProgress,
-  Settings, StatPatch, SteamSession, SteamSnapshot,
+  Settings, StatPatch, SteamKeyStatus, SteamSession, SteamSnapshot, XboxKeyStatus,
 } from './types';
 
 /** Superficie completa expuesta en `window.atreus`. */
@@ -53,13 +53,17 @@ export interface AtreusApi {
      * Comprueba la clave de la Web API contra Steam y explica qué pasa.
      * Una clave mal pegada o un perfil privado fallan en silencio; esto lo dice.
      */
-    checkKey(): Promise<Result<{ ok: boolean; persona: string | null; publicProfile: boolean; message: string }>>;
+    checkKey(): Promise<Result<{
+      ok: boolean; persona: string | null; publicProfile: boolean; status: SteamKeyStatus;
+    }>>;
   };
 
   /** Logros de Xbox mediante OpenXBL, con la clave que el usuario genera. */
   xbox: {
     /** Comprueba la clave y dice cuántos juegos ve en el historial. */
-    checkKey(): Promise<Result<{ ok: boolean; gamertag: string | null; titles: number; message: string }>>;
+    checkKey(): Promise<Result<{
+      ok: boolean; gamertag: string | null; titles: number; status: XboxKeyStatus;
+    }>>;
   };
 
   /**

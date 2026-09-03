@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { comparar, dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
+import { explicarNota, nombreFuente } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
@@ -337,7 +338,7 @@ export function AchievementsView() {
         <Empty
           icon={<Trophy size={40} strokeWidth={1.25} />}
           title={t('tro.sinListaTitulo')}
-          hint={set?.note ?? t('tro.sinListaPista')}
+          hint={set?.note ? explicarNota(t, set.note) : t('tro.sinListaPista')}
           action={<Button variant="outline" onClick={load}><RotateCcw size={14} /> {t('tro.reintentar')}</Button>}
         />
       ) : tab === 'achievements' ? (
@@ -349,10 +350,12 @@ export function AchievementsView() {
                 : <NotebookPen size={15} className="mt-0.5 shrink-0 text-accent" />}
               <div className="min-w-0">
                 <p className="text-[13px] font-medium">
-                  {readOnly ? t('tro.soloLectura', { fuente: set.source }) : t('tro.tuRegistro')}
+                  {readOnly
+                    ? t('tro.soloLectura', { fuente: nombreFuente(t, set.source) })
+                    : t('tro.tuRegistro')}
                 </p>
                 <p className="mt-0.5 text-[12px] leading-5 text-muted">
-                  {set.note}
+                  {explicarNota(t, set.note)}
                   {!readOnly && t('tro.tuRegistroPista')}
                 </p>
               </div>

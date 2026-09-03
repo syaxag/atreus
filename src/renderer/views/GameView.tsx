@@ -8,7 +8,9 @@ import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { duration, hours, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span } from '@/lib/format';
-import { DIFICULTAD, explicarDificultad, explicarEstimacion } from '@/lib/platino';
+import {
+  DIFICULTAD, explicarDificultad, explicarEstimacion, explicarNota, nombreFuente,
+} from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Card, DifficultyMeter, Empty, ProgressRing, Skeleton,
@@ -267,7 +269,7 @@ function Report({
           la que menos decía. El valor accesible lo lleva el anillo. */}
       {report.warning && (
         <p className="mt-3 rounded-sm border border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] px-3 py-2 text-[12px] leading-5 text-warn">
-          {report.warning}
+          {explicarNota(t, report.warning)}
         </p>
       )}
     </Card>
@@ -326,7 +328,8 @@ function Report({
         {report.sources.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px] text-faint">
             <p>{t('ficha.fuentes', {
-              fuentes: report.sources.join(' · '), cuando: relative(report.updatedAt),
+              fuentes: report.sources.map((fuente) => nombreFuente(t, fuente)).join(' · '),
+              cuando: relative(report.updatedAt),
             })}</p>
             <Button size="sm" variant="ghost" onClick={onRefresh} title={t('ficha.actualizarDatosPista')}>
               <RefreshCw size={13} /> {t('ficha.actualizarDatos')}

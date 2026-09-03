@@ -116,18 +116,69 @@ export interface StatPatch {
  */
 export type AchievementTracking = 'steam' | 'manual' | 'none';
 
+/**
+ * De dónde sale un dato, como identificador y no como nombre.
+ *
+ * Las cinco primeras son fuentes de la lista de logros; las tres últimas, de
+ * lo que el informe de platino añade encima. El nombre legible lo pone el
+ * renderer: *"Cliente de Steam"* es una frase, y las frases las escribe quien
+ * sabe en qué idioma está la interfaz.
+ */
+export type SourceRef =
+  | { id: 'none' }
+  | { id: 'steam-client' }
+  | { id: 'steam-webapi' }
+  | { id: 'steam-catalog'; appId: string }
+  | { id: 'xbox-openxbl' }
+  | { id: 'steam-rarity' }
+  | { id: 'steam-playtime' }
+  | { id: 'atreus-sessions' };
+
+/**
+ * Por qué el progreso es como es, o por qué falta algo.
+ *
+ * Viaja como caso y datos, no como párrafo, por lo mismo que `SourceRef`. La
+ * excepción es `definition`, que lleva texto a propósito: lo escribió quien
+ * hizo la ficha de ese juego y Atreus no tiene con qué traducirlo, igual que
+ * no traduce una guía de Steam.
+ */
+export type Notice =
+  | { kind: 'definition'; text: string }
+  | { kind: 'noAchievements' }
+  | { kind: 'noWrite' }
+  | { kind: 'xboxReadOnly' }
+  | { kind: 'steamClosed' }
+  | { kind: 'noList' }
+  /** `detail` es el mensaje del sistema, si lo hubo; no se traduce. */
+  | { kind: 'unreadable'; detail: string | null }
+  | { kind: 'notOnSteam'; game: string; platform: Platform }
+  | { kind: 'manual'; platform: Platform }
+  | { kind: 'manualSteamFailed'; detail: string | null }
+  | { kind: 'noRarity' };
+
 /** Los logros de un juego, con la verdad sobre de dónde salen. */
 export interface AchievementSet {
   gameId: GameId;
   tracking: AchievementTracking;
   /** true si Atreus puede escribir el estado en la plataforma. */
   writable: boolean;
-  /** Nombre legible de la fuente de la lista. */
-  source: string;
+  /** De dónde sale la lista. */
+  source: SourceRef;
   /** Por qué el progreso no es automático, cuando no lo es. */
-  note: string | null;
+  note: Notice | null;
   items: Achievement[];
 }
+
+/**
+ * Qué ha pasado al comprobar una clave, sin decirlo con palabras.
+ *
+ * Los dos casos buenos —`ok` y el perfil o el historial cerrados— vienen con
+ * la cuenta y el número de juegos en sus propios campos, así que aquí solo
+ * hace falta el caso; la frase la escribe Ajustes.
+ */
+export type SteamKeyStatus = 'badFormat' | 'noSteamId' | 'rejected' | 'ok' | 'privateProfile';
+
+export type XboxKeyStatus = 'noKey' | 'rejected' | 'ok' | 'emptyHistory';
 
 /** Copia local del estado de Steam justo antes de una escritura. */
 export interface SteamSnapshot {
@@ -140,7 +191,6 @@ export interface SteamSnapshot {
 
 // ─────────────────────── Informe de platino ───────────────────────
 
-/** Cuánto queda y a qué ritmo. */
 /**
  * Con qué se compone la frase que explica la estimación.
  *
@@ -159,6 +209,7 @@ export type EstimateReason =
   /** Ni horas ni logros: solo se puede hablar del juego, no de ti. */
   | { kind: 'community'; tier: DifficultyTier | null };
 
+/** Cuánto queda y a qué ritmo. */
 export interface PlatinumEstimate {
   /** Horas totales estimadas para llegar al 100 %. */
   totalHours: number;
@@ -230,9 +281,9 @@ export interface PlatinumReport {
   /** Los que faltan, del más común al más raro. */
   remaining: RemainingAchievement[];
   /** De dónde salen los datos, para no vender humo. */
-  sources: string[];
+  sources: SourceRef[];
   /** Motivo por el que falta algo, si falta. */
-  warning: string | null;
+  warning: Notice | null;
   /** Cuándo se calculó, en segundos, como todas las fechas del contrato. */
   updatedAt: number;
 }

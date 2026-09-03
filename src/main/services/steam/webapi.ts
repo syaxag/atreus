@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { net } from 'electron';
-import type { Achievement } from '@shared/types';
+import type { Achievement, SteamKeyStatus } from '@shared/types';
 import { log } from '../../logger';
 import { getSettings } from '../settings';
 import { findSteamPath } from '../catalog/steam';
@@ -167,7 +167,8 @@ export interface KeyCheck {
   persona: string | null;
   /** true si el perfil es público; con uno privado los logros no se leen. */
   publicProfile: boolean;
-  message: string;
+  /** Qué ha pasado. La frase la escribe Ajustes, que sabe el idioma. */
+  status: SteamKeyStatus;
 }
 
 /**
@@ -179,17 +180,17 @@ export interface KeyCheck {
  */
 export async function checkKey(): Promise<KeyCheck> {
   if (key() === null) {
-    return { ok: false, persona: null, publicProfile: false, message: 'La clave no tiene el formato de Steam: son 32 caracteres hexadecimales.' };
+    return { ok: false, persona: null, publicProfile: false, status: 'badFormat' };
   }
   const user = steamId();
   if (!user) {
-    return { ok: false, persona: null, publicProfile: false, message: 'No se pudo averiguar tu SteamID. Abre Steam una vez y vuelve a comprobar.' };
+    return { ok: false, persona: null, publicProfile: false, status: 'noSteamId' };
   }
 
   const body = await call<SummariesResponse>('ISteamUser/GetPlayerSummaries/v2/', { steamids: user });
   const player = body?.response?.players?.[0];
   if (!player) {
-    return { ok: false, persona: null, publicProfile: false, message: 'Steam no aceptó la clave. Comprueba que la has copiado entera.' };
+    return { ok: false, persona: null, publicProfile: false, status: 'rejected' };
   }
 
   const publicProfile = player.communityvisibilitystate === 3;
@@ -197,9 +198,6 @@ export async function checkKey(): Promise<KeyCheck> {
     ok: true,
     persona: player.personaname ?? null,
     publicProfile,
-    message: publicProfile
-      ? `Clave correcta, conectada a ${player.personaname ?? 'tu cuenta'}.`
-      : `Clave correcta (${player.personaname ?? 'tu cuenta'}), pero tu perfil es privado: Steam no deja leer los logros. ` +
-        'Ponlo en público en la privacidad de tu perfil.',
+    status: publicProfile ? 'ok' : 'privateProfile',
   };
 }

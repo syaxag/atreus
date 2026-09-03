@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
+import type { SteamKeyStatus, XboxKeyStatus } from '@shared/types';
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
-import { IDIOMAS, useT } from '@/i18n';
+import { IDIOMAS, useT, type Clave, type Huecos } from '@/i18n';
 import { Badge, Button, Card, Input, Toggle, ViewHeader } from '@/components/ui';
 
-interface KeyCheck { ok: boolean; persona: string | null; publicProfile: boolean; message: string }
-interface XboxCheck { ok: boolean; gamertag: string | null; titles: number; message: string }
+interface KeyCheck {
+  ok: boolean; persona: string | null; publicProfile: boolean; status: SteamKeyStatus;
+}
+interface XboxCheck {
+  ok: boolean; gamertag: string | null; titles: number; status: XboxKeyStatus;
+}
 
 export function SettingsView() {
   const t = useT();
@@ -179,7 +184,7 @@ export function SettingsView() {
                   </Button>
                   {keyCheck && (
                     <span className={`text-[12px] leading-4 ${keyCheck.ok && keyCheck.publicProfile ? 'text-success' : keyCheck.ok ? 'text-warn' : 'text-danger'}`}>
-                      {keyCheck.message}
+                      {explicarClaveSteam(t, keyCheck)}
                     </span>
                   )}
                 </div>
@@ -221,7 +226,7 @@ export function SettingsView() {
                   </Button>
                   {xboxCheck && (
                     <span className={`text-[12px] leading-4 ${xboxCheck.ok && xboxCheck.titles > 0 ? 'text-success' : xboxCheck.ok ? 'text-warn' : 'text-danger'}`}>
-                      {xboxCheck.message}
+                      {explicarClaveXbox(t, xboxCheck)}
                     </span>
                   )}
                 </div>
@@ -404,6 +409,36 @@ export function SettingsView() {
       </div>
     </div>
   );
+}
+
+/**
+ * Qué ha contestado la comprobación de la clave.
+ *
+ * El backend manda el caso y la cuenta; la frase se escribe aquí. Antes la
+ * mandaba redactada y era lo último de Ajustes que seguía en castellano con
+ * la interfaz en inglés.
+ */
+function explicarClaveSteam(t: (clave: Clave, huecos?: Huecos) => string, check: KeyCheck): string {
+  const cuenta = check.persona ?? t('ajustes.tuCuenta');
+  switch (check.status) {
+    case 'badFormat': return t('ajustes.claveFormato');
+    case 'noSteamId': return t('ajustes.claveSinSteamId');
+    case 'rejected': return t('ajustes.claveRechazada');
+    case 'ok': return t('ajustes.claveCorrecta', { cuenta });
+    case 'privateProfile': return t('ajustes.clavePerfilPrivado', { cuenta });
+  }
+}
+
+function explicarClaveXbox(t: (clave: Clave, huecos?: Huecos) => string, check: XboxCheck): string {
+  const cuenta = check.gamertag ?? t('ajustes.tuCuenta');
+  switch (check.status) {
+    case 'noKey': return t('ajustes.xboxSinClave');
+    case 'rejected': return t('ajustes.xboxRechazada');
+    case 'emptyHistory': return t('ajustes.xboxHistorialVacio', { cuenta });
+    case 'ok':
+      return t(check.titles === 1 ? 'ajustes.xboxConectadoUno' : 'ajustes.xboxConectado',
+        { cuenta, n: check.titles });
+  }
 }
 
 function Section({

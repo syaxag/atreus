@@ -162,6 +162,40 @@ export const en: Record<Clave, string> = {
   'ficha.confianzaMedia': 'reasonable estimate',
   'ficha.confianzaAlta': 'solid estimate',
 
+  // ── Where the data comes from ──
+  'fuente.ninguna': '—',
+  'fuente.steamCliente': 'Steam client',
+  'fuente.steamWebapi': 'Steam Web API',
+  'fuente.steamCatalogo': 'Steam public catalogue (AppID {appId})',
+  'fuente.xbox': 'Xbox Live · OpenXBL',
+  'fuente.steamRareza': 'Steam · global achievement stats',
+  'fuente.steamHoras': 'Steam · playtime from the local account',
+  'fuente.sesiones': 'Sessions Atreus has watched',
+
+  // ── Platforms, as they read inside a sentence ──
+  'plat.steam': 'Steam',
+  'plat.epic': 'Epic Games',
+  'plat.gog': 'GOG',
+  'plat.xbox': 'Xbox',
+  'plat.ea': 'EA',
+  'plat.battlenet': 'Battle.net',
+  'plat.manual': 'a game you added by hand',
+
+  // ── Why the progress is the way it is ──
+  'nota.sinLogros': 'This game publishes no achievements.',
+  'nota.noEscribible': 'Steam will not let this game\u2019s achievements be unlocked from outside: its publisher\u2019s server grants them, and the client turns down every attempt —from Atreus or from anything else—. The progress you see is the real one and updates on its own; these have to be earned by playing.',
+  'nota.xboxSoloLectura': 'These are your real Xbox achievements, with their dates. Xbox does not allow unlocking them from outside the game: no API exists for that, official or otherwise, so here they are only read.',
+  'nota.steamCerrado': 'Steam is not open, so the progress comes from the Web API. It is the real one, but writing achievements needs the client.',
+  'nota.sinLista': 'Steam publishes no achievement list for this game.',
+  'nota.ilegible': 'The achievement list could not be read.',
+  'nota.ilegibleDetalle': 'The achievement list could not be read ({detalle}).',
+  'nota.noEnSteam': '{juego} does not exist on Steam, and {plataforma} does not publish its achievements without signing in. You can still use Guides, Atlas and your own list of goals.',
+  'nota.manual': '{plataforma} does not publish your achievements without signing in, so the list is the one from the Steam version and you tick the progress off yourself.',
+  'nota.manualXbox': ' If you want them read on their own, generate an OpenXBL key and paste it into Settings.',
+  'nota.steamFallo': 'Atreus could not talk to the Steam client. The list is the real one, but the progress is whatever you have ticked off.',
+  'nota.steamFalloDetalle': 'Atreus could not talk to the Steam client ({detalle}). The list is the real one, but the progress is whatever you have ticked off.',
+  'nota.sinRareza': 'Steam publishes no rarity for this game: the difficulty is a rough estimate.',
+
   // ── Game page: the prose the backend used to write ──
   'ficha.difMuyAsequible': 'Very easy',
   'ficha.difAsequible': 'Easy',
@@ -538,6 +572,19 @@ export const en: Record<Clave, string> = {
   'ajustes.descargandoAviso': 'Downloading the update; Atreus will restart when it finishes.',
   'ajustes.alcance': 'Scope',
   'ajustes.alcanceCuerpo': 'Atreus modifies neither the memory nor the files of your games. It reads your library, talks to the Steam client for achievements, and everything else —guides, maps, rarity— is a query to a public source. Mods do write into the game folder, and they always say so first.',
+
+  // ── Settings: what a key check answers ──
+  'ajustes.tuCuenta': 'your account',
+  'ajustes.claveFormato': 'That key is not in Steam\u2019s format: they are 32 hexadecimal characters.',
+  'ajustes.claveSinSteamId': 'Your SteamID could not be worked out. Open Steam once and check again.',
+  'ajustes.claveRechazada': 'Steam did not accept the key. Check that you copied all of it.',
+  'ajustes.claveCorrecta': 'Key works, connected to {cuenta}.',
+  'ajustes.clavePerfilPrivado': 'Key works ({cuenta}), but your profile is private: Steam will not let the achievements be read. Set it to public in your profile privacy.',
+  'ajustes.xboxSinClave': 'There is no OpenXBL key saved.',
+  'ajustes.xboxRechazada': 'OpenXBL did not accept the key. Generate a new one at xbl.io and paste it again.',
+  'ajustes.xboxConectadoUno': 'Connected as {cuenta}: 1 game in your Xbox history.',
+  'ajustes.xboxConectado': 'Connected as {cuenta}: {n} games in your Xbox history.',
+  'ajustes.xboxHistorialVacio': 'Connected as {cuenta}, but your game history comes back empty. Check in your account privacy that game history is visible.',
 
   // ── Settings: language ──
   'ajustes.idioma': 'Language',
