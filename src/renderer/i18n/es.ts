@@ -158,6 +158,23 @@ export const es = {
   'ficha.confianzaMedia': 'estimación razonable',
   'ficha.confianzaAlta': 'estimación fiable',
 
+  // ── Ficha: la prosa que antes venía hecha del backend ──
+  'ficha.difMuyAsequible': 'Muy asequible',
+  'ficha.difAsequible': 'Asequible',
+  'ficha.difExigente': 'Exigente',
+  'ficha.difDificil': 'Difícil',
+  'ficha.difBrutal': 'Brutal',
+  'ficha.masRaroLoTiene': 'El logro más raro lo tiene el {porcentaje} de los jugadores.',
+  'ficha.bajoElCincoUno': '1 logro está por debajo del 5 %.',
+  'ficha.bajoElCinco': '{n} logros están por debajo del 5 %.',
+  'ficha.rarezaParcial': 'Steam solo publica la rareza de {conocidos} de los {total}.',
+  'ficha.yaEstanTodos': 'Ya están todos los logros. Esto es el tiempo que te ha costado.',
+  'ficha.conTusHoras': 'Con tus {horas} llevas {hechos} de {total} logros. Lo que falta es {veces} veces más costoso que lo ya hecho, según la rareza de cada logro.',
+  'ficha.hasJugadoPoco': 'Aún has jugado poco ({horas}), así que la estimación sale de la rareza de los logros que te faltan, no de tu ritmo.',
+  'ficha.estimacionGeneralCon': 'Estimación general del juego ({dificultad}); se afinará en cuanto Atreus vea horas jugadas tuyas.',
+  'ficha.estimacionGeneral': 'Estimación general del juego; se afinará en cuanto haya horas jugadas tuyas.',
+  'ficha.actualizarDatosPista': 'Volver a consultar fuentes y progreso',
+
   // ── Unidades de tiempo, para `span()` ──
   'tiempo.hoy': 'hoy',
   'tiempo.dia': 'día',

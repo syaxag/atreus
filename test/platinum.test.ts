@@ -4,6 +4,9 @@ import {
   difficultyOf, estimateOf, weightOf,
 } from '../src/main/services/platinum/estimate.ts';
 
+/** Los tramos que admite el contrato. Ver `DifficultyTier` en shared/types. */
+const TRAMOS = new Set(['veryEasy', 'easy', 'demanding', 'hard', 'brutal']);
+
 /**
  * La aritmética del informe de platino.
  *
@@ -49,6 +52,24 @@ describe('difficultyOf', () => {
     const long = difficultyOf({ total: 60, percents: [40, 35, 30, 22, 20, 18] });
     assert.ok(short && long);
     assert.ok(short.score < long.score);
+  });
+
+  test('de aquí no sale ni una frase: el tramo va como identificador', () => {
+    const result = difficultyOf({ total: 20, percents: [90, 85, 80, 0.3] });
+    assert.ok(result);
+    assert.ok(TRAMOS.has(result.tier), `tramo desconocido: ${result.tier}`);
+    // El único texto del objeto es ese identificador. Si vuelve a colarse una
+    // etiqueta redactada, esto se cae: la palabra la pone el renderer, que es
+    // quien sabe en qué idioma está la interfaz.
+    const textos = Object.entries(result).filter(([, valor]) => typeof valor === 'string');
+    assert.deepEqual(textos, [['tier', result.tier]]);
+  });
+
+  test('dice de cuántos logros se conoce la rareza', () => {
+    const result = difficultyOf({ total: 10, percents: [40, 12, null, null] });
+    assert.ok(result);
+    assert.equal(result.knownPercents, 2);
+    assert.equal(result.total, 10);
   });
 
   test('la puntuación nunca se sale de la escala de 1 a 10', () => {
@@ -128,5 +149,70 @@ describe('estimateOf', () => {
     assert.ok(result);
     assert.equal(result.basis, 'projected');
     assert.equal(result.confidence, 'low');
+  });
+});
+
+/**
+ * El motivo, que es lo que sustituyó a la explicación redactada.
+ *
+ * Lo que se comprueba no es cómo queda la frase —eso es del renderer— sino
+ * que salgan los datos con los que se escribe, y que no salga texto.
+ */
+describe('el motivo de la estimación', () => {
+  const base = {
+    unlocked: 0, total: 0, playtimeMinutes: null,
+    unlockedPercents: [], remainingPercents: [], difficulty: null,
+  };
+
+  test('con todo hecho no hay nada que explicar', () => {
+    const result = estimateOf({
+      ...base, unlocked: 10, total: 10, playtimeMinutes: 600,
+      unlockedPercents: Array.from({ length: 10 }, () => 50),
+    });
+    assert.equal(result?.reason.kind, 'done');
+  });
+
+  test('medido, lleva las horas, los logros y cuánto más cuesta lo que falta', () => {
+    const result = estimateOf({
+      ...base, unlocked: 10, total: 20, playtimeMinutes: 600,
+      unlockedPercents: Array.from({ length: 10 }, () => 50),
+      remainingPercents: Array.from({ length: 10 }, () => 50),
+    });
+    assert.ok(result && result.reason.kind === 'measured');
+    assert.equal(result.reason.playedHours, 10);
+    assert.equal(result.reason.unlocked, 10);
+    assert.equal(result.reason.total, 20);
+    // Diez logros igual de comunes contra otros diez: cuestan lo mismo.
+    assert.equal(result.reason.costRatio, 1);
+  });
+
+  test('proyectado, lleva solo las horas que llevas', () => {
+    const result = estimateOf({
+      ...base, unlocked: 1, total: 10, playtimeMinutes: 30,
+      unlockedPercents: [90],
+      remainingPercents: Array.from({ length: 9 }, () => 40),
+    });
+    assert.ok(result && result.reason.kind === 'projected');
+    assert.equal(result.reason.playedHours, 0.5);
+  });
+
+  test('sin nada tuyo, lleva el tramo de dificultad del juego', () => {
+    const difficulty = difficultyOf({ total: 10, percents: [3, 40, 60] });
+    assert.ok(difficulty);
+    const result = estimateOf({
+      ...base, unlocked: 0, total: 10, difficulty,
+      remainingPercents: Array.from({ length: 10 }, () => 50),
+    });
+    assert.ok(result && result.reason.kind === 'community');
+    assert.equal(result.reason.tier, difficulty.tier);
+  });
+
+  test('sin dificultad conocida el tramo va vacío, no inventado', () => {
+    const result = estimateOf({
+      ...base, unlocked: 0, total: 10,
+      remainingPercents: Array.from({ length: 10 }, () => 50),
+    });
+    assert.ok(result && result.reason.kind === 'community');
+    assert.equal(result.reason.tier, null);
   });
 });

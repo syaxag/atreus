@@ -141,6 +141,24 @@ export interface SteamSnapshot {
 // ─────────────────────── Informe de platino ───────────────────────
 
 /** Cuánto queda y a qué ritmo. */
+/**
+ * Con qué se compone la frase que explica la estimación.
+ *
+ * El proceso principal manda **los números, no la frase**. La frase la escribe
+ * el renderer, que es el único que sabe en qué idioma está la interfaz: una
+ * explicación ya redactada aquí se quedaba en castellano dijera lo que dijera
+ * Ajustes, y ninguna traducción del renderer podía tocarla.
+ */
+export type EstimateReason =
+  /** Ya están todos: lo que se enseña es lo que costó. */
+  | { kind: 'done' }
+  /** Tus horas y tus logros. `costRatio` es cuánto más cuesta lo que falta. */
+  | { kind: 'measured'; playedHours: number; unlocked: number; total: number; costRatio: number }
+  /** Has jugado poco: el número sale de la rareza, no de tu ritmo. */
+  | { kind: 'projected'; playedHours: number }
+  /** Ni horas ni logros: solo se puede hablar del juego, no de ti. */
+  | { kind: 'community'; tier: DifficultyTier | null };
+
 export interface PlatinumEstimate {
   /** Horas totales estimadas para llegar al 100 %. */
   totalHours: number;
@@ -154,18 +172,28 @@ export interface PlatinumEstimate {
    */
   basis: 'measured' | 'projected' | 'community';
   confidence: 'low' | 'medium' | 'high';
-  explanation: string;
+  reason: EstimateReason;
 }
+
+/**
+ * El tramo de dificultad, no su nombre.
+ *
+ * Viaja como identificador por lo mismo que `EstimateReason`: *Exigente* es
+ * una palabra, y las palabras las pone quien conoce el idioma.
+ */
+export type DifficultyTier = 'veryEasy' | 'easy' | 'demanding' | 'hard' | 'brutal';
 
 /** Cómo de duro es el platino, en la escala habitual de 1 a 10. */
 export interface PlatinumDifficulty {
   score: number;
-  label: string;
+  tier: DifficultyTier;
   /** % global del logro más raro del juego. */
   rarestPercent: number | null;
   /** Cuántos logros los tiene menos del 5 % de la gente. */
   ultraRare: number;
-  explanation: string;
+  /** De cuántos logros publica la plataforma la rareza, y cuántos hay. */
+  knownPercents: number;
+  total: number;
 }
 
 /** Un logro que falta, con su rareza. Son los que deciden el platino. */

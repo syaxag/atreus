@@ -8,6 +8,7 @@ import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { duration, hours, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span } from '@/lib/format';
+import { DIFICULTAD, explicarDificultad, explicarEstimacion } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Card, DifficultyMeter, Empty, ProgressRing, Skeleton,
@@ -307,7 +308,7 @@ function Report({
         icon={<Gauge size={15} />}
         label={t('ficha.dificultad')}
         value={report.difficulty ? `${format(report.difficulty.score)}/10` : '—'}
-        hint={report.difficulty?.label ?? t('ficha.sinRareza')}
+        hint={report.difficulty ? t(DIFICULTAD[report.difficulty.tier]) : t('ficha.sinRareza')}
         extra={report.difficulty ? <DifficultyMeter score={report.difficulty.score} className="mt-2" /> : undefined}
       />
     </div>
@@ -319,15 +320,15 @@ function Report({
           <h3 className="text-[13px] font-semibold">{t('ficha.comoSalen')}</h3>
         </div>
         <ul className="mt-2 flex flex-col gap-1.5 text-[12px] leading-5 text-muted">
-          {report.estimate && <li>· {report.estimate.explanation}</li>}
-          {report.difficulty && <li>· {report.difficulty.explanation}</li>}
+          {report.estimate && <li>· {explicarEstimacion(t, report.estimate)}</li>}
+          {report.difficulty && <li>· {explicarDificultad(t, report.difficulty)}</li>}
         </ul>
         {report.sources.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px] text-faint">
             <p>{t('ficha.fuentes', {
               fuentes: report.sources.join(' · '), cuando: relative(report.updatedAt),
             })}</p>
-            <Button size="sm" variant="ghost" onClick={onRefresh} title="Volver a consultar fuentes y progreso">
+            <Button size="sm" variant="ghost" onClick={onRefresh} title={t('ficha.actualizarDatosPista')}>
               <RefreshCw size={13} /> {t('ficha.actualizarDatos')}
             </Button>
           </div>

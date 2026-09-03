@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import type { PlatinumReport } from '@shared/types';
 import celebracion from '@/assets/celebracion.mp4';
 import { duration, hours, span } from '@/lib/format';
+import { DIFICULTAD } from '@/lib/platino';
 import { ESTALLIDO_S, sonarPlatino } from '@/lib/sonido';
 import { useStore } from '@/store';
 import { useT } from '@/i18n';
@@ -109,7 +110,7 @@ export function PlatinumCelebration({
               <Dato
                 titulo={t('celebra.dificultad')}
                 valor={`${report.difficulty.score}/10`}
-                pie={report.difficulty.label} />
+                pie={t(DIFICULTAD[report.difficulty.tier])} />
             )}
             {report.estimate && (
               <Dato titulo={t('celebra.estimado')} valor={hours(report.estimate.totalHours)} />

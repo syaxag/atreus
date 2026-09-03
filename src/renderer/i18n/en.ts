@@ -162,6 +162,23 @@ export const en: Record<Clave, string> = {
   'ficha.confianzaMedia': 'reasonable estimate',
   'ficha.confianzaAlta': 'solid estimate',
 
+  // ── Game page: the prose the backend used to write ──
+  'ficha.difMuyAsequible': 'Very easy',
+  'ficha.difAsequible': 'Easy',
+  'ficha.difExigente': 'Demanding',
+  'ficha.difDificil': 'Hard',
+  'ficha.difBrutal': 'Brutal',
+  'ficha.masRaroLoTiene': 'The rarest achievement is held by {porcentaje} of players.',
+  'ficha.bajoElCincoUno': '1 achievement sits below 5 %.',
+  'ficha.bajoElCinco': '{n} achievements sit below 5 %.',
+  'ficha.rarezaParcial': 'Steam only publishes the rarity of {conocidos} of the {total}.',
+  'ficha.yaEstanTodos': 'Every achievement is in. This is what it cost you.',
+  'ficha.conTusHoras': 'In your {horas} you have {hechos} of {total} achievements. What is left is {veces} times as costly as what is done, going by how rare each one is.',
+  'ficha.hasJugadoPoco': 'You have not played much yet ({horas}), so the estimate comes from how rare the achievements you are missing are, not from your pace.',
+  'ficha.estimacionGeneralCon': 'A general estimate for the game ({dificultad}); it sharpens as soon as Atreus sees hours of your own.',
+  'ficha.estimacionGeneral': 'A general estimate for the game; it sharpens as soon as there are hours of your own.',
+  'ficha.actualizarDatosPista': 'Look up sources and progress again',
+
   // ── Time units, for `span()` ──
   'tiempo.hoy': 'today',
   'tiempo.dia': 'day',

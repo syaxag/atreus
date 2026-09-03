@@ -40,19 +40,23 @@ aplicación hace falta, como mínimo, inglés.
       el pasado de la sesión en el anterior. Ahora guarda la clave y sus
       huecos y se traduce al pintarlo. Es, en pequeño, el contrato que le
       falta al backend.
-- [ ] **La prosa que fabrica el backend.** Saltó al traducir la ficha: con la
-      interfaz en inglés seguía diciendo *Exigente*, *"Con tus 16,4 h llevas 30
-      de 38 logros…"* y *"estadísticas globales de logros"*. También es lo que
-      contesta *"Clave válida, perfil público"* al comprobar la clave en
-      Ajustes. No es un olvido de traducción: son frases **ya redactadas** que
-      el proceso principal manda hechas por el IPC, y ninguna traducción del
-      renderer puede tocarlas.
+- [x] **La aritmética del platino deja de escribir prosa.** `difficultyOf()`
+      manda su tramo (`demanding`) en vez de su etiqueta (*Exigente*), y
+      `estimateOf()` manda con qué se compone la explicación en vez de la
+      explicación. La frase la arma `lib/platino.ts`, en el renderer. De
+      propina, los números salen con la configuración regional puesta: la
+      dificultad decía "0,30 %" también en inglés, porque la coma se la ponía
+      el backend a mano.
+- [ ] **El resto de la prosa que fabrica el backend.** Queda lo que escribe el
+      servicio de logros y viaja hacia arriba: las fuentes del informe
+      (*"Steam · estadísticas globales de logros"*), el aviso de por qué el
+      progreso no es automático, y lo que contesta *"Clave válida, perfil
+      público"* al comprobar una clave en Ajustes.
 
-      El arreglo de verdad no es traducir el backend, es que **deje de mandar
-      prosa**: que `PlatinumDifficulty` lleve su tramo en vez de su etiqueta,
-      que la explicación viaje como los números con los que se compone, y que
-      las fuentes sean identificadores. La frase la arma el renderer, que es
-      quien sabe en qué idioma está. Es un cambio de contrato, no un retoque.
+      El arreglo es el mismo que ya se hizo con la dificultad: que **deje de
+      mandar prosa**. Las fuentes como identificadores, el aviso como un
+      código con sus datos, y la frase la arma el renderer, que es quien sabe
+      en qué idioma está. Es un cambio de contrato, no un retoque.
 - [ ] Un tercer idioma es solo un archivo de datos más. Portugués es el
       candidato obvio por tamaño de público.
 

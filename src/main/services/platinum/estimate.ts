@@ -1,4 +1,4 @@
-import type { PlatinumDifficulty, PlatinumEstimate } from '@shared/types';
+import type { DifficultyTier, PlatinumDifficulty, PlatinumEstimate } from '@shared/types';
 
 /**
  * La aritmética del platino, sin tocar red ni disco.
@@ -6,6 +6,11 @@ import type { PlatinumDifficulty, PlatinumEstimate } from '@shared/types';
  * Va aparte para poder probarla con números a mano: es la parte de la
  * aplicación que más fácil miente si nadie la vigila, porque un número puesto
  * en pantalla parece un hecho aunque sea una corazonada.
+ *
+ * De aquí no sale una sola frase. Salían tres —la etiqueta de la dificultad y
+ * las dos explicaciones— y con la interfaz en inglés seguían diciendo
+ * *Exigente* y *"Con tus 16,4 h llevas 30 de 38 logros"*. Ahora salen los
+ * números con los que se componen; la frase la escribe el renderer.
  */
 
 /**
@@ -32,12 +37,12 @@ export interface DifficultyInput {
   percents: (number | null)[];
 }
 
-const LABELS: [number, string][] = [
-  [2, 'Muy asequible'],
-  [4, 'Asequible'],
-  [6, 'Exigente'],
-  [8, 'Difícil'],
-  [10, 'Brutal'],
+const TIERS: [number, DifficultyTier][] = [
+  [2, 'veryEasy'],
+  [4, 'easy'],
+  [6, 'demanding'],
+  [8, 'hard'],
+  [10, 'brutal'],
 ];
 
 export function difficultyOf(input: DifficultyInput): PlatinumDifficulty | null {
@@ -66,17 +71,16 @@ export function difficultyOf(input: DifficultyInput): PlatinumDifficulty | null 
   if (input.total <= 12 && rarest >= 15) score -= 1;
 
   score = Math.max(1, Math.min(10, Math.round(score * 2) / 2));
-  const label = LABELS.find(([max]) => score <= max)?.[1] ?? 'Brutal';
+  const tier = TIERS.find(([max]) => score <= max)?.[1] ?? 'brutal';
 
-  const parts = [`El logro más raro lo tiene el ${format(rarest)} % de los jugadores.`];
-  if (ultraRare > 0) {
-    parts.push(`${ultraRare} ${ultraRare === 1 ? 'logro está' : 'logros están'} por debajo del 5 %.`);
-  }
-  if (known.length < input.total) {
-    parts.push(`Steam solo publica la rareza de ${known.length} de los ${input.total}.`);
-  }
-
-  return { score, label, rarestPercent: rarest, ultraRare, explanation: parts.join(' ') };
+  return {
+    score,
+    tier,
+    rarestPercent: rarest,
+    ultraRare,
+    knownPercents: known.length,
+    total: input.total,
+  };
 }
 
 export interface EstimateInput {
@@ -110,7 +114,7 @@ export function estimateOf(input: EstimateInput): PlatinumEstimate | null {
       remainingHours: 0,
       basis: playedHours === null ? 'community' : 'measured',
       confidence: 'high',
-      explanation: 'Ya están todos los logros. Esto es el tiempo que te ha costado.',
+      reason: { kind: 'done' },
     };
   }
 
@@ -124,10 +128,13 @@ export function estimateOf(input: EstimateInput): PlatinumEstimate | null {
       remainingHours: round(remainingHours),
       basis: 'measured',
       confidence: solid ? 'high' : 'medium',
-      explanation:
-        `Con tus ${round(playedHours)} h llevas ${unlocked} de ${total} logros. ` +
-        `Lo que falta es ${round(remainingWeight / Math.max(unlockedWeight, 0.001), 2)} veces más ` +
-        'costoso que lo ya hecho, según la rareza de cada logro.',
+      reason: {
+        kind: 'measured',
+        playedHours: round(playedHours),
+        unlocked,
+        total,
+        costRatio: round(remainingWeight / Math.max(unlockedWeight, 0.001), 2),
+      },
     };
   }
 
@@ -139,9 +146,7 @@ export function estimateOf(input: EstimateInput): PlatinumEstimate | null {
       remainingHours: round(remainingHours),
       basis: 'projected',
       confidence: 'low',
-      explanation:
-        `Aún has jugado poco (${round(playedHours)} h), así que la estimación sale de la ` +
-        'rareza de los logros que te faltan, no de tu ritmo.',
+      reason: { kind: 'projected', playedHours: round(playedHours) },
     };
   }
 
@@ -153,11 +158,7 @@ export function estimateOf(input: EstimateInput): PlatinumEstimate | null {
     remainingHours: round(remainingWeight * COMMUNITY_HOURS_PER_WEIGHT),
     basis: 'community',
     confidence: 'low',
-    explanation:
-      input.difficulty
-        ? `Estimación general del juego (${input.difficulty.label.toLowerCase()}); ` +
-          'se afinará en cuanto Atreus vea horas jugadas tuyas.'
-        : 'Estimación general del juego; se afinará en cuanto haya horas jugadas tuyas.',
+    reason: { kind: 'community', tier: input.difficulty?.tier ?? null },
   };
 }
 
@@ -166,6 +167,3 @@ function round(value: number, decimals = 1): number {
   return Math.round(value * factor) / factor;
 }
 
-function format(value: number): string {
-  return value < 1 ? value.toFixed(2).replace('.', ',') : value.toFixed(1).replace('.', ',');
-}

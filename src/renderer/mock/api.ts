@@ -80,14 +80,21 @@ function buildMockReport(game: Game): PlatinumReport {
       remainingHours: Math.round(((playtimeMinutes ?? 600) / 60) * 0.8 * 10) / 10,
       basis: 'measured',
       confidence: 'medium',
-      explanation: 'Datos de ejemplo del modo mock: en la aplicación real salen de tus horas y de la rareza de cada logro.',
+      reason: {
+        kind: 'measured',
+        playedHours: Math.round(((playtimeMinutes ?? 600) / 60) * 10) / 10,
+        unlocked: unlocked.length,
+        total: list.length,
+        costRatio: 1.8,
+      },
     },
     difficulty: {
       score: rarest < 5 ? 7.5 : 4,
-      label: rarest < 5 ? 'Difícil' : 'Asequible',
+      tier: rarest < 5 ? 'hard' : 'easy',
       rarestPercent: rarest,
       ultraRare: list.filter((a) => (a.globalPercent ?? 100) < 5).length,
-      explanation: `El logro más raro lo tiene el ${rarest} % de los jugadores.`,
+      knownPercents: list.filter((a) => a.globalPercent !== null).length,
+      total: list.length,
     },
     remaining: remaining
       .sort((a, b) => (b.globalPercent ?? -1) - (a.globalPercent ?? -1))
