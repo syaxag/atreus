@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
+import { ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
@@ -127,7 +127,7 @@ export function SettingsView() {
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
 
-          <Section title="Steam">
+          <Section title="Steam" defaultOpen>
             <Row label="Carpeta de Steam"
                  hint="Se detecta sola desde el registro; solo hace falta tocarla si tienes una instalación portátil.">
               <div className="flex w-96 gap-2">
@@ -231,7 +231,7 @@ export function SettingsView() {
             </Row>
           </Section>
 
-          <Section title="Comportamiento">
+          <Section title="Biblioteca y comportamiento" defaultOpen>
             <Row label="Escanear al arrancar"
                  hint="Refresca la biblioteca cada vez que se abre Atreus.">
               <Toggle checked={settings.scanOnStart}
@@ -402,14 +402,17 @@ export function SettingsView() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title, children, defaultOpen = false,
+}: { title: string; children: ReactNode; defaultOpen?: boolean }) {
   return (
-    <section>
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
+    <details className="group" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center justify-between rounded-sm px-1 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint hover:text-muted focus-visible:outline-none">
         {title}
-      </h2>
-      <Card className="divide-y divide-[var(--border)]">{children}</Card>
-    </section>
+        <ChevronDown size={15} className="transition-transform duration-150 group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <Card className="mt-1 divide-y divide-[var(--border)]">{children}</Card>
+    </details>
   );
 }
 

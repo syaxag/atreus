@@ -13,6 +13,7 @@ import * as progress from '../services/progress';
 import * as achievements from '../services/achievements';
 import * as xbox from '../services/xbox';
 import * as maps from '../services/maps';
+import * as content from '../services/content';
 import * as platinum from '../services/platinum';
 import { startWarmup } from '../services/platinum/warmup';
 import { paths, OPENABLE, type OpenableKey } from '../paths';
@@ -124,6 +125,7 @@ export function registerIpc(): void {
   handle('library.list', () => ok(catalog.listGames()));
   handle('library.scan', async () => {
     const games = await catalog.scan();
+    content.invalidate();
     // Un escaneo puede traer juegos nuevos: que el cálculo los recoja.
     startWarmup();
     return ok(games);
@@ -132,8 +134,12 @@ export function registerIpc(): void {
     const game = catalog.getGame(id);
     return game ? ok(game) : err(`Juego no encontrado: ${id}`, 'NOT_FOUND');
   });
-  handle('library.addManual', (exePath: string) => ok(catalog.addManual(exePath)));
-  handle('library.remove', (id: string) => { catalog.removeGame(id); return ok(undefined); });
+  handle('library.addManual', (exePath: string) => {
+    const game = catalog.addManual(exePath);
+    content.invalidate();
+    return ok(game);
+  });
+  handle('library.remove', (id: string) => { catalog.removeGame(id); content.invalidate(); return ok(undefined); });
   handle('library.setFavorite', (id: string, favorite: boolean) => {
     catalog.setFavorite(id, favorite);
     return ok(undefined);
@@ -180,6 +186,7 @@ export function registerIpc(): void {
     ok(mods.setEnabled(gameId, modId, enabled)));
   handle('mods.reorder', (gameId: string, modIds: string[]) =>
     ok(mods.reorder(gameId, modIds)));
+  handle('mods.previewDeploy', (gameId: string) => ok(mods.previewDeploy(gameId)));
   handle('mods.deploy', (gameId: string) => ok(mods.deploy(gameId)));
   handle('mods.purge', (gameId: string) => { mods.purge(gameId); return ok(undefined); });
   handle('mods.profiles', (gameId: string) => ok(mods.profiles(gameId)));
@@ -218,15 +225,18 @@ export function registerIpc(): void {
   handle('platinum.summaries', () => ok(platinum.summariesFor()));
 
   // ── Guías con texto completo ───────────────────────────────
-  handle('guides.list', (gameId: string, category: GuideCategory, query?: string) =>
-    guides.list(gameId, category, query).then(ok));
+  handle('guides.list', (gameId: string, category: GuideCategory, query?: string, refresh?: boolean) =>
+    guides.list(gameId, category, query, refresh === true).then(ok));
   handle('guides.read', (entry: GuideEntry) => guides.read(entry).then(ok));
 
   // ── Mapas interactivos ─────────────────────────────────────
-  handle('maps.list', (gameId: string) => maps.list(gameId).then(ok));
+  handle('maps.list', (gameId: string, refresh?: boolean) => maps.list(gameId, refresh === true).then(ok));
   handle('maps.add', (gameId: string, input: { title: string; url: string }) =>
     maps.add(gameId, input).then(ok));
   handle('maps.remove', (gameId: string, mapId: string) => maps.remove(gameId, mapId).then(ok));
+
+  // ── Índice de contenido de la Colección ────────────────────
+  handle('content.availability', () => content.availability().then(ok));
 
   // ── Progreso de completado local ───────────────────────────
   handle('progress.get', (gameId: string) => ok(progress.get(gameId)));

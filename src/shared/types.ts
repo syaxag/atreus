@@ -275,6 +275,22 @@ export interface InteractiveMap {
   removable?: boolean;
 }
 
+/**
+ * Contenido que Atreus ha comprobado para una tarjeta de la Colección.
+ *
+ * No es una etiqueta del catálogo: los contadores salen de las mismas fuentes
+ * que abren las vistas de guías, mapas y mods. `updatedAt` permite que la UI
+ * deje claro que es una comprobación reciente, no una promesa genérica.
+ */
+export interface ContentAvailability {
+  gameId: GameId;
+  guides: number;
+  readableGuides: number;
+  maps: number;
+  mods: number;
+  updatedAt: number;
+}
+
 /** Lista de progreso local: no modifica logros ni partidas del juego. */
 export type CompletionItemKind = 'achievement' | 'collectible' | 'mission' | 'boss' | 'note';
 
@@ -314,6 +330,21 @@ export interface Mod {
   files: string[];
   conflictsWith: string[];
   error: string | null;
+}
+
+/** Vista de solo lectura antes de escribir un perfil de mods en el juego. */
+export interface ModDeployPreview {
+  root: string;
+  activeMods: string[];
+  files: {
+    path: string;
+    modId: string;
+    modName: string;
+    /** El destino existe ahora; Atreus lo respalda antes de cambiarlo. */
+    currentlyExists: boolean;
+  }[];
+  /** Dos mods activos escriben la misma ruta; gana el último del orden. */
+  conflicts: { path: string; mods: string[] }[];
 }
 
 /** Un mod disponible en un catálogo público, todavía no instalado. */

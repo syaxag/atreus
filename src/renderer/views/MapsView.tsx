@@ -25,33 +25,69 @@ export function MapsView() {
   const [maps, setMaps] = useState<InteractiveMap[] | null>(null);
   const [active, setActive] = useState<InteractiveMap | null>(null);
   const [loadingFrame, setLoadingFrame] = useState(false);
+  const [frameError, setFrameError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ title: '', url: '' });
   const [saving, setSaving] = useState(false);
+  const [refreshingMaps, setRefreshingMaps] = useState(false);
   const frame = useRef<HTMLElement & {
     reload(): void; goBack(): void; goForward(): void; canGoBack(): boolean;
   } | null>(null);
 
-  useEffect(() => {
+  const loadMaps = useCallback(async (refresh = false) => {
     if (!gameId) { setMaps(null); return; }
+    if (refresh) setRefreshingMaps(true);
     setMaps(null);
-    setActive(null);
-    void api.maps.list(gameId).then((response) => {
-      if (!response.ok) { setMaps([]); pushToast('error', response.error); return; }
-      setMaps(response.data);
-      // Con un solo mapa no tiene sentido obligar a elegir.
-      if (response.data.length === 1) setActive(response.data[0]!);
-    });
+    const response = await api.maps.list(gameId, refresh);
+    if (refresh) setRefreshingMaps(false);
+    if (!response.ok) { setMaps([]); pushToast('error', response.error); return; }
+    setMaps(response.data);
+    // Con un solo mapa no tiene sentido obligar a elegir.
+    if (response.data.length === 1) setActive(response.data[0]!);
   }, [gameId, pushToast]);
+
+  useEffect(() => {
+    setActive(null);
+    void loadMaps();
+  }, [gameId, loadMaps]);
+
+  // Un proveedor puede bloquear el webview o dejar de existir. Nunca se debe
+  // quedar un lienzo blanco sin explicar qué pasó ni cómo continuar.
+  useEffect(() => {
+    setFrameError(null);
+    setLoadingFrame(active !== null);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !loadingFrame) return;
+    const timeout = window.setTimeout(() => {
+      setLoadingFrame(false);
+      setFrameError('El mapa está tardando demasiado en responder. Puede estar bloqueando la vista integrada.');
+    }, 12_000);
+    return () => window.clearTimeout(timeout);
+  }, [active, loadingFrame]);
 
   // El <webview> no emite eventos de React: hay que engancharse a los suyos.
   const attach = useCallback((node: HTMLElement | null) => {
     frame.current = node as typeof frame.current;
     if (!node) return;
-    const start = () => setLoadingFrame(true);
+    const start = () => { setFrameError(null); setLoadingFrame(true); };
     const stop = () => setLoadingFrame(false);
+    /*
+     * `did-fail-load` también salta por un subrecurso o un subframe: los
+     * anuncios y los trackers de un mapa fallan a diario y el mapa se ve
+     * perfectamente. Solo el marco principal significa que no hay mapa. El
+     * código -3 (ERR_ABORTED) es una navegación cancelada, no un fallo.
+     */
+    const fail = (event: Event) => {
+      const detail = event as Event & { isMainFrame?: boolean; errorCode?: number };
+      if (detail.isMainFrame === false || detail.errorCode === -3) return;
+      setLoadingFrame(false);
+      setFrameError('No se pudo abrir este mapa dentro de Atreus.');
+    };
     node.addEventListener('did-start-loading', start);
     node.addEventListener('did-stop-loading', stop);
+    node.addEventListener('did-fail-load', fail);
   }, []);
 
   async function addMap() {
@@ -71,6 +107,12 @@ export function MapsView() {
     const response = await api.maps.remove(gameId, mapId);
     if (!response.ok) return pushToast('error', response.error);
     setMaps(response.data);
+  }
+
+  function retryFrame() {
+    setFrameError(null);
+    setLoadingFrame(true);
+    frame.current?.reload();
   }
 
   if (!game || !gameId) {
@@ -107,13 +149,39 @@ export function MapsView() {
           `partition` sin persistencia: la sesión del mapa no se mezcla con
           nada más de la aplicación y no queda nada guardado al cerrar.
         */}
-        <webview
-          ref={attach as never}
-          src={active.url}
-          partition="atreus-maps"
-          allowpopups={undefined}
-          className="min-h-0 flex-1 bg-white"
-        />
+        <div className="relative min-h-0 flex-1 bg-white">
+          <webview
+            ref={attach as never}
+            src={active.url}
+            partition="atreus-maps"
+            allowpopups={undefined}
+            className="h-full w-full bg-white"
+          />
+          {loadingFrame && !frameError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface text-center" role="status" aria-live="polite">
+              <LoaderCircle size={24} className="animate-spin text-accent" />
+              <div>
+                <p className="text-[14px] font-medium text-fg">Cargando mapa interactivo…</p>
+                <p className="mt-1 text-[12px] text-muted">Los mapas externos pueden tardar unos segundos.</p>
+              </div>
+            </div>
+          )}
+          {frameError && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface p-6 text-center" role="alert">
+              <MapIcon size={32} className="text-warn" />
+              <div className="max-w-md">
+                <p className="text-[14px] font-semibold text-fg">El mapa no se pudo mostrar aquí</p>
+                <p className="mt-1 text-[12px] leading-5 text-muted">{frameError}</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button size="sm" variant="outline" onClick={retryFrame}><RotateCw size={13} /> Reintentar</Button>
+                <Button size="sm" variant="primary" onClick={() => void api.settings.openPath(active.url)}>
+                  <ExternalLink size={13} /> Abrir fuera
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -123,9 +191,15 @@ export function MapsView() {
       <ViewHeader
         title={`Atlas · ${game.name}`}
         subtitle="Mapas interactivos reales, con sus coleccionables y sus filtros, dentro de Atreus."
-        actions={<Button variant="outline" onClick={() => setAdding(true)}>
-          <Plus size={14} /> Añadir un mapa
-        </Button>} />
+        actions={<>
+          <Button variant="outline" onClick={() => void loadMaps(true)} disabled={refreshingMaps}>
+            <RotateCw size={14} className={refreshingMaps ? 'animate-spin' : undefined} />
+            {refreshingMaps ? 'Actualizando…' : 'Actualizar'}
+          </Button>
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            <Plus size={14} /> Añadir un mapa
+          </Button>
+        </>} />
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {maps === null ? (
           <div className="flex flex-col gap-3">

@@ -37,6 +37,7 @@ export function GameView() {
 
   const [report, setReport] = useState<PlatinumReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [readableGuideCount, setReadableGuideCount] = useState<number | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (!gameId) return;
@@ -45,10 +46,17 @@ export function GameView() {
     setLoading(false);
     if (!response.ok) {
       setReport(null);
+      setReadableGuideCount(null);
       pushToast('error', response.error);
       return;
     }
     setReport(response.data);
+    setReadableGuideCount(null);
+    // La recomendación no inventa una guía por logro: dice cuántas rutas de
+    // platino legibles hay antes de mandar al usuario a esa pantalla.
+    void api.guides.list(gameId, 'platinum').then((guides) => {
+      setReadableGuideCount(guides.ok ? guides.data.filter((guide) => guide.readable).length : 0);
+    });
     void loadPlatinum();
   }, [gameId, pushToast, loadPlatinum]);
 
@@ -84,7 +92,9 @@ export function GameView() {
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        {loading && !report ? <ReportSkeleton /> : report ? <Report report={report} /> : null}
+        {loading && !report ? <ReportSkeleton gameName={game.name} /> : report ? (
+          <Report report={report} readableGuideCount={readableGuideCount} onRefresh={() => void load(true)} />
+        ) : null}
 
         <section className="mt-6">
           <h2 className="mb-2 text-[13px] font-semibold">Seguir desde aquí</h2>
@@ -104,7 +114,9 @@ export function GameView() {
   );
 }
 
-function Report({ report }: { report: PlatinumReport }) {
+function Report({
+  report, readableGuideCount, onRefresh,
+}: { report: PlatinumReport; readableGuideCount: number | null; onRefresh: () => void }) {
   const go = useStore((state) => state.go);
   const celebrate = useStore((state) => state.celebrate);
   const hasAchievements = report.total > 0;
@@ -229,11 +241,18 @@ function Report({ report }: { report: PlatinumReport }) {
           {report.difficulty && <li>· {report.difficulty.explanation}</li>}
         </ul>
         {report.sources.length > 0 && (
-          <p className="mt-3 border-t border-line pt-2 text-[11px] text-faint">
-            Fuentes: {report.sources.join(' · ')}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-[11px] text-faint">
+            <p>Fuentes: {report.sources.join(' · ')} · actualizado {relative(report.updatedAt)}</p>
+            <Button size="sm" variant="ghost" onClick={onRefresh} title="Volver a consultar fuentes y progreso">
+              <RefreshCw size={13} /> Actualizar datos
+            </Button>
+          </div>
         )}
       </Card>
+    )}
+
+    {!report.complete && report.remaining.length > 0 && (
+      <NextStep report={report} readableGuideCount={readableGuideCount} />
     )}
 
     {report.remaining.length > 0 && (
@@ -275,6 +294,45 @@ function Report({ report }: { report: PlatinumReport }) {
   </>;
 }
 
+/** El informe ya ordena de lo más común a lo más raro: empezar ahí reduce
+ * fricción sin fingir que sabemos el tiempo exacto de un logro individual. */
+function NextStep({
+  report, readableGuideCount,
+}: { report: PlatinumReport; readableGuideCount: number | null }) {
+  const go = useStore((state) => state.go);
+  const next = report.remaining[0]!;
+  const label = next.hidden && !next.displayName ? 'Logro oculto' : next.displayName;
+
+  return (
+    <Card className="mt-4 border-[var(--accent-line)] bg-[var(--accent-soft)] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <Target size={18} className="mt-0.5 shrink-0 text-accent" />
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">Qué hago ahora</p>
+            <h2 className="mt-1 text-[15px] font-semibold">Empieza por {label}</h2>
+            <p className="mt-1 max-w-2xl text-[12px] leading-5 text-muted">
+              {next.description || 'Es el siguiente logro pendiente más asequible.'} · Lo tiene el {percent(next.globalPercent)} de jugadores.
+              {report.estimate ? ` Te quedan unas ${hours(report.estimate.remainingHours)} para el 100 % completo.` : ''}
+            </p>
+            <p className="mt-1 text-[11px] text-faint">
+              {readableGuideCount === null
+                ? 'Buscando rutas que puedas leer aquí…'
+                : readableGuideCount > 0
+                  ? `${readableGuideCount} ${readableGuideCount === 1 ? 'guía legible' : 'guías legibles'} para el platino.`
+                  : 'No hay una guía legible disponible todavía; puedes revisar los logros.'}
+            </p>
+          </div>
+        </div>
+        <Button size="sm" variant="primary" onClick={() => go(readableGuideCount ? 'guides' : 'achievements')}>
+          {readableGuideCount ? <BookOpen size={13} /> : <Trophy size={13} />}
+          {readableGuideCount ? 'Abrir rutas' : 'Ver logros'}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 const CONFIDENCE: Record<'low' | 'medium' | 'high', string> = {
   low: 'estimación gruesa',
   medium: 'estimación razonable',
@@ -301,8 +359,12 @@ function Metric({
   );
 }
 
-function ReportSkeleton() {
+function ReportSkeleton({ gameName }: { gameName: string }) {
   return <>
+    <div className="mb-4 flex items-center gap-2 text-[13px] text-muted" role="status" aria-live="polite">
+      <RefreshCw size={14} className="animate-spin text-accent" />
+      <span>Leyendo logros, horas y rareza de {gameName}…</span>
+    </div>
     <Skeleton className="h-40" />
     <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
       {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28" />)}

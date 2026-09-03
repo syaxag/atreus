@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, Trophy, Lock, RotateCcw, Save, EyeOff, History, ShieldAlert, Filter, NotebookPen,
-  Eye,
+  Eye, BookOpen, Map as MapIcon,
 } from 'lucide-react';
 import type { Achievement, AchievementSet, GameStat, SteamSnapshot } from '@shared/types';
 import { api } from '@/lib/api';
@@ -34,6 +34,8 @@ const SORTS: { id: Sort; label: string }[] = [
 export function AchievementsView() {
   const game = useStore((s) => s.selected());
   const pushToast = useStore((s) => s.pushToast);
+  const openGuideSearch = useStore((s) => s.openGuideSearch);
+  const go = useStore((s) => s.go);
 
   // Se extraen los identificadores porque el objeto `game` se reconstruye cada
   // vez que cambia la biblioteca (marcar un favorito, un escaneo…). Si los
@@ -460,6 +462,22 @@ export function AchievementsView() {
                         {a.globalPercent !== null && (
                           <p className="mt-0.5 text-[11px] text-faint">{rarity(a.globalPercent)}</p>
                         )}
+                        {!on && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openGuideSearch(game.id, a.displayName)}
+                            >
+                              <BookOpen size={12} /> Buscar guía
+                            </Button>
+                            {needsMap(a) && (
+                              <Button size="sm" variant="ghost" onClick={() => go('maps')}>
+                                <MapIcon size={12} /> Ver mapa
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Un logro activado sin fecha se contradice a la vista.
@@ -605,6 +623,12 @@ export function AchievementsView() {
       )}
     </div>
   );
+}
+
+/** Los mapas ayudan cuando el propio texto apunta a lugares o coleccionables. */
+function needsMap(achievement: Achievement): boolean {
+  return /coleccion|collect|ubicaci[oó]n|location|mapa|map\b|tesoro|treasure|secreto|secret|reliquia|relic/i
+    .test(`${achievement.displayName} ${achievement.description}`);
 }
 
 /**

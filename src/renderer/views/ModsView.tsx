@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Package, Plus, Trash2, ArrowUp, ArrowDown, HardDriveDownload, Eraser, TriangleAlert,
-  Layers, Check, X, Upload, Globe, Download, Search,
+  Layers, Check, X, Upload, Globe, Download, Search, Columns2,
 } from 'lucide-react';
-import type { Mod, ModProfile, RemoteMod } from '@shared/types';
+import type { Mod, ModDeployPreview, ModProfile, RemoteMod } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { bytes } from '@/lib/format';
-import { Badge, Button, Card, Empty, Skeleton, Toggle, ViewHeader } from '@/components/ui';
+import { Badge, Button, Card, Empty, Modal, Skeleton, Toggle, ViewHeader } from '@/components/ui';
 
 /** Extensiones que el backend sabe extraer. Ver services/mods/archive.ts. */
 const ARCHIVE_RE = /\.(zip|7z|rar)$/i;
+type InstalledSort = 'order' | 'name' | 'recent' | 'status';
 
 export function ModsView() {
   const game = useStore((s) => s.selected());
@@ -24,6 +25,8 @@ export function ModsView() {
   const [profiles, setProfiles] = useState<ModProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<ModDeployPreview | null>(null);
+  const [preparingPreview, setPreparingPreview] = useState(false);
   /** true mientras se arrastra un archivo sobre la zona de mods. */
   const [dragging, setDragging] = useState(false);
 
@@ -34,6 +37,11 @@ export function ModsView() {
   const [loadingRemote, setLoadingRemote] = useState(false);
   const [query, setQuery] = useState('');
   const [installing, setInstalling] = useState<string | null>(null);
+  const [installedQuery, setInstalledQuery] = useState('');
+  const [installedSort, setInstalledSort] = useState<InstalledSort>('order');
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLeft, setCompareLeft] = useState('');
+  const [compareRight, setCompareRight] = useState('');
 
   const load = useCallback(async () => {
     if (!gameId) return;
@@ -65,7 +73,10 @@ export function ModsView() {
   }, [tab, remote, loadingRemote, remoteError, discover]);
 
   // Al cambiar de juego se descarta el catálogo del anterior.
-  useEffect(() => { setRemote(null); setRemoteError(null); setTab('installed'); }, [gameId]);
+  useEffect(() => {
+    setRemote(null); setRemoteError(null); setTab('installed');
+    setInstalledQuery(''); setInstalledSort('order');
+  }, [gameId]);
 
   useEffect(() => {
     const off = api.on('mods:updated', (payload) => {
@@ -150,6 +161,15 @@ export function ModsView() {
     await load();
   }
 
+  function openComparison() {
+    const first = profiles.find((profile) => profile.isActive) ?? profiles[0];
+    const second = profiles.find((profile) => profile.id !== first?.id) ?? first;
+    if (!first || !second) return;
+    setCompareLeft(first.id);
+    setCompareRight(second.id);
+    setCompareOpen(true);
+  }
+
   async function setEnabled(mod: Mod, enabled: boolean) {
     if (!game) return;
     setMods((prev) => prev.map((m) => (m.id === mod.id ? { ...m, enabled } : m)));
@@ -182,17 +202,22 @@ export function ModsView() {
     if (!res.ok) pushToast('error', res.error);
   }
 
+  async function prepareDeploy() {
+    if (!game) return;
+    setPreparingPreview(true);
+    const result = await api.mods.previewDeploy(game.id);
+    setPreparingPreview(false);
+    if (!result.ok) return pushToast('error', result.error);
+    setPreview(result.data);
+  }
+
   async function deploy() {
     if (!game) return;
-    const conflicts = mods.filter((mod) => mod.enabled && mod.conflictsWith.length > 0);
-    if (conflicts.length > 0 && !window.confirm(
-      `${conflicts.length} mod${conflicts.length === 1 ? '' : 's'} activo${conflicts.length === 1 ? '' : 's'} comparte archivos con otro mod.\n\n` +
-      'Atreus hará una copia de los archivos del juego que vaya a sobrescribir. ¿Desplegar de todos modos?',
-    )) return;
     setBusy(true);
     const res = await api.mods.deploy(game.id);
     setBusy(false);
-    if (!res.ok) pushToast('error', res.error);
+    if (!res.ok) return pushToast('error', res.error);
+    setPreview(null);
   }
 
   async function purge() {
@@ -214,6 +239,19 @@ export function ModsView() {
   const active = profiles.find((p) => p.isActive);
   const enabledCount = mods.filter((m) => m.enabled).length;
   const conflictingEnabled = mods.filter((m) => m.enabled && m.conflictsWith.length > 0).length;
+  const visibleMods = useMemo(() => {
+    const search = installedQuery.trim().toLowerCase();
+    const filtered = search
+      ? mods.filter((mod) => `${mod.name} ${mod.author ?? ''} ${mod.description ?? ''}`.toLowerCase().includes(search))
+      : mods;
+    return [...filtered].sort((a, b) => {
+      if (installedSort === 'name') return a.name.localeCompare(b.name, 'es');
+      if (installedSort === 'recent') return b.installedAt - a.installedAt;
+      if (installedSort === 'status') return Number(b.enabled) - Number(a.enabled) || a.order - b.order;
+      return a.order - b.order;
+    });
+  }, [mods, installedQuery, installedSort]);
+  const canReorder = installedSort === 'order' && !installedQuery.trim();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -247,8 +285,8 @@ export function ModsView() {
             <Button variant="outline" onClick={purge} disabled={busy}>
               <Eraser size={14} /> Purgar
             </Button>
-            <Button variant="primary" onClick={deploy} disabled={busy || enabledCount === 0}>
-              <HardDriveDownload size={14} /> {busy ? 'Trabajando…' : 'Desplegar'}
+            <Button variant="primary" onClick={prepareDeploy} disabled={busy || preparingPreview || enabledCount === 0}>
+              <HardDriveDownload size={14} /> {preparingPreview ? 'Preparando…' : 'Desplegar'}
             </Button>
           </>
         }
@@ -284,9 +322,14 @@ export function ModsView() {
             ))
           )}
         </div>
-        <Button size="sm" variant="outline" onClick={saveCurrentAsProfile} disabled={busy}>
-          Guardar actual
-        </Button>
+        <div className="flex shrink-0 gap-1">
+          <Button size="sm" variant="outline" onClick={openComparison} disabled={profiles.length < 2}>
+            <Columns2 size={13} /> Comparar
+          </Button>
+          <Button size="sm" variant="outline" onClick={saveCurrentAsProfile} disabled={busy}>
+            Guardar actual
+          </Button>
+        </div>
       </div>
 
       <div
@@ -346,12 +389,35 @@ export function ModsView() {
             }
           />
         ) : (
-          <div className="flex flex-col gap-2">
-            {mods.map((mod, i) => (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <div className="relative w-full max-w-xs">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+                <input value={installedQuery} onChange={(event) => setInstalledQuery(event.target.value)}
+                  placeholder="Buscar mods instalados…"
+                  className="h-9 w-full rounded-sm border border-line bg-inset pl-8 pr-3 text-[13px] text-fg placeholder:text-faint focus:border-accent focus:outline-none" />
+              </div>
+              <label className="flex items-center gap-1.5 text-[12px] text-faint">
+                Ordenar
+                <select value={installedSort} onChange={(event) => setInstalledSort(event.target.value as InstalledSort)}
+                  className="h-8 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none">
+                  <option value="order">Orden de carga</option>
+                  <option value="name">Nombre</option>
+                  <option value="recent">Añadidos recientemente</option>
+                  <option value="status">Activos primero</option>
+                </select>
+              </label>
+              <span className="text-[12px] text-faint">{visibleMods.length} de {mods.length}</span>
+              {!canReorder && <span className="text-[11px] text-faint">Restablece el orden y la búsqueda para reordenar.</span>}
+            </div>
+            {visibleMods.length === 0 ? (
+              <Empty title="Ningún mod coincide" hint="Prueba otro término de búsqueda." />
+            ) : <div className="flex flex-col gap-2">
+            {visibleMods.map((mod) => (
               <Card key={mod.id} className={cn('defer-render px-4 py-3', !mod.enabled && 'opacity-60')}>
                 <div className="flex items-center gap-3">
                   <span className="w-6 shrink-0 text-center font-mono text-[12px] text-faint">
-                    {i + 1}
+                    {mod.order + 1}
                   </span>
 
                   <div className="min-w-0 flex-1">
@@ -372,12 +438,14 @@ export function ModsView() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button size="sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Subir">
-                      <ArrowUp size={13} />
-                    </Button>
-                    <Button size="sm" onClick={() => move(i, 1)} disabled={i === mods.length - 1} aria-label="Bajar">
-                      <ArrowDown size={13} />
-                    </Button>
+                    {canReorder && <>
+                      <Button size="sm" onClick={() => move(mod.order, -1)} disabled={mod.order === 0} aria-label="Subir">
+                        <ArrowUp size={13} />
+                      </Button>
+                      <Button size="sm" onClick={() => move(mod.order, 1)} disabled={mod.order === mods.length - 1} aria-label="Bajar">
+                        <ArrowDown size={13} />
+                      </Button>
+                    </>}
                     <Button size="sm" variant="danger" onClick={() => remove(mod)} aria-label="Desinstalar">
                       <Trash2 size={13} />
                     </Button>
@@ -393,10 +461,166 @@ export function ModsView() {
                 </div>
               </Card>
             ))}
-          </div>
+            </div>}
+          </>
         )}</>}
       </div>
+      <DeployPreview
+        preview={preview}
+        mods={mods}
+        busy={busy}
+        onClose={() => setPreview(null)}
+        onConfirm={deploy}
+      />
+      <ProfileComparison
+        open={compareOpen}
+        profiles={profiles}
+        mods={mods}
+        leftId={compareLeft}
+        rightId={compareRight}
+        onLeftChange={setCompareLeft}
+        onRightChange={setCompareRight}
+        onClose={() => setCompareOpen(false)}
+      />
     </div>
+  );
+}
+
+function ProfileComparison({
+  open, profiles, mods, leftId, rightId, onLeftChange, onRightChange, onClose,
+}: {
+  open: boolean;
+  profiles: ModProfile[];
+  mods: Mod[];
+  leftId: string;
+  rightId: string;
+  onLeftChange: (id: string) => void;
+  onRightChange: (id: string) => void;
+  onClose: () => void;
+}) {
+  const left = profiles.find((profile) => profile.id === leftId);
+  const right = profiles.find((profile) => profile.id === rightId);
+  const names = new Map(mods.map((mod) => [mod.id, mod.name]));
+  const label = (id: string) => names.get(id) ?? `Mod eliminado (${id})`;
+  const leftOnly = left?.mods.filter((id) => !right?.mods.includes(id)) ?? [];
+  const rightOnly = right?.mods.filter((id) => !left?.mods.includes(id)) ?? [];
+  const same = left && right && leftOnly.length === 0 && rightOnly.length === 0;
+
+  return (
+    <Modal
+      open={open}
+      title="Comparar perfiles"
+      icon={<Columns2 size={16} className="text-accent" />}
+      onClose={onClose}
+      footer={<Button variant="primary" onClick={onClose}>Cerrar</Button>}
+    >
+      <p className="text-[13px] leading-5 text-muted">
+        Esta comparación es solo de lectura: no activa perfiles ni cambia el orden de carga.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <label className="text-[12px] font-medium text-muted">Perfil A
+          <select value={leftId} onChange={(event) => onLeftChange(event.target.value)}
+            className="mt-1 h-9 w-full rounded-sm border border-line bg-inset px-2 text-[13px] text-fg focus:border-accent focus:outline-none">
+            {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+          </select>
+        </label>
+        <label className="text-[12px] font-medium text-muted">Perfil B
+          <select value={rightId} onChange={(event) => onRightChange(event.target.value)}
+            className="mt-1 h-9 w-full rounded-sm border border-line bg-inset px-2 text-[13px] text-fg focus:border-accent focus:outline-none">
+            {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+          </select>
+        </label>
+      </div>
+      {left && right && (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <ProfileColumn title={`Solo en ${left.name}`} ids={leftOnly} label={label} />
+          <ProfileColumn title={`Solo en ${right.name}`} ids={rightOnly} label={label} />
+        </div>
+      )}
+      {same && <p className="mt-4 rounded-sm border border-[var(--success-line)] px-3 py-2 text-[12px] text-success">Ambos perfiles activan exactamente los mismos mods.</p>}
+    </Modal>
+  );
+}
+
+function ProfileColumn({ title, ids, label }: { title: string; ids: string[]; label: (id: string) => string }) {
+  return (
+    <section className="min-w-0 rounded-sm border border-line bg-inset p-3">
+      <p className="text-[12px] font-semibold text-fg">{title}</p>
+      {ids.length === 0 ? <p className="mt-2 text-[12px] text-faint">Ninguno</p> : (
+        <ul className="mt-2 flex flex-col gap-1 text-[12px] text-muted">
+          {ids.map((id) => <li key={id} className="truncate" title={label(id)}>• {label(id)}</li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DeployPreview({
+  preview, mods, busy, onClose, onConfirm,
+}: {
+  preview: ModDeployPreview | null;
+  mods: Mod[];
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const overwritten = preview?.files.filter((file) => file.currentlyExists).length ?? 0;
+  // Los nombres salen de la lista instalada, no de `preview.files`: ahí solo
+  // está el mod que gana cada ruta, así que un mod que las pierde todas se
+  // quedaba sin nombre y la fila del conflicto enseñaba su identificador.
+  const namesById = new Map(mods.map((mod) => [mod.id, mod.name]));
+  return (
+    <Modal
+      open={preview !== null}
+      title="Revisar despliegue"
+      icon={<HardDriveDownload size={16} className="text-accent" />}
+      onClose={onClose}
+      wide
+      footer={<>
+        <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
+        <Button variant="primary" onClick={onConfirm} disabled={busy}>
+          <HardDriveDownload size={14} /> {busy ? 'Desplegando…' : `Desplegar ${preview?.files.length ?? 0} archivos`}
+        </Button>
+      </>}
+    >
+      {preview && <>
+        <p className="text-[13px] leading-5 text-muted">
+          Se escribirán los archivos listados en <span className="selectable font-mono text-[11px] text-fg">{preview.root}</span>.
+          {overwritten > 0 ? ` ${overwritten} ya existen y Atreus los respaldará antes.` : ' Ninguno existe todavía.'}
+        </p>
+        {preview.conflicts.length > 0 && (
+          <div className="mt-3 rounded-sm border border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] p-3 text-[12px] text-warn">
+            <div className="flex items-center gap-2 font-medium"><TriangleAlert size={14} /> {preview.conflicts.length} conflicto{preview.conflicts.length === 1 ? '' : 's'} de orden</div>
+            <p className="mt-1 text-muted">El último mod de cada fila gana ese archivo. Reordena o desactiva un mod antes de confirmar si no es el resultado esperado.</p>
+            <ul className="mt-3 overflow-hidden rounded-sm border border-[var(--warn-line)] bg-surface text-[11px]">
+              {preview.conflicts.map((conflict) => {
+                const winner = conflict.mods[conflict.mods.length - 1];
+                return (
+                  <li key={conflict.path} className="border-b border-[var(--warn-line)] px-3 py-2 last:border-0">
+                    <p className="truncate font-mono text-fg" title={conflict.path}>{conflict.path}</p>
+                    <p className="mt-1 text-muted">
+                      {conflict.mods.map((id) => namesById.get(id) ?? id).join(' → ')}
+                      {winner && <span className="text-warn"> · gana {namesById.get(winner) ?? winner}</span>}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        <div className="mt-4 max-h-64 overflow-y-auto rounded-sm border border-line bg-inset font-mono text-[11px]">
+          {preview.files.map((file) => (
+            <div key={file.path} className="flex items-center gap-3 border-b border-line px-3 py-2 last:border-0">
+              <span className={cn('w-20 shrink-0', file.currentlyExists ? 'text-warn' : 'text-success')}>
+                {file.currentlyExists ? 'respaldo' : 'nuevo'}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-fg" title={file.path}>{file.path}</span>
+              <span className="max-w-36 truncate text-faint" title={file.modName}>{file.modName}</span>
+            </div>
+          ))}
+        </div>
+      </>}
+    </Modal>
   );
 }
 

@@ -87,9 +87,9 @@ async function fetchDirectory(): Promise<Directory> {
   }
 }
 
-async function directory(): Promise<Directory> {
+async function directory(refresh = false): Promise<Directory> {
   const cached = readCachedDirectory();
-  if (cached && Date.now() - cached.at < DIRECTORY_TTL_MS) return cached;
+  if (!refresh && cached && Date.now() - cached.at < DIRECTORY_TTL_MS) return cached;
   loading ??= fetchDirectory()
     .catch((e) => {
       logger.warn('no se pudo refrescar el directorio de mapas:', e);
@@ -124,7 +124,7 @@ export async function remove(gameId: GameId, mapId: string): Promise<Interactive
 }
 
 /** Mapas interactivos disponibles para el juego. Nunca lanza por la red. */
-export async function list(gameId: GameId): Promise<InteractiveMap[]> {
+export async function list(gameId: GameId, refresh = false): Promise<InteractiveMap[]> {
   const game = getGame(gameId);
   if (!game) throw new Error(`Juego no encontrado: ${gameId}`);
 
@@ -146,7 +146,7 @@ export async function list(gameId: GameId): Promise<InteractiveMap[]> {
   }
 
   // 2. MapGenie, emparejado por nombre contra su directorio público.
-  const slug = matchSlug(game.name, (await directory()).games);
+  const slug = matchSlug(game.name, (await directory(refresh)).games);
   if (slug && !out.some((map) => map.url.includes(`mapgenie.io/${slug}`))) {
     out.push({
       id: `mapgenie:${slug}`,

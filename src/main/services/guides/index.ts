@@ -81,6 +81,7 @@ export async function list(
   gameId: GameId,
   category: GuideCategory,
   query?: string,
+  refresh = false,
 ): Promise<GuideEntry[]> {
   const game = getGame(gameId);
   if (!game) throw new Error(`Juego no encontrado: ${gameId}`);
@@ -88,7 +89,7 @@ export async function list(
 
   const extra = (query ?? '').trim().slice(0, 120);
   const key = `${gameId}|${category}|${extra.toLowerCase()}`;
-  const cached = readList(key, CACHE_TTL_MS);
+  const cached = refresh ? null : readList(key, CACHE_TTL_MS);
   if (cached) return cached;
 
   const terms = TERMS[category];

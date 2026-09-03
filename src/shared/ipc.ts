@@ -7,7 +7,7 @@
 
 import type {
   Achievement, AchievementPatch, AchievementSet, CompletionProgress, Game, GameId, GameStat,
-  GuideCategory, GuideDocument, GuideEntry, InteractiveMap, Mod,
+  ContentAvailability, GuideCategory, GuideDocument, GuideEntry, InteractiveMap, Mod, ModDeployPreview,
   ModProfile, PlatinumReport, PlatinumSummary, RemoteMod, Result, ScanProgress,
   Settings, StatPatch, SteamSession, SteamSnapshot,
 } from './types';
@@ -93,18 +93,25 @@ export interface AtreusApi {
      * Guías del juego, ya buscadas por Atreus: no hay que teclear nada.
      * Devuelve primero las que se pueden leer enteras dentro de la aplicación.
      */
-    list(gameId: GameId, category: GuideCategory, query?: string): Promise<Result<GuideEntry[]>>;
+    /** `refresh` ignora la caché de resultados tras una acción explícita del usuario. */
+    list(gameId: GameId, category: GuideCategory, query?: string, refresh?: boolean): Promise<Result<GuideEntry[]>>;
     /** Texto completo de una guía, en secciones. */
     read(entry: GuideEntry): Promise<Result<GuideDocument>>;
   };
 
   maps: {
     /** Mapas interactivos disponibles para el juego, buscados automáticamente. */
-    list(gameId: GameId): Promise<Result<InteractiveMap[]>>;
+    /** `refresh` vuelve a consultar el directorio público de mapas. */
+    list(gameId: GameId, refresh?: boolean): Promise<Result<InteractiveMap[]>>;
     /** Guarda un mapa a mano en la ficha del juego, para lo que no se encuentra solo. */
     add(gameId: GameId, input: { title: string; url: string }): Promise<Result<InteractiveMap[]>>;
     /** Quita uno de los añadidos a mano. */
     remove(gameId: GameId, mapId: string): Promise<Result<InteractiveMap[]>>;
+  };
+
+  /** Disponibilidad real de contenido en la Colección, preparada bajo demanda. */
+  content: {
+    availability(): Promise<Result<ContentAvailability[]>>;
   };
 
   mods: {
@@ -115,6 +122,8 @@ export interface AtreusApi {
     setEnabled(gameId: GameId, modId: string, enabled: boolean): Promise<Result<Mod>>;
     /** Reordena la carga; `modIds` en el nuevo orden. */
     reorder(gameId: GameId, modIds: string[]): Promise<Result<Mod[]>>;
+    /** No escribe nada: enumera exactamente qué cambiaría el despliegue. */
+    previewDeploy(gameId: GameId): Promise<Result<ModDeployPreview>>;
     /** Escribe los mods activos al directorio del juego. */
     deploy(gameId: GameId): Promise<Result<{ files: number }>>;
     /** Revierte el despliegue dejando el juego limpio. */
@@ -208,9 +217,10 @@ export const IPC_CHANNELS = [
 
   'guides.list', 'guides.read',
   'maps.list', 'maps.add', 'maps.remove',
+  'content.availability',
 
   'mods.list', 'mods.install', 'mods.uninstall', 'mods.setEnabled',
-  'mods.reorder', 'mods.deploy', 'mods.purge', 'mods.profiles',
+  'mods.reorder', 'mods.previewDeploy', 'mods.deploy', 'mods.purge', 'mods.profiles',
   'mods.saveProfile', 'mods.activateProfile', 'mods.deleteProfile',
   'mods.discover', 'mods.installRemote',
 

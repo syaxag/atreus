@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
@@ -248,6 +249,15 @@ export function DifficultyMeter({ score, className }: { score: number; className
 
 // ── Diálogo modal ─────────────────────────────────────────────
 /**
+ * Cuántos modales hay abiertos.
+ *
+ * Los atajos globales de la aplicación se callan mientras haya alguno: si no,
+ * Ctrl+K navega por detrás del diálogo y lo deja huérfano sobre otra vista.
+ */
+let modalesAbiertos = 0;
+export const hayModalAbierto = (): boolean => modalesAbiertos > 0;
+
+/**
  * Ventana emergente bloqueante.
  *
  * Cierra con Escape y con clic fuera, pero el consumidor decide si el botón de
@@ -264,6 +274,36 @@ export function Modal({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  // Casi todos los consumidores pasan una función nueva en cada render. Se lee
+  // por referencia para que el efecto dependa solo de `open` y no vuelva a
+  // robar el foco mientras se escribe dentro del diálogo.
+  const cerrar = useRef(onClose);
+  cerrar.current = onClose;
+
+  /*
+   * Al abrirse, el foco se queda en el botón que abrió el diálogo, que está
+   * fuera: un `onKeyDown` en el propio diálogo no llega a oír nada. Se trae el
+   * foco y se escucha Escape en la ventana, en fase de captura, para que la
+   * tecla no siga su camino hasta los atajos globales.
+   */
+  useEffect(() => {
+    if (!open) return;
+    modalesAbiertos++;
+    dialog.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      cerrar.current();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      modalesAbiertos--;
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [open]);
+
   if (!open) return null;
   return (
     <div
@@ -272,13 +312,17 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm animate-view"
     >
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        // Enfocable por código, no con el tabulador: es donde aterriza el foco
+        // al abrir, y desde ahí el tabulador recorre el contenido en orden.
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}
         className={cn(
           'flex max-h-full w-full flex-col overflow-hidden rounded-md border border-line bg-surface shadow-2xl',
+          'focus:outline-none',
           wide ? 'max-w-3xl' : 'max-w-lg',
         )}
       >

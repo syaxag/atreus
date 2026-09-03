@@ -54,6 +54,7 @@ const api: AtreusApi = {
     uninstall: (gameId, modId) => invoke('mods.uninstall', gameId, modId),
     setEnabled: (gameId, modId, enabled) => invoke('mods.setEnabled', gameId, modId, enabled),
     reorder: (gameId, modIds) => invoke('mods.reorder', gameId, modIds),
+    previewDeploy: (gameId) => invoke('mods.previewDeploy', gameId),
     deploy: (gameId) => invoke('mods.deploy', gameId),
     purge: (gameId) => invoke('mods.purge', gameId),
     profiles: (gameId) => invoke('mods.profiles', gameId),
@@ -65,14 +66,18 @@ const api: AtreusApi = {
   },
 
   guides: {
-    list: (gameId, category, query) => invoke('guides.list', gameId, category, query),
+    list: (gameId, category, query, refresh) => invoke('guides.list', gameId, category, query, refresh),
     read: (entry) => invoke('guides.read', entry),
   },
 
   maps: {
-    list: (gameId) => invoke('maps.list', gameId),
+    list: (gameId, refresh) => invoke('maps.list', gameId, refresh),
     add: (gameId, input) => invoke('maps.add', gameId, input),
     remove: (gameId, mapId) => invoke('maps.remove', gameId, mapId),
+  },
+
+  content: {
+    availability: () => invoke('content.availability'),
   },
 
   progress: {

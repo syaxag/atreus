@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check, CheckSquare2, ChevronLeft, ExternalLink, FileText, Gamepad2, Globe,
-  LoaderCircle, Plus, Search, Star, Trophy,
+  LoaderCircle, Plus, RefreshCw, Search, Star, Trophy,
 } from 'lucide-react';
 import type {
   CompletionProgress, GuideCategory, GuideDocument, GuideEntry,
@@ -30,6 +30,8 @@ const CATEGORIES: { id: GuideCategory; label: string }[] = [
 export function GuidesView() {
   const game = useStore((state) => state.selected());
   const pushToast = useStore((state) => state.pushToast);
+  const guideSearch = useStore((state) => state.guideSearch);
+  const clearGuideSearch = useStore((state) => state.clearGuideSearch);
   const gameId = game?.id;
 
   const [category, setCategory] = useState<GuideCategory>('platinum');
@@ -39,17 +41,35 @@ export function GuidesView() {
   const [error, setError] = useState<string | null>(null);
   const [reading, setReading] = useState<string | null>(null);
   const [document, setDocument] = useState<GuideDocument | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  /** Evita que una búsqueda lenta anterior pise la categoría o el logro actual. */
+  const requestId = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     if (!gameId) return;
+    const currentRequest = ++requestId.current;
+    if (refresh) setRefreshing(true);
+    else setRefreshing(false);
     setEntries(null);
     setError(null);
-    const response = await api.guides.list(gameId, category, submitted || undefined);
+    const response = await api.guides.list(gameId, category, submitted || undefined, refresh);
+    if (currentRequest !== requestId.current) return;
+    setRefreshing(false);
     if (!response.ok) { setEntries([]); setError(response.error); return; }
     setEntries(response.data);
   }, [gameId, category, submitted]);
 
   useEffect(() => { setDocument(null); void load(); }, [load]);
+
+  // Llegar desde un logro conserva su nombre como búsqueda, pero deja la caja
+  // editable: Atreus propone contexto, no finge saber qué guía lo contiene.
+  useEffect(() => {
+    if (!guideSearch) return;
+    setCategory('achievements');
+    setQuery(guideSearch);
+    setSubmitted(guideSearch);
+    clearGuideSearch();
+  }, [guideSearch, clearGuideSearch]);
 
   async function open(entry: GuideEntry) {
     setReading(entry.url);
@@ -74,7 +94,12 @@ export function GuidesView() {
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
         title={`Rutas · ${game.name}`}
-        subtitle="Buscadas automáticamente. Las que Atreus sabe leer se abren aquí dentro, con su texto completo." />
+        subtitle="Buscadas automáticamente. Las que Atreus sabe leer se abren aquí dentro, con su texto completo."
+        actions={<Button variant="outline" onClick={() => void load(true)} disabled={refreshing}>
+          <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
+          {refreshing ? 'Actualizando…' : 'Actualizar'}
+        </Button>}
+      />
 
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-6 py-3">
         <div className="flex flex-wrap gap-1">
@@ -115,7 +140,7 @@ export function GuidesView() {
               icon={<Search size={40} strokeWidth={1.25} />}
               title="No se encontró ninguna guía"
               hint={error ?? 'Prueba otra categoría o escribe algo concreto en el buscador de arriba.'}
-              action={<Button variant="outline" onClick={() => void load()}>Reintentar</Button>} />
+              action={<Button variant="outline" onClick={() => void load(true)}>Reintentar</Button>} />
           ) : (
             <div className="flex flex-col gap-2">
               {entries.map((entry) => (

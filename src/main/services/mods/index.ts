@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { rmSync } from 'node:fs';
-import type { GameId, Mod, ModProfile, RemoteMod } from '@shared/types';
+import type { GameId, Mod, ModDeployPreview, ModProfile, RemoteMod } from '@shared/types';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
 import { getGame } from '../catalog';
@@ -227,6 +227,44 @@ export function deploy(gameId: GameId): { files: number } {
     });
   }
   return { files: result.files };
+}
+
+/**
+ * Calcula el cambio sin tocar el juego. El renderer lo enseña antes de que el
+ * usuario confirme el despliegue; no se reutiliza `deploy` porque este purga y
+ * escribe por diseño.
+ */
+export function previewDeploy(gameId: GameId): ModDeployPreview {
+  const target = targetRoot(gameId);
+  if ('error' in target) throw new Error(target.error);
+
+  const active = listMods(gameId)
+    .filter((mod) => mod.enabled && mod.status !== 'error')
+    .sort((a, b) => a.order - b.order);
+  if (active.length === 0) throw new Error('No hay ningún mod activo que desplegar');
+
+  // Map por ruta insensible a mayúsculas: Windows trata ambas rutas igual y
+  // solo la última en el orden será la que finalmente quede en el juego.
+  const planned = new Map<string, ModDeployPreview['files'][number]>();
+  for (const mod of active) {
+    const staging = modDir(gameId, mod.id);
+    if (!existsSync(staging)) continue;
+    for (const path of listFiles(staging)) {
+      planned.set(path.toLowerCase(), {
+        path,
+        modId: mod.id,
+        modName: mod.name,
+        currentlyExists: existsSync(join(target.root, path)),
+      });
+    }
+  }
+
+  return {
+    root: target.root,
+    activeMods: active.map((mod) => mod.name),
+    files: [...planned.values()].sort((a, b) => a.path.localeCompare(b.path, 'es')),
+    conflicts: findConflicts(gameId, active),
+  };
 }
 
 export function purge(gameId: GameId): void {

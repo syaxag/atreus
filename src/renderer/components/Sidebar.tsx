@@ -1,4 +1,4 @@
-import { Gem, Trophy, Compass, Map, Package, Settings2 } from 'lucide-react';
+import { Gem, Trophy, Compass, Map, Package, Settings2, Activity } from 'lucide-react';
 import { useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -20,6 +20,7 @@ import { useStore, type Section } from '@/store';
  */
 const ITEMS: { id: Section; label: string; icon: LucideIcon; needsGame?: boolean }[] = [
   { id: 'library', label: 'Colección', icon: Gem },
+  { id: 'activity', label: 'Actividad', icon: Activity },
   { id: 'achievements', label: 'Trofeos', icon: Trophy, needsGame: true },
   { id: 'guides', label: 'Rutas', icon: Compass, needsGame: true },
   { id: 'maps', label: 'Atlas', icon: Map, needsGame: true },

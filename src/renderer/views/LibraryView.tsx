@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Search, RefreshCw, Star, Play, Gem, Plus, Trophy, Users, LoaderCircle,
+  Check, Search, RefreshCw, Star, Play, Gem, Plus, Trophy, Users, LoaderCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { duration, PLATFORM_LABEL, relative } from '@/lib/format';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
-import type { Game, PlatinumSummary } from '@shared/types';
+import type { ContentAvailability, Game, PlatinumSummary } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 
 /**
  * Los filtros de una biblioteca de cazador de platinos: qué estoy persiguiendo,
  * qué ya conseguí y qué ni he empezado.
  */
-type Filter = 'all' | 'favorites' | 'in-progress' | 'complete' | 'untouched';
+type Filter = 'all' | 'favorites' | 'in-progress' | 'complete' | 'untouched' | 'solo' | 'guides' | 'maps' | 'mods';
 type Sort = 'progress' | 'name' | 'played';
 
 /** Orden de las fases del escaneo, para traducirlas a un porcentaje. */
@@ -33,6 +33,10 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'complete', label: 'Al 100 %' },
   { id: 'untouched', label: 'Sin empezar' },
   { id: 'favorites', label: 'Favoritos' },
+  { id: 'solo', label: 'Solo' },
+  { id: 'guides', label: 'Con guía legible' },
+  { id: 'maps', label: 'Con mapa' },
+  { id: 'mods', label: 'Con mods' },
 ];
 
 const SORTS: { id: Sort; label: string }[] = [
@@ -54,6 +58,31 @@ export function LibraryView() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('progress');
+  const [content, setContent] = useState<Record<string, ContentAvailability>>({});
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  const needsContent = filter === 'guides' || filter === 'maps' || filter === 'mods';
+  const contentComplete = games.length > 0 && games.every((game) => content[game.id] !== undefined);
+
+  /*
+   * Comprobar toda la biblioteca cuesta red, por eso ocurre solo cuando el
+   * usuario pide uno de estos filtros. El main agrupa, limita y cachea las
+   * consultas; cambiar entre guía/mapa/mod después es inmediato.
+   */
+  useEffect(() => {
+    if (!needsContent || loadingContent || contentComplete) return;
+    let alive = true;
+    setLoadingContent(true);
+    void api.content.availability().then((response) => {
+      if (!alive) return;
+      setLoadingContent(false);
+      if (!response.ok) { pushToast('error', response.error); return; }
+      setContent(Object.fromEntries(response.data.map((item) => [item.gameId, item])));
+    });
+    return () => { alive = false; };
+    // `loadingContent` no es dependencia a propósito: cambiarlo no debe
+    // cancelar la consulta que acabamos de iniciar.
+  }, [needsContent, contentComplete, games, pushToast]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,6 +96,11 @@ export function LibraryView() {
           return summary !== undefined && summary.total > 0 && summary.unlocked > 0 && !summary.complete;
         }
         if (filter === 'untouched') return !summary || summary.unlocked === 0;
+        if (filter === 'solo') return !g.multiplayer;
+        const available = content[g.id];
+        if (filter === 'guides') return (available?.readableGuides ?? 0) > 0;
+        if (filter === 'maps') return (available?.maps ?? 0) > 0;
+        if (filter === 'mods') return (available?.mods ?? 0) > 0;
         return true;
       })
       .sort((a, b) => {
@@ -80,7 +114,7 @@ export function LibraryView() {
          */
         return score(platinum[b.id]) - score(platinum[a.id]);
       });
-  }, [games, query, filter, sort, platinum]);
+  }, [games, query, filter, sort, platinum, content]);
 
   async function addManual() {
     const picked = await api.settings.pickFile('Elige el ejecutable del juego', [
@@ -130,6 +164,7 @@ export function LibraryView() {
         <div className="relative w-full max-w-72">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
           <Input
+            id="library-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar en tu colección…"
@@ -163,28 +198,19 @@ export function LibraryView() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        {loading ? (
+        {loading || loadingContent ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className="h-[186px] rounded-md" />
             ))}
           </div>
-        ) : visible.length === 0 ? (
+        ) : visible.length === 0 ? games.length === 0 ? (
+          <CollectionOnboarding onScan={scan} onAddManual={addManual} scanning={scanning} />
+        ) : (
           <Empty
             icon={<Gem size={40} strokeWidth={1.25} />}
-            title={games.length === 0 ? 'Tu colección está vacía' : 'Ningún juego coincide'}
-            hint={
-              games.length === 0
-                ? 'Escanea para detectar tus juegos de Steam, Epic, GOG y Xbox, o añade un ejecutable a mano.'
-                : 'Prueba con otro término o cambia el filtro.'
-            }
-            action={
-              games.length === 0 ? (
-                <Button variant="primary" onClick={scan}>
-                  <RefreshCw size={14} /> Escanear ahora
-                </Button>
-              ) : undefined
-            }
+            title="Ningún juego coincide"
+            hint="Prueba con otro término o cambia el filtro."
           />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
@@ -192,6 +218,43 @@ export function LibraryView() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CollectionOnboarding({
+  onScan, onAddManual, scanning,
+}: { onScan: () => Promise<void>; onAddManual: () => Promise<void>; scanning: boolean }) {
+  const steps = [
+    ['1', 'Detecta tu biblioteca', 'Busca juegos de Steam, Epic, GOG y Xbox.'],
+    ['2', 'Elige un juego', 'Atreus calcula tu progreso y lo que te falta.'],
+    ['3', 'Sigue tu ruta', 'Abre guías, mapas y tus próximos logros desde su ficha.'],
+  ] as const;
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col items-center py-10 text-center">
+      <Gem size={40} strokeWidth={1.25} className="text-accent" />
+      <h2 className="mt-4 text-[20px] font-semibold">Empieza tu primera ruta al platino</h2>
+      <p className="mt-1 max-w-lg text-[13px] text-muted">Atreus prepara tu colección en tres pasos, sin pedirte cuentas ni contraseñas.</p>
+      <ol className="mt-7 grid w-full grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 text-left">
+        {steps.map(([number, title, hint]) => (
+          <li key={number} className="rounded-md border border-line bg-surface p-4">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-[12px] font-semibold text-accent">{number}</span>
+            <p className="mt-3 text-[13px] font-semibold">{title}</p>
+            <p className="mt-1 text-[12px] leading-5 text-muted">{hint}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <Button variant="primary" onClick={() => void onScan()} disabled={scanning}>
+          <RefreshCw size={14} className={scanning ? 'animate-spin' : undefined} />
+          {scanning ? 'Buscando juegos…' : '1. Escanear biblioteca'}
+        </Button>
+        <Button variant="outline" onClick={() => void onAddManual()}>
+          <Plus size={14} /> Añadir un .exe
+        </Button>
+      </div>
+      <p className="mt-4 flex items-center gap-1.5 text-[11px] text-faint"><Check size={13} className="text-success" /> Puedes cambiar carpetas y fuentes después en Ajustes.</p>
     </div>
   );
 }
@@ -241,6 +304,9 @@ function GameCoverImage({ game }: { game: Game }) {
         </span>
         <span className="line-clamp-2 select-none text-[11px] font-medium text-faint">
           {game.name}
+        </span>
+        <span className="mt-2 rounded-sm border border-line px-1.5 py-0.5 text-[10px] font-medium text-muted">
+          {PLATFORM_LABEL[game.platform] ?? game.platform}
         </span>
       </div>
     </div>
@@ -319,14 +385,7 @@ function GameCard({
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-      }}
-      aria-label={game.name}
+    <article
       className={cn(
         'group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left',
         'defer-render-lg animate-rise',
@@ -342,7 +401,15 @@ function GameCard({
       // gesto, y esperar a la número cuarenta solo sería lentitud disfrazada.
       style={{ animationDelay: `${Math.min(index, 14) * 22}ms` }}
     >
-      <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-inset">
+      {/* El botón de abrir es hermano de los controles de favorito y lanzar.
+          Así no hay botones dentro de otro botón para teclado o lectores. */}
+      <button
+        type="button"
+        onClick={open}
+        aria-label={`Abrir ficha de ${game.name}`}
+        className="absolute inset-0 z-0 rounded-md focus-visible:outline-accent"
+      />
+      <div className="relative z-10 flex aspect-[16/9] pointer-events-none items-center justify-center overflow-hidden bg-inset">
         <GameCoverImage game={game} />
 
         <button
@@ -350,6 +417,7 @@ function GameCard({
           onClick={(e) => { e.stopPropagation(); void toggleFavorite(game.id); }}
           aria-label={game.favorite ? 'Quitar de favoritos' : 'Marcar favorito'}
           className={cn(
+            'pointer-events-auto',
             'absolute right-2 top-2 rounded-sm bg-surface/80 p-1.5 backdrop-blur-sm transition-all duration-[120ms]',
             'focus-visible:opacity-100',
             game.favorite
@@ -368,7 +436,7 @@ function GameCard({
             onClick={verCelebracion}
             aria-label={`Ver la celebración del platino de ${game.name}`}
             title="Ver la celebración"
-            className="absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
+            className="pointer-events-auto absolute left-2 top-2 rounded-sm bg-surface/80 p-1 backdrop-blur-sm transition-transform duration-[120ms] hover:scale-110"
           >
             {abriendo
               ? <LoaderCircle size={20} className="animate-spin text-accent" />
@@ -380,13 +448,13 @@ function GameCard({
           type="button"
           onClick={launch}
           aria-label={`Lanzar ${game.name}`}
-          className="absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
+          className="pointer-events-auto absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Play size={13} fill="currentColor" />
         </button>
       </div>
 
-      <div className="flex flex-col gap-1.5 p-3">
+      <div className="relative z-10 pointer-events-none flex flex-col gap-1.5 p-3">
         <p className="truncate text-[13px] font-medium" title={game.name}>{game.name}</p>
 
         {/* El progreso hacia el platino es lo primero que se mira en esta
@@ -417,6 +485,6 @@ function GameCard({
           </p>
         </>}
       </div>
-    </div>
+    </article>
   );
 }

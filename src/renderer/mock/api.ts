@@ -2,7 +2,7 @@ import type { AtreusApi, AtreusEvents } from '@shared/ipc';
 import { ok, err } from '@shared/ipc';
 import type {
   Achievement, CompletionProgress, Game, GameStat, InteractiveMap, Mod, ModProfile,
-  PlatinumReport, PlatinumSummary, Settings, SteamSnapshot,
+  ContentAvailability, PlatinumReport, PlatinumSummary, Settings, SteamSnapshot,
 } from '@shared/types';
 import {
   MOCK_ACHIEVEMENTS, MOCK_GAMES, MOCK_GUIDES, MOCK_MAPS, MOCK_MODS, MOCK_PLAYTIME,
@@ -395,6 +395,36 @@ export const mockApi: AtreusApi = {
       return ok(list);
     },
 
+    async previewDeploy(gameId) {
+      await wait(180, 320);
+      const active = mods
+        .filter((m) => m.gameId === gameId && m.enabled)
+        .sort((a, b) => a.order - b.order);
+      if (active.length === 0) return err('No hay ningún mod activo que desplegar');
+
+      // Igual que el backend real: una ruta la escribe un solo mod, el último
+      // del orden de carga. Sin esta deduplicación el mock enseñaba los dos y
+      // la vista parecía correcta donde no lo era.
+      const planned = new Map<string, { path: string; modId: string; modName: string; currentlyExists: boolean }>();
+      const owners = new Map<string, string[]>();
+      for (const mod of active) {
+        for (const path of mod.files.length ? mod.files : [`mods/${mod.name}.example`]) {
+          const key = path.toLowerCase();
+          planned.set(key, { path, modId: mod.id, modName: mod.name, currentlyExists: false });
+          owners.set(key, [...(owners.get(key) ?? []), mod.id]);
+        }
+      }
+
+      return ok({
+        root: 'C:\\Juego\\Mods',
+        activeMods: active.map((mod) => mod.name),
+        files: [...planned.values()].sort((a, b) => a.path.localeCompare(b.path, 'es')),
+        conflicts: [...owners.entries()]
+          .filter(([, modIds]) => modIds.length > 1)
+          .map(([path, modIds]) => ({ path, mods: modIds })),
+      });
+    },
+
     async deploy(gameId) {
       await wait(600, 1200);
       mods = mods.map((m) =>
@@ -488,7 +518,7 @@ export const mockApi: AtreusApi = {
   },
 
   guides: {
-    async list(gameId, category, query) {
+    async list(gameId, category, query, refresh) {
       await wait(400, 900);
       const game = games.find((g) => g.id === gameId);
       const name = game?.name ?? 'el juego';
@@ -546,7 +576,7 @@ export const mockApi: AtreusApi = {
       return mockApi.maps.list(gameId);
     },
 
-    async list(gameId) {
+    async list(gameId, refresh) {
       await wait(300, 700);
       const game = games.find((g) => g.id === gameId);
       if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');
@@ -554,6 +584,23 @@ export const mockApi: AtreusApi = {
         ...MOCK_MAPS.map((map) => ({ ...map, title: `${game.name} · mapa interactivo` })),
         ...extraMaps,
       ]);
+    },
+  },
+
+  content: {
+    async availability() {
+      await wait(450, 900);
+      const now = Date.now();
+      const items: ContentAvailability[] = games.map((game, index) => ({
+        gameId: game.id,
+        // El mock alterna resultados para poder comprobar los tres filtros.
+        guides: index % 3 === 0 ? 0 : MOCK_GUIDES.length,
+        readableGuides: index % 3 === 0 ? 0 : MOCK_GUIDES.filter((guide) => guide.readable).length,
+        maps: index % 2 === 0 ? MOCK_MAPS.length : 0,
+        mods: index % 2 === 1 ? 4 : 0,
+        updatedAt: now,
+      }));
+      return ok(items);
     },
   },
 
