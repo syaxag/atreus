@@ -302,7 +302,7 @@ export function AchievementsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={game.name}
+        title={`Trofeos · ${game.name}`}
         subtitle={
           loading
             ? 'Buscando los logros de este juego…'

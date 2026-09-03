@@ -257,10 +257,24 @@ export function ModsView() {
   }, [mods, installedQuery, installedSort]);
   const canReorder = installedSort === 'order' && !installedQuery.trim();
 
+  /*
+   * La distinción que todo el Taller da por sabida: **activar no es desplegar**.
+   *
+   * Un mod activo vive en el almacén de Atreus y no toca el juego hasta que se
+   * pulsa Desplegar. Eso lo decía un distintivo pequeño por fila, así que
+   * activabas tres mods, abrías el juego y no pasaba nada. Aquí se resume: hay
+   * cambios pendientes si algún mod activo no está desplegado, o si algo
+   * desplegado ya no está activo y sigue escrito en el juego.
+   */
+  const desplegados = mods.filter((mod) => mod.status === 'deployed');
+  const sinDesplegar = mods.filter((mod) => mod.enabled && mod.status !== 'deployed').length;
+  const sobrantes = desplegados.filter((mod) => !mod.enabled).length;
+  const pendiente = sinDesplegar + sobrantes;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={game.name}
+        title={`Taller · ${game.name}`}
         subtitle={
           `${mods.length} mods · ${enabledCount} activos` +
           (active ? ` · perfil "${active.name}"` : '')
@@ -295,6 +309,47 @@ export function ModsView() {
           </>
         }
       />
+
+      {/*
+        Qué hay escrito en el juego ahora mismo.
+
+        Sin esto, activabas tres mods, abrías el juego y no pasaba nada: lo que
+        se activa vive en el almacén de Atreus hasta que se despliega, y eso
+        solo lo decía un distintivo pequeño en cada fila.
+      */}
+      {mods.length > 0 && (
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-6 py-2 text-[12px]',
+            pendiente > 0
+              ? 'border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] text-warn'
+              : 'border-line text-muted',
+          )}
+          role="status"
+        >
+          {pendiente > 0 ? (
+            <>
+              <TriangleAlert size={13} className="shrink-0" />
+              <span className="font-medium">Cambios sin desplegar.</span>
+              <span className="text-muted">
+                {sinDesplegar > 0 && `${sinDesplegar} activo${sinDesplegar === 1 ? '' : 's'} todavía no está${sinDesplegar === 1 ? '' : 'n'} en el juego`}
+                {sinDesplegar > 0 && sobrantes > 0 && '; '}
+                {sobrantes > 0 && `${sobrantes} desactivado${sobrantes === 1 ? '' : 's'} sigue${sobrantes === 1 ? '' : 'n'} escrito${sobrantes === 1 ? '' : 's'}`}
+                . Pulsa Desplegar para que el juego los vea.
+              </span>
+            </>
+          ) : (
+            <>
+              <Check size={13} className="shrink-0 text-success" />
+              <span>
+                {desplegados.length > 0
+                  ? `El juego tiene lo que ves: ${desplegados.length} mod${desplegados.length === 1 ? '' : 's'} desplegado${desplegados.length === 1 ? '' : 's'}.`
+                  : 'Nada desplegado: el juego está limpio.'}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Perfiles: guardan qué mods están activos y en qué orden. */}
       <div className="flex items-center gap-2 border-b border-line px-6 py-2.5">
