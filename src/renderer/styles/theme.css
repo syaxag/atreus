@@ -23,6 +23,15 @@
   --text: #f5f5f7;
   --text-muted: #9e9eac;
   --text-faint: #6b6b78;
+  /*
+   * Cuerpo de lectura larga: el texto de una guía, y nada más.
+   *
+   * En toda la aplicación se leen etiquetas y cifras, así que `--text-muted`
+   * bastaba. Una guía de platino son párrafos seguidos durante media hora: en
+   * gris secundario y a 13 px cansa, y en `--text` puro sobre casi negro el
+   * contraste rebota. Este es el punto intermedio, y solo se usa ahí.
+   */
+  --text-read: #dcdce4;
 
   /* Acento — morado, el único color de la interfaz */
   --accent: #8b5cf6;

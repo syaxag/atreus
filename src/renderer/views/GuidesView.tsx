@@ -7,6 +7,7 @@ import type {
   CompletionProgress, GuideCategory, GuideDocument, GuideEntry,
 } from '@shared/types';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/cn';
 import { useStore } from '@/store';
 import { Badge, Button, Card, Empty, Input, Skeleton, ViewHeader } from '@/components/ui';
 
@@ -191,7 +192,63 @@ function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; 
   );
 }
 
+/**
+ * El lector de una guía.
+ *
+ * Es el único sitio de Atreus donde se lee de verdad, no se ojea: una guía de
+ * platino de Steam son párrafos seguidos durante media hora y puede traer
+ * treinta secciones. Por eso aquí el texto es más grande y más claro que en el
+ * resto de la aplicación, la columna se mide en caracteres y no en píxeles, y
+ * hay un índice para no scrollear a ciegas.
+ */
 function Reader({ document, onBack }: { document: GuideDocument; onBack: () => void }) {
+  const scroll = useRef<HTMLElement | null>(null);
+  const [avance, setAvance] = useState(0);
+  const [activa, setActiva] = useState(0);
+  const conIndice = !document.partial && document.sections.length >= 3;
+
+  /*
+   * Cuánto llevas leído y en qué sección estás.
+   *
+   * Se calcula al vuelo desde el contenedor en vez de con un observador por
+   * sección: son dos lecturas de `offsetTop` por evento y evita montar treinta
+   * `IntersectionObserver` en una guía larga.
+   */
+  const alDesplazar = useCallback(() => {
+    const nodo = scroll.current;
+    if (!nodo) return;
+    const recorrible = nodo.scrollHeight - nodo.clientHeight;
+    setAvance(recorrible > 0 ? (nodo.scrollTop / recorrible) * 100 : 0);
+
+    const secciones = [...nodo.querySelectorAll<HTMLElement>('[data-seccion]')];
+    // La activa es la última cuyo encabezado ya ha pasado por arriba.
+    let cual = 0;
+    for (const [i, s] of secciones.entries()) {
+      if (s.offsetTop - nodo.scrollTop <= 120) cual = i;
+    }
+    setActiva(cual);
+  }, []);
+
+  function irA(indice: number) {
+    const nodo = scroll.current;
+    const destino = nodo?.querySelectorAll<HTMLElement>('[data-seccion]')[indice];
+    if (nodo && destino) nodo.scrollTo({ top: destino.offsetTop - 16, behavior: 'smooth' });
+  }
+
+  /*
+   * El índice sigue a la lectura.
+   *
+   * En una guía de cincuenta secciones, marcar la activa no sirve de nada si
+   * está fuera de la parte visible del índice: por la sección 45 el resalte
+   * queda debajo del borde y desde fuera parece que no marca ninguna.
+   * `block: 'nearest'` mueve solo lo justo, y solo el índice.
+   */
+  const indice = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const marcada = indice.current?.querySelector<HTMLElement>('button[aria-current]');
+    marcada?.scrollIntoView({ block: 'nearest' });
+  }, [activa]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
@@ -203,8 +260,24 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
         </Button>
       </div>
 
-      <article className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="mx-auto max-w-3xl">
+      {/* Cuánto queda. En una guía de treinta secciones, la barra de
+          desplazamiento sola no dice gran cosa. */}
+      <div className="h-0.5 w-full shrink-0 bg-inset">
+        <div
+          className="h-full origin-left bg-accent"
+          style={{ transform: `scaleX(${avance / 100})` }}
+        />
+      </div>
+
+      <div className="flex min-h-0 flex-1">
+      <article
+        ref={scroll as never}
+        onScroll={alDesplazar}
+        className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+      >
+        {/* La columna se mide en caracteres: a 65 el ojo vuelve al principio de
+            la línea siguiente sin perderse, que es de lo que va leer. */}
+        <div className="mx-auto max-w-[65ch]">
           <h1 className="text-[22px] font-semibold leading-tight">{document.title}</h1>
           {document.author && <p className="mt-1 text-[12px] text-faint">por {document.author}</p>}
           {document.summary && <p className="mt-3 text-[13px] leading-6 text-muted">{document.summary}</p>}
@@ -223,13 +296,17 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
                 <ExternalLink size={14} /> Abrir en el navegador
               </Button>} />
           ) : (
-            <div className="mt-5 flex flex-col gap-6">
+            <div className="mt-6 flex flex-col gap-8">
               {document.sections.map((section, index) => (
-                <section key={`${section.heading}-${index}`}>
-                  <h2 className="text-[15px] font-semibold">{section.heading}</h2>
-                  <p className="mt-1.5 whitespace-pre-line text-[13px] leading-6 text-muted">{section.body}</p>
+                <section key={`${section.heading}-${index}`} data-seccion={index}>
+                  <h2 className="text-[17px] font-semibold leading-snug">{section.heading}</h2>
+                  {/* 15 px y interlineado 1,75: es texto para leer seguido, no
+                      una etiqueta que se ojea. */}
+                  <p className="mt-2 whitespace-pre-line text-[15px] leading-[1.75] text-[var(--text-read)]">
+                    {section.body}
+                  </p>
                   {section.images.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       {section.images.map((src) => (
                         <img key={src} src={src} alt="" loading="lazy"
                           className="max-h-64 rounded-sm border border-line object-contain" />
@@ -242,6 +319,38 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
           )}
         </div>
       </article>
+
+      {/* El índice, solo cuando hay secciones que justifiquen uno y sitio para
+          ponerlo. El umbral es lg (1024 px) y no xl: la ventana por defecto mide 1200,
+          así que con xl el índice no habría aparecido nunca. */}
+      {conIndice && (
+        <nav ref={indice as never} className="hidden w-56 shrink-0 overflow-y-auto border-l border-line px-3 py-5 lg:block">
+          <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-faint">
+            En esta guía
+          </p>
+          <ul className="mt-2 flex flex-col gap-0.5">
+            {document.sections.map((section, index) => (
+              <li key={`${section.heading}-${index}`}>
+                <button
+                  type="button"
+                  onClick={() => irA(index)}
+                  aria-current={index === activa ? 'true' : undefined}
+                  className={cn(
+                    'w-full rounded-sm px-2 py-1.5 text-left text-[12px] leading-snug',
+                    'transition-colors duration-[120ms] ease-atreus',
+                    index === activa
+                      ? 'bg-accent-soft font-medium text-fg'
+                      : 'text-muted hover:bg-elevated hover:text-fg',
+                  )}
+                >
+                  {section.heading}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      </div>
     </div>
   );
 }
