@@ -5,6 +5,7 @@ import { Toaster } from '@/components/Toaster';
 import { PlatinumCelebration } from '@/components/PlatinumCelebration';
 import { HomeView } from '@/views/HomeView';
 import { LibraryView } from '@/views/LibraryView';
+import { ProfileView } from '@/views/ProfileView';
 import { AchievementsView } from '@/views/AchievementsView';
 import { ModsView } from '@/views/ModsView';
 import { SettingsView } from '@/views/SettingsView';
@@ -100,6 +101,7 @@ export default function App() {
             <div key={`${section}-${selectedGame?.id ?? 'none'}`} className="flex min-h-0 flex-1 flex-col animate-view">
               {section === 'home' && <HomeView />}
               {section === 'library' && <LibraryView />}
+              {section === 'profile' && <ProfileView />}
               {section === 'activity' && <ActivityView />}
               {section === 'game' && <GameView />}
               {section === 'achievements' && <AchievementsView />}

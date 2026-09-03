@@ -1,0 +1,112 @@
+Atreus — Licencia de uso
+Copyright © 2026 Syax. Todos los derechos reservados.
+
+Este archivo está en castellano y en inglés. En caso de discrepancia entre las
+dos versiones, manda la castellana.
+
+────────────────────────────────────────────────────────────────────────────
+
+## Castellano
+
+### 1. Qué se concede
+
+Se te concede permiso para instalar y usar Atreus en los equipos que utilices,
+de forma personal y sin coste. Este permiso es revocable, no exclusivo y no
+transferible.
+
+### 2. Qué no se concede
+
+Sin permiso escrito del titular del copyright, no está permitido:
+
+  a) redistribuir Atreus, ni entero ni en partes, ni gratis ni cobrando, ni
+     por sí solo ni dentro de otro producto;
+  b) publicar Atreus, o cualquier obra derivada, bajo otro nombre, otra marca
+     o la autoría de otra persona;
+  c) vender, alquilar, sublicenciar o prestar Atreus;
+  d) retirar o alterar los avisos de copyright, autoría o esta licencia.
+
+Que el código sea legible no implica permiso: Electron entrega el JavaScript
+al usuario por cómo funciona, no porque se ceda ningún derecho sobre él.
+
+### 3. Lo que sí puedes hacer con el código
+
+Puedes leer el código, estudiarlo y modificar tu propia copia para tu uso
+personal. Lo que no puedes es distribuir el resultado.
+
+### 4. Contenido de terceros
+
+Atreus muestra contenido que no es suyo —guías, mapas, listas de logros,
+carátulas y catálogos de mods— obtenido de fuentes públicas y enlazado siempre
+a su origen. Ese contenido pertenece a quien lo escribió o publicó y no está
+cubierto por esta licencia. Atreus no lo aloja ni lo republica.
+
+Atreus incorpora software libre de terceros, cada uno con su propia licencia.
+Esas licencias siguen aplicándose a sus respectivos componentes.
+
+### 5. Sin garantía
+
+Atreus se entrega «tal cual», sin garantía de ningún tipo, expresa o implícita.
+El titular del copyright no responde de ningún daño derivado de su uso.
+
+Esto importa especialmente en una función concreta: Atreus puede escribir
+logros en tu cuenta de Steam si tú se lo pides. Esa escritura es
+responsabilidad tuya, la aplicación te avisa antes de hacerla y no hay forma de
+deshacer del todo lo que quede en tu perfil público.
+
+### 6. Fin de la licencia
+
+Este permiso termina automáticamente si incumples cualquiera de sus términos.
+
+────────────────────────────────────────────────────────────────────────────
+
+## English
+
+### 1. What is granted
+
+You are granted permission to install and use Atreus on the machines you use,
+personally and free of charge. This permission is revocable, non-exclusive and
+non-transferable.
+
+### 2. What is not granted
+
+Without written permission from the copyright holder, you may not:
+
+  a) redistribute Atreus, in whole or in part, free or for a fee, on its own or
+     inside another product;
+  b) publish Atreus, or any derivative work, under another name, another brand
+     or someone else's authorship;
+  c) sell, rent, sublicense or lend Atreus;
+  d) remove or alter the copyright, authorship or licence notices.
+
+The code being readable does not imply permission: Electron hands the
+JavaScript to the user because of how it works, not because any right over it
+is given away.
+
+### 3. What you may do with the code
+
+You may read the code, study it and modify your own copy for your own personal
+use. What you may not do is distribute the result.
+
+### 4. Third-party content
+
+Atreus shows content that is not its own — guides, maps, achievement lists,
+cover art and mod catalogues — taken from public sources and always linked back
+to where it came from. That content belongs to whoever wrote or published it
+and is not covered by this licence. Atreus neither hosts nor republishes it.
+
+Atreus bundles third-party open-source software, each piece under its own
+licence. Those licences continue to apply to their respective components.
+
+### 5. No warranty
+
+Atreus is provided "as is", without warranty of any kind, express or implied.
+The copyright holder is not liable for any damage arising from its use.
+
+This matters especially for one particular feature: Atreus can write
+achievements to your Steam account if you ask it to. That write is your
+responsibility, the application warns you before doing it, and there is no way
+to fully undo what remains on your public profile.
+
+### 6. End of the licence
+
+This permission terminates automatically if you breach any of its terms.

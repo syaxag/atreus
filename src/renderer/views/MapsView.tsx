@@ -329,6 +329,15 @@ export function MapsView() {
                placeholder="https://…"
                onChange={(event) => setDraft((d) => ({ ...d, url: event.target.value }))} />
         <p className="mt-2 text-[11px] text-faint">{t('atlas.direccionPista')}</p>
+        {/*
+          Un mapa añadido a mano acaba en un archivo con el formato que el
+          catálogo ya sabe sincronizar. Eso lo hace compartible desde el primer
+          día, pero era invisible: sin decirlo, nadie iba a pasarle a nadie un
+          archivo cuya existencia no conoce.
+        */}
+        <p className="mt-3 border-t border-line pt-2 text-[11px] leading-5 text-faint">
+          {t('atlas.compartir')}
+        </p>
       </Modal>
     </div>
   );

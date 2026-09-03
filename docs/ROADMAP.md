@@ -3,13 +3,14 @@
 Lo que falta para que Atreus deje de ser una herramienta personal y pueda
 ponerse en manos de otra gente. En orden, y con el motivo de cada cosa.
 
-El orden no es caprichoso: **los idiomas van primero** porque cada pantalla que
-se escriba después con el texto incrustado hay que rehacerla luego. Traducir es
-mecánico; retraducir lo que ya se hizo mal es trabajo tirado dos veces.
+El orden no fue caprichoso: **los idiomas fueron primero** porque cada pantalla
+que se escribiera después con el texto incrustado habría que rehacerla luego.
+Traducir es mecánico; retraducir lo que ya se hizo mal es trabajo tirado dos
+veces. La Portada y el Perfil se escribieron ya traducidos, y no costó nada.
 
 ---
 
-## 1. Idiomas · *hecho, salvo el tercer idioma*
+## 1. Idiomas · *hecho*
 
 Toda la interfaz estaba en castellano escrita dentro del JSX. Para repartir la
 aplicación hacía falta, como mínimo, inglés. Ya lo habla entero: la ventana, el
@@ -71,8 +72,10 @@ proceso principal.
       de una partida. Se escriben en tu disco la primera vez y los editas tú;
       traducirlos al pintarlos pisaría lo que hayas cambiado. Son datos
       tuyos, no interfaz.
-- [ ] Un tercer idioma, ahora sí, es solo un archivo de datos más.
-      Portugués es el candidato obvio por tamaño de público.
+- [x] **Portugués**, que es lo que la infraestructura prometía: un archivo de
+      datos y tres líneas de cableado. Escrito por Atreus, no por alguien que
+      lo hable a diario: sirve, y una revisión nativa lo dejaría mejor. Un
+      cuarto idioma cuesta exactamente lo mismo.
 
 **Lo que no cubre:** el contenido de fuera. Una guía de Steam en inglés seguirá
 en inglés; Atreus traduce su interfaz, no lo que encuentra.
@@ -98,26 +101,53 @@ biblioteca, no de Atreus. El bloque se llama ahora por lo que contiene.
 Queda pendiente lo que no se puede saber sin usarla más tiempo: si tres
 bloques son los tres que hacen falta, o si sobra el último.
 
-## 3. Tu perfil
+## 3. Tu perfil · *hecho*
 
-Logros totales, horas, el trofeo más raro que tienes, media de completado,
-racha. El material está en los informes; falta la pantalla que lo sume.
+Logros totales, horas, el trofeo más raro que tienes, media de completado y
+racha, sumados de toda la biblioteca. Cada ficha contaba su juego y nadie
+contaba al jugador.
 
-## 4. La tarjeta, con más chicha
+Tres de esas cinco cosas **no estaban** en los resúmenes, aunque sí en los
+informes: el logro más raro que ya tienes —los informes solo guardaban los que
+faltan—, la fecha del último y los días en que conseguiste algo. Se recortan
+del informe al calcularlo, así que la pantalla no abre una sola sesión de Steam
+ni pide nada.
 
-Hoy dice progreso y horas. Le falta la dificultad del platino y cuál es el
-siguiente logro, que es lo que decide si abres ese juego o el de al lado.
+La racha se cuenta hacia atrás desde hoy sobre los días con algún desbloqueo, y
+solo se guardan los últimos noventa por juego: una racha no mira más atrás, y
+tres años de fechas por juego engordarían el archivo sin que nadie lea ese
+trozo.
 
-## 5. Publicar
+## 4. La tarjeta, con más chicha · *hecha*
+
+Decía progreso y horas. Ahora lleva además las dos cosas que deciden si abres
+ese juego o el de al lado:
+
+- **La dificultad**, en la esquina libre de la carátula. Va sobre el arte y no
+  en el texto porque es una propiedad del juego, no del progreso, y ahí abajo
+  competía con el nombre y el porcentaje. En gris: el morado señala lo activo,
+  no lo importante. El tramo entero —*Muy asequible*— se lee en el tooltip,
+  porque no cabe en 217 px.
+- **El siguiente logro**, debajo del progreso. En los que están al 100 % no:
+  ahí ya no hay siguiente.
+
+Los dos salen gratis: el resumen se recorta de un informe que ya los tenía.
+
+## 5. Publicar · *lo que no depende de una compra, hecho*
 
 Por orden de lo que de verdad sirve:
 
-1. **Firmar el ejecutable.** Es lo único que hace que Windows deje de avisar
-   de que la aplicación es de origen desconocido, y lo que permite detectar si
-   alguien la manipula. Requiere un certificado de firma de código, que se paga.
-2. **Licencia.** Un `LICENSE` restrictivo es lo que da derecho a reclamar. Es
-   la vía real contra que alguien reetiquete la aplicación como suya.
-3. **Actualizaciones.** `electron-updater` ya está montado; falta el feed.
+1. **Firmar el ejecutable.** ⏳ Requiere un certificado de firma de código,
+   que se paga: eso no lo resuelve nadie desde aquí. Lo que sí está hecho es
+   dejarlo listo para el día que exista —dónde se enciende, qué variables lee
+   el builder y por qué está apagado hoy—, en `PUBLISHING.md`.
+2. **Licencia.** ✅ `LICENSE`, restrictiva, en castellano e inglés. Va en tres
+   sitios: la raíz del repositorio, el instalador —que la enseña y pide
+   aceptarla— y junto a la app instalada.
+3. **Actualizaciones.** ✅ De código no falta nada: `electron-updater` está
+   montado y `npm run dist` genera el `latest.yml`. Lo que falta es **un sitio
+   donde publicar**, que es una decisión tuya, no una tarea; el procedimiento
+   entero está en `UPDATING.md`.
 
 **Lo que no se puede, y conviene saberlo antes de gastar esfuerzo:** impedir que
 alguien lea el código. Electron entrega el JavaScript al usuario. El `.asar` no
@@ -130,13 +160,21 @@ no tiene mayor recorrido; repartirlo a mucha gente lo pone en la misma categorí
 que Steam Achievement Manager, que existe en abierto desde hace años pero no
 deja de ser lo que es. Conviene decidirlo a sabiendas, no descubrirlo después.
 
-## 6. Cobertura del Atlas
+## 6. Cobertura del Atlas · *la mitad que no necesita servidor, hecha*
 
 MapGenie cubre 197 juegos y los mapas interactivos de Fandom añaden bastantes
 más, pero **no existe una fuente universal**: un mapa interactivo tiene que
-haberlo dibujado alguien. Para lo que no cubre nadie ya está el añadido a mano.
-Lo que sí queda por hacer es que ese añadido se pueda compartir, para que el
-mapa que encuentre uno lo tengan todos.
+haberlo dibujado alguien. Para lo que no cubre nadie está el añadido a mano.
+
+Compartirlo ya se podía y nadie lo sabía: un mapa añadido a mano se escribe en
+la ficha del juego, en tu carpeta de definiciones, **con el mismo formato que
+el catálogo sincroniza**. Pasarle ese archivo a alguien es todo el mecanismo.
+Faltaba decirlo, y ahora lo dice el propio diálogo donde se añade.
+
+Lo que sigue faltando no es código: es **un sitio donde publicar** un catálogo
+común, la misma decisión que el feed de actualizaciones del punto 5. Con uno,
+apuntar el Origen de Ajustes a esa dirección basta para que el mapa que
+encuentre uno lo tengan todos.
 
 ---
 

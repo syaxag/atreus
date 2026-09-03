@@ -230,6 +230,27 @@ inglés se queda en inglés.
 `renderer/lib/aviso.ts` para los avisos del proceso principal. Los dos reciben el
 traductor como argumento, así que no dependen de estar dentro de un componente.
 
+## Octava tanda: el resumen decide, no solo ordena
+
+`PlatinumSummary` era lo justo para ordenar y filtrar la Colección. La portada,
+el perfil y la tarjeta necesitaban además **decidir**, y lo que hacía falta ya
+estaba calculado dentro del informe: se recorta al guardarlo, no se vuelve a
+pedir nada.
+
+- `difficulty` (`{ score, tier }`) y `next` (`{ name, hidden, percent }`) — la
+  dificultad y el siguiente logro, para la tarjeta y la portada.
+- `rarest` (`{ name, percent }`) — el logro más raro que **ya tienes**. El
+  informe solo guardaba la rareza de los que faltan, que es la lista de la
+  compra; esto es la vitrina.
+- `lastUnlockAt` y `unlockDays` — para la racha del perfil. `unlockDays` son
+  días desde la época, sin repetir y solo los últimos noventa: una racha se
+  cuenta hacia atrás desde hoy, así que lo viejo no la cambia.
+
+El archivo de resúmenes de una versión anterior no trae estos campos. Se
+rellenan **al leerlo**, en `loadSummaries()`, no en cada sitio que los mire: el
+contrato dice que están, y quien lo lee no tiene que acordarse de que un día no
+estuvieron.
+
 ## Cómo se implementa
 
 ```ts

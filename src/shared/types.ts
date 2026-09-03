@@ -305,7 +305,13 @@ export interface PlatinumReport {
   updatedAt: number;
 }
 
-/** Fila del ranking de la Biblioteca: lo justo para ordenar y filtrar. */
+/**
+ * Fila de la Colección: lo justo para ordenar, filtrar y **decidir**.
+ *
+ * Los dos últimos campos no hacen falta para ordenar, y están por eso mismo:
+ * son lo que decide si abres ese juego o el de al lado. Salen gratis, porque
+ * el resumen se recorta de un informe que ya los tenía calculados.
+ */
 export interface PlatinumSummary {
   gameId: GameId;
   tracking: AchievementTracking;
@@ -314,6 +320,23 @@ export interface PlatinumSummary {
   percent: number;
   complete: boolean;
   playtimeMinutes: number | null;
+  /** Cómo de duro es el platino. La palabra del tramo la pone el renderer. */
+  difficulty: { score: number; tier: DifficultyTier } | null;
+  /** El siguiente logro pendiente más asequible, con su rareza. */
+  next: { name: string; hidden: boolean; percent: number | null } | null;
+  /** El logro más raro que **ya tienes** en este juego. */
+  rarest: { name: string; percent: number } | null;
+  /** Epoch en segundos del último logro conseguido aquí. */
+  lastUnlockAt: number | null;
+  /**
+   * Los días en que conseguiste algo, en días desde la época y sin repetir.
+   *
+   * Solo los últimos noventa, y por eso: una racha se cuenta hacia atrás desde
+   * hoy, así que lo viejo no la cambia, y guardar tres años de fechas por juego
+   * engordaría el archivo de resúmenes sin que nadie mire ese trozo. Con esto
+   * el perfil suma los de todos los juegos sin volver a abrir un solo informe.
+   */
+  unlockDays: number[];
   /** En segundos; null mientras no se haya calculado nunca. */
   updatedAt: number | null;
 }
@@ -576,7 +599,7 @@ export interface Settings {
   achievementRiskAccepted: boolean;
   /** Suena la recompensa al conseguir un platino. */
   celebrationSound: boolean;
-  language: 'es' | 'en';
+  language: 'es' | 'en' | 'pt';
 }
 
 // ──────────────────── Resultado uniforme ────────────────────

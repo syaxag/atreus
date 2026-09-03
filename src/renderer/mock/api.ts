@@ -350,6 +350,25 @@ export const mockApi: AtreusApi = {
           percent: report.percent,
           complete: report.complete,
           playtimeMinutes: report.playtimeMinutes,
+          difficulty: report.difficulty
+            ? { score: report.difficulty.score, tier: report.difficulty.tier }
+            : null,
+          next: report.remaining[0]
+            ? {
+              name: report.remaining[0].displayName,
+              hidden: report.remaining[0].hidden,
+              percent: report.remaining[0].globalPercent,
+            }
+            : null,
+          rarest: report.remaining.length < report.total
+            ? { name: 'Primer logro de ejemplo', percent: 12.5 }
+            : null,
+          lastUnlockAt: report.lastUnlockAt,
+          // Cinco días sueltos de los últimos diez: suficiente para que el
+          // perfil tenga una racha que enseñar en el modo de prueba.
+          unlockDays: [0, 1, 2, 5, 9]
+            .map((atras) => Math.floor(Date.now() / 1000 / 86400) - atras)
+            .sort((a, b) => a - b),
           updatedAt: report.updatedAt,
         };
       }));

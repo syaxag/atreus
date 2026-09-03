@@ -42,7 +42,20 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
   if (summaries) return summaries;
   try {
     const raw = JSON.parse(readFileSync(summaryFile, 'utf8')) as unknown;
-    summaries = raw && typeof raw === 'object' ? (raw as Record<GameId, PlatinumSummary>) : {};
+    const leido = raw && typeof raw === 'object' ? (raw as Record<GameId, PlatinumSummary>) : {};
+    /*
+     * Los resúmenes guardados por una versión anterior no traen los campos
+     * nuevos. Se rellenan al leer, no al usar: si no, cada sitio que los mire
+     * tendría que acordarse de que pueden faltar, y el contrato dice que no.
+     */
+    summaries = Object.fromEntries(Object.entries(leido).map(([id, resumen]) => [id, {
+      ...resumen,
+      difficulty: resumen.difficulty ?? null,
+      next: resumen.next ?? null,
+      rarest: resumen.rarest ?? null,
+      lastUnlockAt: resumen.lastUnlockAt ?? null,
+      unlockDays: resumen.unlockDays ?? [],
+    }]));
   } catch {
     summaries = {};
   }
@@ -58,7 +71,10 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
  * la casilla vacía. En las demás plataformas el registro manual sí es lo único
  * que hay, y un cero ahí es la verdad: no has marcado nada todavía.
  */
-function rememberSummary(report: PlatinumReport): void {
+/** Un día desde la época, que es la unidad en la que se cuenta una racha. */
+const DIA = 86_400;
+
+function rememberSummary(report: PlatinumReport, unlocked: Achievement[]): void {
   const isSteam = report.gameId.startsWith('steam:');
   if (isSteam && report.tracking !== 'steam') return;
 
@@ -71,6 +87,21 @@ function rememberSummary(report: PlatinumReport): void {
     complete: report.complete,
     playtimeMinutes: report.playtimeMinutes,
     tracking: report.tracking,
+    difficulty: report.difficulty
+      ? { score: report.difficulty.score, tier: report.difficulty.tier }
+      : null,
+    // El primero de `remaining` es el más común de los que faltan, que es por
+    // donde conviene seguir. Lo mismo que enseña la ficha.
+    next: report.remaining[0]
+      ? {
+        name: report.remaining[0].displayName,
+        hidden: report.remaining[0].hidden,
+        percent: report.remaining[0].globalPercent,
+      }
+      : null,
+    rarest: rarestOf(unlocked),
+    lastUnlockAt: report.lastUnlockAt,
+    unlockDays: recentDays(unlocked),
     updatedAt: report.updatedAt,
   };
   try {
@@ -106,9 +137,41 @@ export function summariesFor(): PlatinumSummary[] {
         percent: 0,
         complete: false,
         playtimeMinutes,
+        difficulty: null,
+        next: null,
+        rarest: null,
+        lastUnlockAt: null,
+        unlockDays: [],
         updatedAt: null,
       };
   });
+}
+
+/**
+ * El logro más raro que ya tienes en este juego.
+ *
+ * Mira los conseguidos, no los que faltan: es la vitrina, no la lista de la
+ * compra. Sin rareza publicada no hay vitrina que enseñar.
+ */
+function rarestOf(unlocked: Achievement[]): { name: string; percent: number } | null {
+  let mejor: Achievement | null = null;
+  for (const item of unlocked) {
+    if (item.globalPercent === null) continue;
+    if (!mejor || item.globalPercent < mejor.globalPercent!) mejor = item;
+  }
+  return mejor ? { name: mejor.displayName, percent: mejor.globalPercent! } : null;
+}
+
+/** Los días con algún desbloqueo dentro de los últimos noventa, sin repetir. */
+function recentDays(unlocked: Achievement[]): number[] {
+  const desde = Math.floor(Date.now() / 1000 / DIA) - 90;
+  const dias = new Set<number>();
+  for (const item of unlocked) {
+    if (!item.unlockTime || item.unlockTime <= 0) continue;
+    const dia = Math.floor(item.unlockTime / DIA);
+    if (dia >= desde) dias.add(dia);
+  }
+  return [...dias].sort((a, b) => a - b);
 }
 
 // ── Informe completo ──────────────────────────────────────────
@@ -215,7 +278,7 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
    */
   const yaConocido = loadSummaries()[gameId]?.updatedAt != null;
 
-  rememberSummary(report);
+  rememberSummary(report, unlockedList);
 
   /*
    * El momento que da nombre a la aplicación. Solo se anuncia una vez por

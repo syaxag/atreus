@@ -1,6 +1,7 @@
 import type { Settings } from '../types';
 import { es, type Clave } from './es';
 import { en } from './en';
+import { pt } from './pt';
 
 /**
  * El traductor, sin React y sin proceso.
@@ -19,12 +20,13 @@ import { en } from './en';
 export type Idioma = Settings['language'];
 export type { Clave };
 
-const DICCIONARIOS: Record<Idioma, Record<Clave, string>> = { es, en };
+const DICCIONARIOS: Record<Idioma, Record<Clave, string>> = { es, en, pt };
 
 /** Los idiomas disponibles, para el selector de Ajustes. */
 export const IDIOMAS: { id: Idioma; clave: Clave }[] = [
   { id: 'es', clave: 'ajustes.idiomaEs' },
   { id: 'en', clave: 'ajustes.idiomaEn' },
+  { id: 'pt', clave: 'ajustes.idiomaPt' },
 ];
 
 /**
@@ -34,7 +36,7 @@ export const IDIOMAS: { id: Idioma; clave: Clave }[] = [
  * único sitio donde se decide que el inglés de Atreus escribe las fechas como
  * en Londres y no como en Nueva York.
  */
-export const LOCALE: Record<Idioma, string> = { es: 'es-ES', en: 'en-GB' };
+export const LOCALE: Record<Idioma, string> = { es: 'es-ES', en: 'en-GB', pt: 'pt-BR' };
 
 export type Huecos = Record<string, string | number>;
 

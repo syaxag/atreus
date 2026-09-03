@@ -4,6 +4,7 @@
   "description": "Cazador de platinos: progreso de logros, guías con texto completo y mapas interactivos de tus juegos",
   "private": true,
   "author": "Syax",
+  "license": "SEE LICENSE IN LICENSE",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -67,6 +68,7 @@
       "signAndEditExecutable": false
     },
     "nsis": {
+      "license": "LICENSE",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -85,6 +87,10 @@
       {
         "from": "resources/icon.ico",
         "to": "icon.ico"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
       }
     ],
     "asarUnpack": [

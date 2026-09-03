@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Check, Search, RefreshCw, Star, Play, Gem, Globe, Plus, Trophy, Users, LoaderCircle,
+  Check, Search, RefreshCw, Star, Play, Gem, Globe, Plus, Target, Trophy, Users, LoaderCircle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { comparar, duration, PLATFORM_LABEL, relative } from '@/lib/format';
+import { comparar, duration, numero, percent as fmtPercent, PLATFORM_LABEL, relative } from '@/lib/format';
+import { DIFICULTAD } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
 import { GameCover } from '@/components/GameCover';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
@@ -509,6 +510,26 @@ function GameCard({
           </button>
         )}
 
+        {/*
+          La dificultad, en la única esquina que quedaba libre.
+
+          Es una propiedad del juego, no del progreso, así que va sobre la
+          carátula y no en el texto: ahí compite con el nombre y con el
+          porcentaje, que ya son dos números. Se queda en gris a propósito —el
+          morado señala lo activo, no lo importante— y el tramo entero se lee
+          en el tooltip, porque "Muy asequible" no cabe en 217 px.
+        */}
+        {summary?.difficulty && !platino && (
+          <span
+            title={t('col.dificultadPista', {
+              n: numero(summary.difficulty.score), tramo: t(DIFICULTAD[summary.difficulty.tier]),
+            })}
+            className="absolute bottom-2 right-2 rounded-sm border border-line bg-base/85 px-1.5 py-0.5 font-mono text-[10px] font-medium text-fg backdrop-blur-sm"
+          >
+            {numero(summary.difficulty.score)}/10
+          </span>
+        )}
+
         <button
           type="button"
           onClick={launch}
@@ -538,7 +559,9 @@ function GameCard({
             value={summary.percent}
             tone={summary.complete ? 'success' : 'accent'}
             className="h-1"
-            label={`${game.name}: ${summary.unlocked} de ${summary.total} logros`} />
+            label={t('lateral.progresoDe', {
+              juego: game.name, hechos: summary.unlocked, total: summary.total,
+            })} />
           <p className={cn('flex items-center gap-1 text-[11px]', platino ? 'text-success' : 'text-faint')}>
             <Trophy size={10} className={platino ? 'text-success' : 'text-accent'} />
             {platino
@@ -549,6 +572,29 @@ function GameCard({
               </>}
             {summary.playtimeMinutes ? <span>· {duration(summary.playtimeMinutes)}</span> : null}
           </p>
+          {/*
+            Por dónde seguiría este juego. Es la mitad de la decisión —la otra
+            es lo duro que sea— y hasta ahora había que abrir la ficha para
+            verla. En los terminados no: ahí ya no hay siguiente.
+          */}
+          {summary.next && !platino && (
+            <p
+              title={t('col.siguientePista', {
+                logro: summary.next.hidden && !summary.next.name
+                  ? t('col.logroOculto')
+                  : summary.next.name,
+                porcentaje: fmtPercent(summary.next.percent),
+              })}
+              className="flex items-center gap-1 text-[11px] text-muted"
+            >
+              <Target size={10} className="shrink-0 text-faint" />
+              <span className="truncate">
+                {summary.next.hidden && !summary.next.name
+                  ? t('col.logroOculto')
+                  : summary.next.name}
+              </span>
+            </p>
+          )}
         </> : <>
           <div className="flex items-center gap-1.5">
             <Badge>{PLATFORM_LABEL[game.platform] ?? game.platform}</Badge>

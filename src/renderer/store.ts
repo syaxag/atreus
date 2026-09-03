@@ -7,7 +7,7 @@ import { traducir, type Clave, type Huecos } from '@shared/i18n';
 import { explicarAviso } from '@/lib/aviso';
 
 export type Section =
-  | 'home' | 'library' | 'activity' | 'game'
+  | 'home' | 'library' | 'profile' | 'activity' | 'game'
   | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';
 
 export interface Toast {

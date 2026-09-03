@@ -1,5 +1,5 @@
 import {
-  Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight, Newspaper,
+  Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight, Newspaper, UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
@@ -11,9 +11,9 @@ import { useT, type Clave } from '@/i18n';
 import { useStore, type Section } from '@/store';
 
 /**
- * Siete destinos, ni uno más, en dos grupos que no son lo mismo.
+ * Ocho destinos, ni uno más, en dos grupos que no son lo mismo.
  *
- * Tres valen siempre. Los otros cuatro **operan sobre el juego en contexto** y
+ * Cuatro valen siempre. Los otros cuatro **operan sobre el juego en contexto** y
  * no significan nada sin él: por eso van debajo del juego y sangrados, no
  * mezclados con los primeros. Antes estaban todos en la misma lista y el juego
  * que los gobierna aparecía al final de la barra, lejos y sin relación visible;
@@ -41,6 +41,7 @@ interface Destino {
 const GENERALES: Destino[] = [
   { id: 'home', label: 'lateral.portada', icon: Newspaper },
   { id: 'library', label: 'lateral.coleccion', icon: Gem },
+  { id: 'profile', label: 'lateral.perfil', icon: UserRound },
   { id: 'activity', label: 'lateral.actividad', icon: Activity },
 ];
 
