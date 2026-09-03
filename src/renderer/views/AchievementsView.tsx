@@ -7,7 +7,7 @@ import type { Achievement, AchievementSet, GameStat, SteamSnapshot } from '@shar
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
+import { comparar, dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
 import { useT, type Clave } from '@/i18n';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
@@ -169,7 +169,7 @@ export function AchievementsView() {
     // sabe si son fáciles o imposibles, así que no deberían encabezar nada.
     const rank = (value: number | null) => (value === null ? -1 : value);
     return [...filtered].sort((a, b) => {
-      if (sort === 'name') return a.displayName.localeCompare(b.displayName, 'es');
+      if (sort === 'name') return comparar(a.displayName, b.displayName);
       if (sort === 'rare') {
         const ra = a.globalPercent ?? 101;
         const rb = b.globalPercent ?? 101;
@@ -273,10 +273,10 @@ export function AchievementsView() {
     const rechazados = 'rejected' in res.data ? res.data.rejected : [];
     if (rechazados.length > 0) {
       pushToast('warn', rechazados.length === patches.length
-        ? 'Steam no ha aceptado ninguno: este juego solo deja que sus logros los conceda el editor'
-        : `Steam rechazó ${rechazados.length} de ${patches.length}; el resto sí se guardó`);
+        ? t('tro.ningunoAceptado')
+        : t('tro.rechazadosParcial', { rechazados: rechazados.length, total: patches.length }));
     } else {
-      pushToast('success', writable ? 'Cambios escritos en Steam' : 'Registro actualizado');
+      pushToast('success', t(writable ? 'tro.escritoEnSteam' : 'tro.registroActualizado'));
     }
     await load();
   }
@@ -287,7 +287,7 @@ export function AchievementsView() {
     const res = await api.steam.restore(appId, snapshot.id);
     setSaving(false);
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('success', `Restaurados ${res.data.applied} valores desde la copia`);
+    pushToast('success', t('tro.restaurados', { n: res.data.applied }));
     await load();
   }
 
@@ -295,8 +295,8 @@ export function AchievementsView() {
     return (
       <Empty
         icon={<Trophy size={40} strokeWidth={1.25} />}
-        title="Ningún juego seleccionado"
-        hint="Elige un juego en la Colección para ver y editar sus logros."
+        title={t('tro.sinJuego')}
+        hint={t('tro.sinJuegoPista')}
       />
     );
   }
@@ -521,7 +521,7 @@ export function AchievementsView() {
                         )}
                       >
                         {dirty
-                          ? (on ? 'sin guardar' : 'se borrará')
+                          ? t(on ? 'tro.sinGuardar' : 'tro.seBorrara')
                           : dateTime(a.unlockTime)}
                       </span>
 
@@ -580,8 +580,8 @@ export function AchievementsView() {
           ) : backups.length === 0 ? (
             <Empty
               icon={<History size={40} strokeWidth={1.25} />}
-              title="Aún no hay copias de seguridad"
-              hint="Atreus guarda una copia automáticamente antes de escribir o restablecer logros."
+              title={t('tro.sinCopiasTitulo')}
+              hint={t('tro.sinCopiasPista')}
             />
           ) : backups.map((snapshot) => (
             <div key={snapshot.id} className="flex min-h-[56px] items-center gap-3 border-b border-line px-6 py-2">

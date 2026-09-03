@@ -6,6 +6,7 @@ import {
 import type { InteractiveMap } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
+import { useT } from '@/i18n';
 import { Badge, Button, Card, Empty, Input, Modal, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
@@ -18,6 +19,7 @@ import { Badge, Button, Card, Empty, Input, Modal, Skeleton, ViewHeader } from '
  */
 
 export function MapsView() {
+  const t = useT();
   const game = useStore((state) => state.selected());
   const pushToast = useStore((state) => state.pushToast);
   const gameId = game?.id;
@@ -71,10 +73,10 @@ export function MapsView() {
     if (!active || !loadingFrame) return;
     const timeout = window.setTimeout(() => {
       setLoadingFrame(false);
-      setFrameError('El mapa está tardando demasiado en responder. Puede estar bloqueando la vista integrada.');
+      setFrameError(t('atlas.tarda'));
     }, 20_000);
     return () => window.clearTimeout(timeout);
-  }, [active, loadingFrame]);
+  }, [active, loadingFrame, t]);
 
   // El <webview> no emite eventos de React: hay que engancharse a los suyos.
   const attach = useCallback((node: HTMLElement | null) => {
@@ -104,12 +106,12 @@ export function MapsView() {
       const detail = event as Event & { isMainFrame?: boolean; errorCode?: number };
       if (detail.isMainFrame !== true || detail.errorCode === -3) return;
       setLoadingFrame(false);
-      setFrameError('No se pudo abrir este mapa dentro de Atreus.');
+      setFrameError(t('atlas.noAbre'));
     };
     node.addEventListener('load-commit', commit);
     node.addEventListener('dom-ready', listo);
     node.addEventListener('did-fail-load', fail);
-  }, []);
+  }, [t]);
 
   async function addMap() {
     if (!gameId) return;
@@ -120,7 +122,7 @@ export function MapsView() {
     setMaps(response.data);
     setAdding(false);
     setDraft({ title: '', url: '' });
-    pushToast('success', 'Mapa añadido a la ficha del juego');
+    pushToast('success', t('atlas.mapaAnadido'));
   }
 
   async function removeMap(mapId: string) {
@@ -139,8 +141,8 @@ export function MapsView() {
   if (!game || !gameId) {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
-      title="Ningún juego seleccionado"
-      hint="Elige un juego en la Colección para abrir su mapa interactivo." />;
+      title={t('atlas.sinJuego')}
+      hint={t('atlas.sinJuegoPista')} />;
   }
 
   if (active) {
@@ -148,22 +150,22 @@ export function MapsView() {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
           <Button size="sm" variant="ghost" onClick={() => setActive(null)}>
-            <ArrowLeft size={14} /> Atlas
+            <ArrowLeft size={14} /> {t('lateral.atlas')}
           </Button>
           <div className="mx-1 h-5 w-px bg-line" />
-          <Button size="sm" variant="ghost" aria-label="Atrás" onClick={() => frame.current?.goBack()}>
+          <Button size="sm" variant="ghost" aria-label={t('atlas.atras')} onClick={() => frame.current?.goBack()}>
             <ArrowLeft size={14} />
           </Button>
-          <Button size="sm" variant="ghost" aria-label="Adelante" onClick={() => frame.current?.goForward()}>
+          <Button size="sm" variant="ghost" aria-label={t('atlas.adelante')} onClick={() => frame.current?.goForward()}>
             <ArrowRight size={14} />
           </Button>
-          <Button size="sm" variant="ghost" aria-label="Recargar" onClick={() => frame.current?.reload()}>
+          <Button size="sm" variant="ghost" aria-label={t('atlas.recargar')} onClick={() => frame.current?.reload()}>
             <RotateCw size={14} className={loadingFrame ? 'animate-spin' : undefined} />
           </Button>
           <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">{active.title}</p>
           <Badge mono>{active.provider}</Badge>
           <Button size="sm" variant="outline" onClick={() => void api.settings.openPath(active.url)}>
-            <ExternalLink size={13} /> Abrir fuera
+            <ExternalLink size={13} /> {t('atlas.abrirFuera')}
           </Button>
         </div>
         {/*
@@ -188,8 +190,8 @@ export function MapsView() {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface text-center" role="status" aria-live="polite">
               <LoaderCircle size={24} className="animate-spin text-accent" />
               <div>
-                <p className="text-[14px] font-medium text-fg">Cargando mapa interactivo…</p>
-                <p className="mt-1 text-[12px] text-muted">Los mapas externos pueden tardar unos segundos.</p>
+                <p className="text-[14px] font-medium text-fg">{t('atlas.cargando')}</p>
+                <p className="mt-1 text-[12px] text-muted">{t('atlas.cargandoPista')}</p>
               </div>
             </div>
           )}
@@ -197,13 +199,15 @@ export function MapsView() {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface p-6 text-center" role="alert">
               <MapIcon size={32} className="text-warn" />
               <div className="max-w-md">
-                <p className="text-[14px] font-semibold text-fg">El mapa no se pudo mostrar aquí</p>
+                <p className="text-[14px] font-semibold text-fg">{t('atlas.falloTitulo')}</p>
                 <p className="mt-1 text-[12px] leading-5 text-muted">{frameError}</p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button size="sm" variant="outline" onClick={retryFrame}><RotateCw size={13} /> Reintentar</Button>
+                <Button size="sm" variant="outline" onClick={retryFrame}>
+                  <RotateCw size={13} /> {t('atlas.reintentar')}
+                </Button>
                 <Button size="sm" variant="primary" onClick={() => void api.settings.openPath(active.url)}>
-                  <ExternalLink size={13} /> Abrir fuera
+                  <ExternalLink size={13} /> {t('atlas.abrirFuera')}
                 </Button>
               </div>
             </div>
@@ -216,15 +220,15 @@ export function MapsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Atlas · ${game.name}`}
-        subtitle="Mapas interactivos reales, con sus coleccionables y sus filtros, dentro de Atreus."
+        title={`${t('lateral.atlas')} · ${game.name}`}
+        subtitle={t('atlas.subtitulo')}
         actions={<>
           <Button variant="outline" onClick={() => void loadMaps(true)} disabled={refreshingMaps}>
             <RotateCw size={14} className={refreshingMaps ? 'animate-spin' : undefined} />
-            {refreshingMaps ? 'Actualizando…' : 'Actualizar'}
+            {t(refreshingMaps ? 'atlas.actualizando' : 'atlas.actualizar')}
           </Button>
           <Button variant="outline" onClick={() => setAdding(true)}>
-            <Plus size={14} /> Añadir un mapa
+            <Plus size={14} /> {t('atlas.anadirMapa')}
           </Button>
         </>} />
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
@@ -235,20 +239,21 @@ export function MapsView() {
         ) : maps.length === 0 ? (
           <Empty
             icon={<MapIcon size={40} strokeWidth={1.25} />}
-            title="No hay mapa interactivo para este juego"
-            hint={`Atreus busca ${game.name} en el directorio público de MapGenie y en el catálogo. ` +
-              'Si aparece uno más adelante, saldrá aquí sin actualizar la aplicación.'}
+            title={t('atlas.sinMapaTitulo')}
+            hint={t('atlas.sinMapaPista', { juego: game.name })}
             action={<div className="flex flex-wrap justify-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => void api.settings.openPath(
-                  `https://duckduckgo.com/?q=${encodeURIComponent(`${game.name} mapa interactivo coleccionables`)}`,
+                  `https://duckduckgo.com/?q=${encodeURIComponent(
+                    t('atlas.consultaBusqueda', { juego: game.name }),
+                  )}`,
                 )}
               >
-                <ExternalLink size={14} /> Buscarlo en el navegador
+                <ExternalLink size={14} /> {t('atlas.buscarNavegador')}
               </Button>
               <Button variant="primary" onClick={() => setAdding(true)}>
-                <Plus size={14} /> Añadir uno a mano
+                <Plus size={14} /> {t('atlas.anadirManual')}
               </Button>
             </div>} />
         ) : (
@@ -260,8 +265,8 @@ export function MapsView() {
                   <div className="flex items-center gap-1.5">
                     <Badge mono>{map.provider}</Badge>
                     {map.removable && (
-                      <Button size="sm" variant="ghost" aria-label={`Quitar ${map.title}`}
-                              title="Quitar este mapa de la ficha"
+                      <Button size="sm" variant="ghost" aria-label={t('atlas.quitarMapa', { mapa: map.title })}
+                              title={t('atlas.quitarMapaPista')}
                               onClick={() => void removeMap(map.id)}>
                         <Trash2 size={13} />
                       </Button>
@@ -272,7 +277,8 @@ export function MapsView() {
                 <p className="mt-1 flex-1 text-[12px] leading-5 text-muted">{map.description}</p>
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" variant="primary" onClick={() => setActive(map)}>
-                    {loadingFrame ? <LoaderCircle size={13} className="animate-spin" /> : <MapIcon size={13} />} Abrir aquí
+                    {loadingFrame ? <LoaderCircle size={13} className="animate-spin" /> : <MapIcon size={13} />}
+                    {t('atlas.abrirAqui')}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => void api.settings.openPath(map.url)}>
                     <ExternalLink size={13} />
@@ -291,30 +297,34 @@ export function MapsView() {
       */}
       <Modal
         open={adding}
-        title="Añadir un mapa a mano"
+        title={t('atlas.modalTitulo')}
         icon={<MapIcon size={16} className="text-accent" />}
         onClose={() => setAdding(false)}
         footer={<>
-          <Button variant="ghost" onClick={() => setAdding(false)}>Cancelar</Button>
+          <Button variant="ghost" onClick={() => setAdding(false)}>{t('atlas.cancelar')}</Button>
           <Button variant="primary" disabled={saving || !draft.title.trim() || !draft.url.trim()}
                   onClick={() => void addMap()}>
-            {saving ? <LoaderCircle size={14} className="animate-spin" /> : <Plus size={14} />} Guardar
+            {saving ? <LoaderCircle size={14} className="animate-spin" /> : <Plus size={14} />}
+            {t('atlas.guardar')}
           </Button>
         </>}
       >
         <p className="text-[13px] leading-6 text-muted">
-          Si usas un mapa que Atreus no encuentra solo, pega aquí su dirección y se queda en la
-          ficha de {game.name}. Se abrirá en la pestaña integrada como los demás.
+          {t('atlas.modalCuerpo', { juego: game.name })}
         </p>
-        <label className="mt-4 block text-[12px] font-medium text-muted" htmlFor="map-title">Nombre</label>
+        <label className="mt-4 block text-[12px] font-medium text-muted" htmlFor="map-title">
+          {t('atlas.nombre')}
+        </label>
         <Input id="map-title" value={draft.title} className="mt-1 w-full"
-               placeholder="Mapa de coleccionables"
+               placeholder={t('atlas.nombrePista')}
                onChange={(event) => setDraft((d) => ({ ...d, title: event.target.value }))} />
-        <label className="mt-3 block text-[12px] font-medium text-muted" htmlFor="map-url">Dirección</label>
+        <label className="mt-3 block text-[12px] font-medium text-muted" htmlFor="map-url">
+          {t('atlas.direccion')}
+        </label>
         <Input id="map-url" value={draft.url} className="mt-1 w-full font-mono text-[12px]"
                placeholder="https://…"
                onChange={(event) => setDraft((d) => ({ ...d, url: event.target.value }))} />
-        <p className="mt-2 text-[11px] text-faint">Tiene que empezar por https://</p>
+        <p className="mt-2 text-[11px] text-faint">{t('atlas.direccionPista')}</p>
       </Modal>
     </div>
   );

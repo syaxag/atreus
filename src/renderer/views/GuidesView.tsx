@@ -9,6 +9,7 @@ import type {
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useStore } from '@/store';
+import { useT, type Clave } from '@/i18n';
 import { Badge, Button, Card, Empty, Input, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
@@ -20,15 +21,16 @@ import { Badge, Button, Card, Empty, Input, Skeleton, ViewHeader } from '@/compo
  * que era el defecto de la versión anterior.
  */
 
-const CATEGORIES: { id: GuideCategory; label: string }[] = [
-  { id: 'platinum', label: '100 % / platino' },
-  { id: 'achievements', label: 'Logros' },
-  { id: 'collectibles', label: 'Coleccionables' },
-  { id: 'walkthrough', label: 'Walkthrough' },
-  { id: 'bosses', label: 'Jefes' },
+const CATEGORIES: { id: GuideCategory; label: Clave }[] = [
+  { id: 'platinum', label: 'rutas.catPlatino' },
+  { id: 'achievements', label: 'rutas.catLogros' },
+  { id: 'collectibles', label: 'rutas.catColeccionables' },
+  { id: 'walkthrough', label: 'rutas.catWalkthrough' },
+  { id: 'bosses', label: 'rutas.catJefes' },
 ];
 
 export function GuidesView() {
+  const t = useT();
   const game = useStore((state) => state.selected());
   const pushToast = useStore((state) => state.pushToast);
   const guideSearch = useStore((state) => state.guideSearch);
@@ -83,8 +85,8 @@ export function GuidesView() {
   if (!game || !gameId) {
     return <Empty
       icon={<Gamepad2 size={40} strokeWidth={1.25} />}
-      title="Ningún juego seleccionado"
-      hint="Elige un juego en la Colección para que Atreus busque sus guías." />;
+      title={t('rutas.sinJuego')}
+      hint={t('rutas.sinJuegoPista')} />;
   }
 
   if (document) {
@@ -94,11 +96,11 @@ export function GuidesView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Rutas · ${game.name}`}
-        subtitle="Buscadas automáticamente. Las que Atreus sabe leer se abren aquí dentro, con su texto completo."
+        title={`${t('lateral.rutas')} · ${game.name}`}
+        subtitle={t('rutas.subtitulo')}
         actions={<Button variant="outline" onClick={() => void load(true)} disabled={refreshing}>
           <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
-          {refreshing ? 'Actualizando…' : 'Actualizar'}
+          {t(refreshing ? 'rutas.actualizando' : 'rutas.actualizar')}
         </Button>}
       />
 
@@ -112,7 +114,7 @@ export function GuidesView() {
               onClick={() => setCategory(item.id)}
             >
               {item.id === 'platinum' && <Trophy size={13} />}
-              {item.label}
+              {t(item.label)}
             </Button>
           ))}
         </div>
@@ -124,7 +126,7 @@ export function GuidesView() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Afinar la búsqueda (opcional)…"
+            placeholder={t('rutas.afinar')}
             className="w-full pl-8"
           />
         </form>
@@ -139,9 +141,9 @@ export function GuidesView() {
           ) : entries.length === 0 ? (
             <Empty
               icon={<Search size={40} strokeWidth={1.25} />}
-              title="No se encontró ninguna guía"
-              hint={error ?? 'Prueba otra categoría o escribe algo concreto en el buscador de arriba.'}
-              action={<Button variant="outline" onClick={() => void load(true)}>Reintentar</Button>} />
+              title={t('rutas.sinResultados')}
+              hint={error ?? t('rutas.sinResultadosPista')}
+              action={<Button variant="outline" onClick={() => void load(true)}>{t('rutas.reintentar')}</Button>} />
           ) : (
             <div className="flex flex-col gap-2">
               {entries.map((entry) => (
@@ -161,6 +163,7 @@ export function GuidesView() {
 }
 
 function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; onOpen: () => void }) {
+  const t = useT();
   return (
     <article className="rounded-md border border-line bg-surface p-4">
       <div className="flex items-start gap-3">
@@ -169,8 +172,10 @@ function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; 
           {entry.snippet && <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-muted">{entry.snippet}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <Badge mono>{entry.source}</Badge>
-            {entry.language === 'es' && <Badge tone="accent">Español</Badge>}
-            {entry.author && <span className="text-[11px] text-faint">por {entry.author}</span>}
+            {entry.language === 'es' && <Badge tone="accent">{t('rutas.enCastellano')}</Badge>}
+            {entry.author && (
+              <span className="text-[11px] text-faint">{t('rutas.porAutor', { autor: entry.author })}</span>
+            )}
             {entry.rating !== null && (
               <span className="flex items-center gap-0.5 text-[11px] text-faint">
                 <Star size={10} fill="currentColor" /> {entry.rating}/5
@@ -178,14 +183,14 @@ function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; 
             )}
             {!entry.readable && (
               <span className="flex items-center gap-1 text-[11px] text-faint">
-                <Globe size={10} /> puede que solo salga un extracto
+                <Globe size={10} /> {t('rutas.soloExtracto')}
               </span>
             )}
           </div>
         </div>
         <Button size="sm" variant={entry.readable ? 'primary' : 'outline'} disabled={busy} onClick={onOpen}>
           {busy ? <LoaderCircle size={14} className="animate-spin" /> : <FileText size={14} />}
-          {busy ? 'Cargando' : 'Leer aquí'}
+          {t(busy ? 'rutas.cargando' : 'rutas.leerAqui')}
         </Button>
       </div>
     </article>
@@ -202,6 +207,7 @@ function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; 
  * hay un índice para no scrollear a ciegas.
  */
 function Reader({ document, onBack }: { document: GuideDocument; onBack: () => void }) {
+  const t = useT();
   const scroll = useRef<HTMLElement | null>(null);
   const [avance, setAvance] = useState(0);
   const [activa, setActiva] = useState(0);
@@ -252,11 +258,13 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
-        <Button size="sm" variant="ghost" onClick={onBack}><ChevronLeft size={15} /> Rutas</Button>
+        <Button size="sm" variant="ghost" onClick={onBack}>
+          <ChevronLeft size={15} /> {t('lateral.rutas')}
+        </Button>
         <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">{document.title}</p>
         <Badge mono>{document.source}</Badge>
         <Button size="sm" variant="outline" onClick={() => void api.settings.openPath(document.url)}>
-          <ExternalLink size={13} /> Abrir fuera
+          <ExternalLink size={13} /> {t('rutas.abrirFuera')}
         </Button>
       </div>
 
@@ -279,21 +287,22 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
             la línea siguiente sin perderse, que es de lo que va leer. */}
         <div className="mx-auto max-w-[65ch]">
           <h1 className="text-[22px] font-semibold leading-tight">{document.title}</h1>
-          {document.author && <p className="mt-1 text-[12px] text-faint">por {document.author}</p>}
+          {document.author && (
+            <p className="mt-1 text-[12px] text-faint">{t('rutas.porAutor', { autor: document.author })}</p>
+          )}
           {document.summary && <p className="mt-3 text-[13px] leading-6 text-muted">{document.summary}</p>}
 
           <p className="mt-4 border-y border-line py-2.5 text-[11px] leading-5 text-faint">
-            Texto de {document.source}, mostrado dentro de Atreus con enlace a la fuente original.
-            Atreus no aloja ni republica guías: si quieres apoyar a quien la escribió, ábrela fuera.
+            {t('rutas.textoDe', { fuente: document.source })}
           </p>
 
           {document.partial ? (
             <Empty
               icon={<FileText size={28} />}
-              title="Esta fuente no permite extraer su texto"
-              hint="Se conserva su resumen. Ábrela en el navegador para leerla entera."
+              title={t('rutas.parcialTitulo')}
+              hint={t('rutas.parcialPista')}
               action={<Button variant="outline" onClick={() => void api.settings.openPath(document.url)}>
-                <ExternalLink size={14} /> Abrir en el navegador
+                <ExternalLink size={14} /> {t('rutas.abrirNavegador')}
               </Button>} />
           ) : (
             <div className="mt-6 flex flex-col gap-8">
@@ -326,7 +335,7 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
       {conIndice && (
         <nav ref={indice as never} className="hidden w-56 shrink-0 overflow-y-auto border-l border-line px-3 py-5 lg:block">
           <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-faint">
-            En esta guía
+            {t('rutas.enEstaGuia')}
           </p>
           <ul className="mt-2 flex flex-col gap-0.5">
             {document.sections.map((section, index) => (
@@ -357,6 +366,7 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
 
 /** Checklist local del juego. No toca logros ni partidas: vive solo aquí. */
 function Checklist({ gameId }: { gameId: string }) {
+  const t = useT();
   const pushToast = useStore((state) => state.pushToast);
   const [progress, setProgress] = useState<CompletionProgress | null>(null);
   const [draft, setDraft] = useState('');
@@ -384,13 +394,11 @@ function Checklist({ gameId }: { gameId: string }) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <CheckSquare2 size={16} className="text-accent" />
-          <h2 className="text-[13px] font-semibold">Tu ruta</h2>
+          <h2 className="text-[13px] font-semibold">{t('rutas.tuRuta')}</h2>
         </div>
         <Badge tone={done === total && total > 0 ? 'success' : 'accent'}>{done}/{total}</Badge>
       </div>
-      <p className="mt-1 text-[12px] leading-5 text-faint">
-        Notas y objetivos que te apuntas tú. Se guardan solo en este equipo.
-      </p>
+      <p className="mt-1 text-[12px] leading-5 text-faint">{t('rutas.tuRutaPista')}</p>
 
       {!progress ? (
         <div className="mt-4 flex flex-col gap-2"><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
@@ -430,21 +438,21 @@ function Checklist({ gameId }: { gameId: string }) {
           }}
         >
           <Input value={draft} onChange={(event) => setDraft(event.target.value)}
-            placeholder="Añadir objetivo…" className="min-w-0" />
-          <Button size="sm" type="submit" disabled={!draft.trim()} aria-label="Añadir objetivo">
+            placeholder={t('rutas.anadirObjetivo')} className="min-w-0" />
+          <Button size="sm" type="submit" disabled={!draft.trim()} aria-label={t('rutas.anadirObjetivoBoton')}>
             <Plus size={14} />
           </Button>
         </form>
 
         <label className="mt-4 block text-[12px] font-medium text-muted" htmlFor="completion-notes">
-          Notas de la partida
+          {t('rutas.notas')}
         </label>
         <textarea
           id="completion-notes"
           key={progress.gameId}
           defaultValue={progress.notes}
           onBlur={(event) => void save({ ...progress, notes: event.target.value })}
-          placeholder="Rutas, jefes, coleccionables pendientes…"
+          placeholder={t('rutas.notasPista')}
           className="mt-1.5 h-24 w-full resize-y rounded-sm border border-line bg-inset p-2 text-[12px] text-fg placeholder:text-faint focus:border-accent focus:outline-none"
         />
       </>}

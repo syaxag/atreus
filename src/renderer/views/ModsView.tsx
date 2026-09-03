@@ -7,7 +7,8 @@ import type { Mod, ModDeployPreview, ModProfile, RemoteMod } from '@shared/types
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { bytes } from '@/lib/format';
+import { bytes, comparar, numero } from '@/lib/format';
+import { useT } from '@/i18n';
 import { Badge, Button, Card, Empty, Modal, Skeleton, Toggle, ViewHeader } from '@/components/ui';
 
 /** Extensiones que el backend sabe extraer. Ver services/mods/archive.ts. */
@@ -17,6 +18,7 @@ const RAR_RE = /\.rar$/i;
 type InstalledSort = 'order' | 'name' | 'recent' | 'status';
 
 export function ModsView() {
+  const t = useT();
   const game = useStore((s) => s.selected());
   const pushToast = useStore((s) => s.pushToast);
 
@@ -96,7 +98,7 @@ export function ModsView() {
     const res = await api.mods.install(gameId, archivePath);
     setBusy(false);
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('success', `${res.data.name} instalado`);
+    pushToast('success', t('taller.instalado', { mod: res.data.name }));
   }
 
   // ── Arrastrar y soltar ──────────────────────────────────────
@@ -113,9 +115,9 @@ export function ModsView() {
       .filter((path): path is string => typeof path === 'string' && ARCHIVE_RE.test(path));
 
     if (paths.length === 0) {
-      pushToast('warn', files.some((f) => RAR_RE.test(f.path ?? ''))
-        ? 'Atreus no puede abrir un .rar. Vuelve a empaquetarlo como .zip o .7z.'
-        : 'Suelta un archivo .zip o .7z');
+      pushToast('warn', t(files.some((f) => RAR_RE.test(f.path ?? ''))
+        ? 'taller.sinRar'
+        : 'taller.sueltaArchivo'));
       return;
     }
     for (const path of paths) await install(path);
@@ -132,7 +134,7 @@ export function ModsView() {
   /** Guarda la selección y el orden actuales como un perfil nuevo. */
   async function saveCurrentAsProfile() {
     if (!gameId) return;
-    const name = window.prompt('Nombre del perfil', 'Nuevo perfil');
+    const name = window.prompt(t('taller.nombrePerfil'), t('taller.perfilNuevo'));
     if (!name?.trim()) return;
 
     const res = await api.mods.saveProfile({
@@ -144,7 +146,7 @@ export function ModsView() {
       isActive: false,
     });
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('success', `Perfil "${res.data.name}" guardado`);
+    pushToast('success', t('taller.perfilGuardado', { perfil: res.data.name }));
     await load();
   }
 
@@ -154,12 +156,12 @@ export function ModsView() {
     const res = await api.mods.installRemote(gameId, mod);
     setInstalling(null);
     if (!res.ok) return pushToast('error', res.error);
-    pushToast('success', `${res.data.name} instalado desde ${mod.source}`);
+    pushToast('success', t('taller.instaladoDesde', { mod: res.data.name, fuente: mod.source }));
   }
 
   async function deleteProfile(profile: ModProfile) {
     if (!gameId) return;
-    if (!window.confirm(`¿Borrar el perfil "${profile.name}"?`)) return;
+    if (!window.confirm(t('taller.borrarPerfil', { perfil: profile.name }))) return;
     const res = await api.mods.deleteProfile(gameId, profile.id);
     if (!res.ok) return pushToast('error', res.error);
     await load();
@@ -201,7 +203,7 @@ export function ModsView() {
 
   async function remove(mod: Mod) {
     if (!game) return;
-    if (!window.confirm(`¿Desinstalar "${mod.name}"?\n\nSe borrarán sus archivos del staging.`)) return;
+    if (!window.confirm(t('taller.confirmarDesinstalar', { mod: mod.name }))) return;
     const res = await api.mods.uninstall(game.id, mod.id);
     if (!res.ok) pushToast('error', res.error);
   }
@@ -226,7 +228,7 @@ export function ModsView() {
 
   async function purge() {
     if (!game) return;
-    if (!window.confirm('¿Revertir el despliegue?\n\nEl directorio del juego vuelve a su estado limpio.')) return;
+    if (!window.confirm(t('taller.confirmarPurgar'))) return;
     setBusy(true);
     const res = await api.mods.purge(game.id);
     setBusy(false);
@@ -235,8 +237,8 @@ export function ModsView() {
 
   if (!game) {
     return (
-      <Empty icon={<Package size={40} strokeWidth={1.25} />} title="Ningún juego seleccionado"
-             hint="Elige un juego en la Colección para abrir su taller." />
+      <Empty icon={<Package size={40} strokeWidth={1.25} />} title={t('taller.sinJuego')}
+             hint={t('taller.sinJuegoPista')} />
     );
   }
 
@@ -249,7 +251,7 @@ export function ModsView() {
       ? mods.filter((mod) => `${mod.name} ${mod.author ?? ''} ${mod.description ?? ''}`.toLowerCase().includes(search))
       : mods;
     return [...filtered].sort((a, b) => {
-      if (installedSort === 'name') return a.name.localeCompare(b.name, 'es');
+      if (installedSort === 'name') return comparar(a.name, b.name);
       if (installedSort === 'recent') return b.installedAt - a.installedAt;
       if (installedSort === 'status') return Number(b.enabled) - Number(a.enabled) || a.order - b.order;
       return a.order - b.order;
@@ -274,11 +276,10 @@ export function ModsView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
-        title={`Taller · ${game.name}`}
-        subtitle={
-          `${mods.length} mods · ${enabledCount} activos` +
-          (active ? ` · perfil "${active.name}"` : '')
-        }
+        title={`${t('lateral.taller')} · ${game.name}`}
+        subtitle={t(active ? 'taller.resumenPerfil' : 'taller.resumen', {
+          n: mods.length, activos: enabledCount, perfil: active?.name ?? '',
+        })}
         actions={
           <>
             <div className="mr-1 flex gap-1 rounded-sm border border-line p-0.5">
@@ -287,24 +288,24 @@ export function ModsView() {
                 variant={tab === 'installed' ? 'primary' : 'ghost'}
                 onClick={() => setTab('installed')}
               >
-                Instalados
+                {t('taller.pestanaInstalados')}
               </Button>
               <Button
                 size="sm"
                 variant={tab === 'discover' ? 'primary' : 'ghost'}
                 onClick={() => setTab('discover')}
               >
-                <Globe size={12} /> Descubrir
+                <Globe size={12} /> {t('taller.pestanaDescubrir')}
               </Button>
             </div>
             <Button variant="outline" onClick={() => install()} disabled={busy}>
-              <Plus size={14} /> Instalar
+              <Plus size={14} /> {t('taller.instalar')}
             </Button>
             <Button variant="outline" onClick={purge} disabled={busy}>
-              <Eraser size={14} /> Purgar
+              <Eraser size={14} /> {t('taller.purgar')}
             </Button>
             <Button variant="primary" onClick={prepareDeploy} disabled={busy || preparingPreview || enabledCount === 0}>
-              <HardDriveDownload size={14} /> {preparingPreview ? 'Preparando…' : 'Desplegar'}
+              <HardDriveDownload size={14} /> {t(preparingPreview ? 'taller.preparando' : 'taller.desplegar')}
             </Button>
           </>
         }
@@ -330,12 +331,18 @@ export function ModsView() {
           {pendiente > 0 ? (
             <>
               <TriangleAlert size={13} className="shrink-0" />
-              <span className="font-medium">Cambios sin desplegar.</span>
+              <span className="font-medium">{t('taller.pendienteTitulo')}</span>
               <span className="text-muted">
-                {sinDesplegar > 0 && `${sinDesplegar} activo${sinDesplegar === 1 ? '' : 's'} todavía no está${sinDesplegar === 1 ? '' : 'n'} en el juego`}
+                {sinDesplegar > 0 && t(
+                  sinDesplegar === 1 ? 'taller.pendienteActivosUno' : 'taller.pendienteActivos',
+                  { n: sinDesplegar },
+                )}
                 {sinDesplegar > 0 && sobrantes > 0 && '; '}
-                {sobrantes > 0 && `${sobrantes} desactivado${sobrantes === 1 ? '' : 's'} sigue${sobrantes === 1 ? '' : 'n'} escrito${sobrantes === 1 ? '' : 's'}`}
-                . Pulsa Desplegar para que el juego los vea.
+                {sobrantes > 0 && t(
+                  sobrantes === 1 ? 'taller.pendienteSobrantesUno' : 'taller.pendienteSobrantes',
+                  { n: sobrantes },
+                )}
+                {t('taller.pendienteCierre')}
               </span>
             </>
           ) : (
@@ -343,8 +350,9 @@ export function ModsView() {
               <Check size={13} className="shrink-0 text-success" />
               <span>
                 {desplegados.length > 0
-                  ? `El juego tiene lo que ves: ${desplegados.length} mod${desplegados.length === 1 ? '' : 's'} desplegado${desplegados.length === 1 ? '' : 's'}.`
-                  : 'Nada desplegado: el juego está limpio.'}
+                  ? t(desplegados.length === 1 ? 'taller.desplegadoUno' : 'taller.desplegados',
+                      { n: desplegados.length })
+                  : t('taller.nadaDesplegado')}
               </span>
             </>
           )}
@@ -356,7 +364,7 @@ export function ModsView() {
         <Layers size={14} className="shrink-0 text-faint" />
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           {profiles.length === 0 ? (
-            <span className="text-[12px] text-faint">Sin perfiles guardados</span>
+            <span className="text-[12px] text-faint">{t('taller.sinPerfiles')}</span>
           ) : (
             profiles.map((p) => (
               <span key={p.id} className="flex items-center">
@@ -372,7 +380,7 @@ export function ModsView() {
                 <button
                   type="button"
                   onClick={() => deleteProfile(p)}
-                  aria-label={`Borrar perfil ${p.name}`}
+                  aria-label={t('taller.borrarPerfilAria', { perfil: p.name })}
                   className="ml-0.5 rounded-sm p-1 text-faint transition-colors hover:text-danger"
                 >
                   <X size={11} />
@@ -383,10 +391,10 @@ export function ModsView() {
         </div>
         <div className="flex shrink-0 gap-1">
           <Button size="sm" variant="outline" onClick={openComparison} disabled={profiles.length < 2}>
-            <Columns2 size={13} /> Comparar
+            <Columns2 size={13} /> {t('taller.comparar')}
           </Button>
           <Button size="sm" variant="outline" onClick={saveCurrentAsProfile} disabled={busy}>
-            Guardar actual
+            {t('taller.guardarActual')}
           </Button>
         </div>
       </div>
@@ -404,7 +412,7 @@ export function ModsView() {
         {dragging && (
           <div className="pointer-events-none absolute inset-3 z-10 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-accent bg-accent-soft">
             <Upload size={28} className="text-accent" />
-            <p className="text-[13px] font-medium">Suelta el archivo para instalarlo</p>
+            <p className="text-[13px] font-medium">{t('taller.sueltaAqui')}</p>
             <p className="text-[12px] text-muted">.zip · .7z</p>
           </div>
         )}
@@ -429,21 +437,28 @@ export function ModsView() {
           <Card className="mb-3 border-accent/30 bg-accent-soft px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-[13px] font-medium">Despliegue seguro</p>
-                <p className="mt-0.5 text-[12px] leading-5 text-muted">Antes de sobrescribir archivos, Atreus crea un respaldo del juego. <strong>“Purgar”</strong> restaura esos archivos; las partidas guardadas no se tocan.</p>
+                <p className="text-[13px] font-medium">{t('taller.seguroTitulo')}</p>
+                <p className="mt-0.5 text-[12px] leading-5 text-muted">
+                  {t('taller.seguroAntes')}<strong>{t('taller.seguroPurgar')}</strong>{t('taller.seguroDespues')}
+                </p>
               </div>
-              {conflictingEnabled > 0 ? <Badge tone="warn"><TriangleAlert size={11} className="mr-1" />{conflictingEnabled} conflicto{conflictingEnabled === 1 ? '' : 's'}</Badge>
-                : <Badge tone="success"><Check size={11} className="mr-1" />sin conflictos activos</Badge>}
+              {conflictingEnabled > 0
+                ? <Badge tone="warn">
+                    <TriangleAlert size={11} className="mr-1" />
+                    {t(conflictingEnabled === 1 ? 'taller.conflictosUno' : 'taller.conflictos',
+                       { n: conflictingEnabled })}
+                  </Badge>
+                : <Badge tone="success"><Check size={11} className="mr-1" />{t('taller.sinConflictos')}</Badge>}
             </div>
           </Card>
         {mods.length === 0 ? (
           <Empty
             icon={<Package size={40} strokeWidth={1.25} />}
-            title="Sin mods instalados"
-            hint="Arrastra aquí un .zip o un .7z, o usa el botón. Los archivos se guardan aparte y se despliegan al juego por enlace duro, así que se pueden revertir sin residuos."
+            title={t('taller.sinModsTitulo')}
+            hint={t('taller.sinModsPista')}
             action={
               <Button variant="primary" onClick={() => install()}>
-                <Plus size={14} /> Instalar mod
+                <Plus size={14} /> {t('taller.instalarMod')}
               </Button>
             }
           />
@@ -453,24 +468,26 @@ export function ModsView() {
               <div className="relative w-full max-w-xs">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
                 <input value={installedQuery} onChange={(event) => setInstalledQuery(event.target.value)}
-                  placeholder="Buscar mods instalados…"
+                  placeholder={t('taller.buscarInstalados')}
                   className="h-9 w-full rounded-sm border border-line bg-inset pl-8 pr-3 text-[13px] text-fg placeholder:text-faint focus:border-accent focus:outline-none" />
               </div>
               <label className="flex items-center gap-1.5 text-[12px] text-faint">
-                Ordenar
+                {t('taller.ordenar')}
                 <select value={installedSort} onChange={(event) => setInstalledSort(event.target.value as InstalledSort)}
                   className="h-8 rounded-sm border border-line bg-inset px-2 text-[12px] text-fg focus:border-accent focus:outline-none">
-                  <option value="order">Orden de carga</option>
-                  <option value="name">Nombre</option>
-                  <option value="recent">Añadidos recientemente</option>
-                  <option value="status">Activos primero</option>
+                  <option value="order">{t('taller.ordenCarga')}</option>
+                  <option value="name">{t('taller.ordenNombre')}</option>
+                  <option value="recent">{t('taller.ordenRecientes')}</option>
+                  <option value="status">{t('taller.ordenActivos')}</option>
                 </select>
               </label>
-              <span className="text-[12px] text-faint">{visibleMods.length} de {mods.length}</span>
-              {!canReorder && <span className="text-[11px] text-faint">Restablece el orden y la búsqueda para reordenar.</span>}
+              <span className="text-[12px] text-faint">
+                {t('taller.deN', { visibles: visibleMods.length, total: mods.length })}
+              </span>
+              {!canReorder && <span className="text-[11px] text-faint">{t('taller.paraReordenar')}</span>}
             </div>
             {visibleMods.length === 0 ? (
-              <Empty title="Ningún mod coincide" hint="Prueba otro término de búsqueda." />
+              <Empty title={t('taller.sinCoincidencias')} hint={t('taller.sinCoincidenciasPista')} />
             ) : <div className="flex flex-col gap-2">
             {visibleMods.map((mod) => (
               <Card key={mod.id} hover className={cn('defer-render px-4 py-3', !mod.enabled && 'opacity-60')}>
@@ -483,11 +500,11 @@ export function ModsView() {
                     <div className="flex items-center gap-2">
                       <p className="truncate text-[13px] font-medium">{mod.name}</p>
                       {mod.version && <Badge mono>v{mod.version}</Badge>}
-                      {mod.status === 'deployed' && <Badge tone="success">desplegado</Badge>}
-                      {mod.status === 'error' && <Badge tone="danger">error</Badge>}
+                      {mod.status === 'deployed' && <Badge tone="success">{t('taller.badgeDesplegado')}</Badge>}
+                      {mod.status === 'error' && <Badge tone="danger">{t('taller.badgeError')}</Badge>}
                       {mod.conflictsWith.length > 0 && (
                         <Badge tone="warn">
-                          <TriangleAlert size={10} className="mr-1" /> conflicto
+                          <TriangleAlert size={10} className="mr-1" /> {t('taller.badgeConflicto')}
                         </Badge>
                       )}
                     </div>
@@ -498,14 +515,14 @@ export function ModsView() {
 
                   <div className="flex shrink-0 items-center gap-1">
                     {canReorder && <>
-                      <Button size="sm" onClick={() => move(mod.order, -1)} disabled={mod.order === 0} aria-label="Subir">
+                      <Button size="sm" onClick={() => move(mod.order, -1)} disabled={mod.order === 0} aria-label={t('taller.subir')}>
                         <ArrowUp size={13} />
                       </Button>
-                      <Button size="sm" onClick={() => move(mod.order, 1)} disabled={mod.order === mods.length - 1} aria-label="Bajar">
+                      <Button size="sm" onClick={() => move(mod.order, 1)} disabled={mod.order === mods.length - 1} aria-label={t('taller.bajar')}>
                         <ArrowDown size={13} />
                       </Button>
                     </>}
-                    <Button size="sm" variant="danger" onClick={() => remove(mod)} aria-label="Desinstalar">
+                    <Button size="sm" variant="danger" onClick={() => remove(mod)} aria-label={t('taller.desinstalar')}>
                       <Trash2 size={13} />
                     </Button>
                     <div className="ml-2">
@@ -557,10 +574,11 @@ function ProfileComparison({
   onRightChange: (id: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const left = profiles.find((profile) => profile.id === leftId);
   const right = profiles.find((profile) => profile.id === rightId);
   const names = new Map(mods.map((mod) => [mod.id, mod.name]));
-  const label = (id: string) => names.get(id) ?? `Mod eliminado (${id})`;
+  const label = (id: string) => names.get(id) ?? t('taller.modEliminado', { id });
   const leftOnly = left?.mods.filter((id) => !right?.mods.includes(id)) ?? [];
   const rightOnly = right?.mods.filter((id) => !left?.mods.includes(id)) ?? [];
   const same = left && right && leftOnly.length === 0 && rightOnly.length === 0;
@@ -568,22 +586,20 @@ function ProfileComparison({
   return (
     <Modal
       open={open}
-      title="Comparar perfiles"
+      title={t('taller.compararTitulo')}
       icon={<Columns2 size={16} className="text-accent" />}
       onClose={onClose}
-      footer={<Button variant="primary" onClick={onClose}>Cerrar</Button>}
+      footer={<Button variant="primary" onClick={onClose}>{t('taller.cerrar')}</Button>}
     >
-      <p className="text-[13px] leading-5 text-muted">
-        Esta comparación es solo de lectura: no activa perfiles ni cambia el orden de carga.
-      </p>
+      <p className="text-[13px] leading-5 text-muted">{t('taller.compararPista')}</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="text-[12px] font-medium text-muted">Perfil A
+        <label className="text-[12px] font-medium text-muted">{t('taller.perfilA')}
           <select value={leftId} onChange={(event) => onLeftChange(event.target.value)}
             className="mt-1 h-9 w-full rounded-sm border border-line bg-inset px-2 text-[13px] text-fg focus:border-accent focus:outline-none">
             {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
           </select>
         </label>
-        <label className="text-[12px] font-medium text-muted">Perfil B
+        <label className="text-[12px] font-medium text-muted">{t('taller.perfilB')}
           <select value={rightId} onChange={(event) => onRightChange(event.target.value)}
             className="mt-1 h-9 w-full rounded-sm border border-line bg-inset px-2 text-[13px] text-fg focus:border-accent focus:outline-none">
             {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
@@ -592,20 +608,25 @@ function ProfileComparison({
       </div>
       {left && right && (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <ProfileColumn title={`Solo en ${left.name}`} ids={leftOnly} label={label} />
-          <ProfileColumn title={`Solo en ${right.name}`} ids={rightOnly} label={label} />
+          <ProfileColumn title={t('taller.soloEn', { perfil: left.name })} ids={leftOnly} label={label} />
+          <ProfileColumn title={t('taller.soloEn', { perfil: right.name })} ids={rightOnly} label={label} />
         </div>
       )}
-      {same && <p className="mt-4 rounded-sm border border-[var(--success-line)] px-3 py-2 text-[12px] text-success">Ambos perfiles activan exactamente los mismos mods.</p>}
+      {same && (
+        <p className="mt-4 rounded-sm border border-[var(--success-line)] px-3 py-2 text-[12px] text-success">
+          {t('taller.mismosMods')}
+        </p>
+      )}
     </Modal>
   );
 }
 
 function ProfileColumn({ title, ids, label }: { title: string; ids: string[]; label: (id: string) => string }) {
+  const t = useT();
   return (
     <section className="min-w-0 rounded-sm border border-line bg-inset p-3">
       <p className="text-[12px] font-semibold text-fg">{title}</p>
-      {ids.length === 0 ? <p className="mt-2 text-[12px] text-faint">Ninguno</p> : (
+      {ids.length === 0 ? <p className="mt-2 text-[12px] text-faint">{t('taller.ninguno')}</p> : (
         <ul className="mt-2 flex flex-col gap-1 text-[12px] text-muted">
           {ids.map((id) => <li key={id} className="truncate" title={label(id)}>• {label(id)}</li>)}
         </ul>
@@ -623,6 +644,7 @@ function DeployPreview({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const t = useT();
   const overwritten = preview?.files.filter((file) => file.currentlyExists).length ?? 0;
   // Los nombres salen de la lista instalada, no de `preview.files`: ahí solo
   // está el mod que gana cada ruta, así que un mod que las pierde todas se
@@ -631,26 +653,37 @@ function DeployPreview({
   return (
     <Modal
       open={preview !== null}
-      title="Revisar despliegue"
+      title={t('taller.revisarTitulo')}
       icon={<HardDriveDownload size={16} className="text-accent" />}
       onClose={onClose}
       wide
       footer={<>
-        <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose} disabled={busy}>{t('taller.cancelar')}</Button>
         <Button variant="primary" onClick={onConfirm} disabled={busy}>
-          <HardDriveDownload size={14} /> {busy ? 'Desplegando…' : `Desplegar ${preview?.files.length ?? 0} archivos`}
+          <HardDriveDownload size={14} />
+          {busy
+            ? t('taller.desplegando')
+            : t(preview?.files.length === 1 ? 'taller.desplegarUno' : 'taller.desplegarN',
+                { n: preview?.files.length ?? 0 })}
         </Button>
       </>}
     >
       {preview && <>
         <p className="text-[13px] leading-5 text-muted">
-          Se escribirán los archivos listados en <span className="selectable font-mono text-[11px] text-fg">{preview.root}</span>.
-          {overwritten > 0 ? ` ${overwritten} ya existen y Atreus los respaldará antes.` : ' Ninguno existe todavía.'}
+          {t('taller.seEscribiran')}
+          <span className="selectable font-mono text-[11px] text-fg">{preview.root}</span>.
+          {overwritten === 0
+            ? t('taller.ningunoExiste')
+            : t(overwritten === 1 ? 'taller.yaExisteUno' : 'taller.yaExisten', { n: overwritten })}
         </p>
         {preview.conflicts.length > 0 && (
           <div className="mt-3 rounded-sm border border-[var(--warn-line)] bg-[var(--warn-soft,transparent)] p-3 text-[12px] text-warn">
-            <div className="flex items-center gap-2 font-medium"><TriangleAlert size={14} /> {preview.conflicts.length} conflicto{preview.conflicts.length === 1 ? '' : 's'} de orden</div>
-            <p className="mt-1 text-muted">El último mod de cada fila gana ese archivo. Reordena o desactiva un mod antes de confirmar si no es el resultado esperado.</p>
+            <div className="flex items-center gap-2 font-medium">
+              <TriangleAlert size={14} />
+              {t(preview.conflicts.length === 1 ? 'taller.conflictosOrdenUno' : 'taller.conflictosOrden',
+                 { n: preview.conflicts.length })}
+            </div>
+            <p className="mt-1 text-muted">{t('taller.conflictosOrdenPista')}</p>
             <ul className="mt-3 overflow-hidden rounded-sm border border-[var(--warn-line)] bg-surface text-[11px]">
               {preview.conflicts.map((conflict) => {
                 const winner = conflict.mods[conflict.mods.length - 1];
@@ -659,7 +692,11 @@ function DeployPreview({
                     <p className="truncate font-mono text-fg" title={conflict.path}>{conflict.path}</p>
                     <p className="mt-1 text-muted">
                       {conflict.mods.map((id) => namesById.get(id) ?? id).join(' → ')}
-                      {winner && <span className="text-warn"> · gana {namesById.get(winner) ?? winner}</span>}
+                      {winner && (
+                        <span className="text-warn">
+                          {t('taller.gana', { mod: namesById.get(winner) ?? winner })}
+                        </span>
+                      )}
                     </p>
                   </li>
                 );
@@ -671,7 +708,7 @@ function DeployPreview({
           {preview.files.map((file) => (
             <div key={file.path} className="flex items-center gap-3 border-b border-line px-3 py-2 last:border-0">
               <span className={cn('w-20 shrink-0', file.currentlyExists ? 'text-warn' : 'text-success')}>
-                {file.currentlyExists ? 'respaldo' : 'nuevo'}
+                {t(file.currentlyExists ? 'taller.archivoRespaldo' : 'taller.archivoNuevo')}
               </span>
               <span className="min-w-0 flex-1 truncate text-fg" title={file.path}>{file.path}</span>
               <span className="max-w-36 truncate text-faint" title={file.modName}>{file.modName}</span>
@@ -703,6 +740,7 @@ function DiscoverPanel({
   onRetry: () => void;
   onInstall: (mod: RemoteMod) => void;
 }) {
+  const t = useT();
   if (loading) {
     return (
       <div className="flex flex-col gap-2">
@@ -715,15 +753,15 @@ function DiscoverPanel({
     return (
       <Empty
         icon={<Globe size={40} strokeWidth={1.25} />}
-        title="Sin catálogo para este juego"
+        title={t('taller.sinCatalogo')}
         hint={error}
-        action={<Button variant="outline" onClick={onRetry}>Reintentar</Button>}
+        action={<Button variant="outline" onClick={onRetry}>{t('taller.reintentar')}</Button>}
       />
     );
   }
 
   if (!remote || remote.length === 0) {
-    return <Empty icon={<Globe size={40} strokeWidth={1.25} />} title="El catálogo vino vacío" />;
+    return <Empty icon={<Globe size={40} strokeWidth={1.25} />} title={t('taller.catalogoVacio')} />;
   }
 
   const q = query.trim().toLowerCase();
@@ -744,12 +782,12 @@ function DiscoverPanel({
           <input
             value={query}
             onChange={(e) => onQuery(e.target.value)}
-            placeholder="Buscar en el catálogo…"
+            placeholder={t('taller.buscarCatalogo')}
             className="h-9 w-full rounded-sm border border-line bg-inset pl-8 pr-3 text-[13px] text-fg placeholder:text-faint focus:border-accent focus:outline-none"
           />
         </div>
         <span className="text-[12px] text-faint">
-          {visible.length} de {remote.length} ·{' '}
+          {t('taller.deN', { visibles: visible.length, total: remote.length })} ·{' '}
           {[...new Set(remote.map((m) => m.source))].join(' + ')}
         </span>
       </div>
@@ -763,14 +801,17 @@ function DiscoverPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-[13px] font-medium">{mod.name}</p>
                   <Badge mono>v{mod.version}</Badge>
-                  {already && <Badge tone="success">instalado</Badge>}
+                  {already && <Badge tone="success">{t('taller.badgeInstalado')}</Badge>}
                   {mod.dependencies > 0 && (
-                    <Badge tone="warn">{mod.dependencies} dependencias</Badge>
+                    <Badge tone="warn">
+                      {t(mod.dependencies === 1 ? 'taller.dependenciaUna' : 'taller.dependencias',
+                         { n: mod.dependencies })}
+                    </Badge>
                   )}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-[12px] text-muted">{mod.description}</p>
                 <p className="mt-1 text-[11px] text-faint">
-                  {mod.author} · {mod.downloads.toLocaleString('es-ES')} {mod.metric}
+                  {mod.author} · {numero(mod.downloads)} {mod.metric}
                   {mod.sizeBytes ? ` · ${bytes(mod.sizeBytes)}` : ''}
                   {' · '}{mod.source}
                 </p>
@@ -778,7 +819,7 @@ function DiscoverPanel({
 
               <div className="flex shrink-0 items-center gap-1">
                 {mod.installable === false ? (
-                  <Badge tone="accent">Steam gestiona</Badge>
+                  <Badge tone="accent">{t('taller.steamGestiona')}</Badge>
                 ) : (
                   <Button
                     size="sm"
@@ -787,7 +828,9 @@ function DiscoverPanel({
                     disabled={installing !== null}
                   >
                     <Download size={12} />
-                    {installing === mod.id ? 'Instalando…' : already ? 'Reinstalar' : 'Instalar'}
+                    {t(installing === mod.id
+                      ? 'taller.instalando'
+                      : already ? 'taller.reinstalar' : 'taller.instalar')}
                   </Button>
                 )}
               </div>

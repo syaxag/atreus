@@ -40,6 +40,11 @@ export default function App() {
       hoy: t('tiempo.hoy'), dia: t('tiempo.dia'), dias: t('tiempo.dias'),
       mes: t('tiempo.mes'), meses: t('tiempo.meses'),
       anio: t('tiempo.anio'), anios: t('tiempo.anios'), y: t('tiempo.y'),
+      nunca: t('tiempo.nunca'),
+    }, {
+      sinDatos: t('rareza.sinDatos'), legendario: t('rareza.legendario'),
+      ultra: t('rareza.ultra'), raro: t('rareza.raro'),
+      poco: t('rareza.poco'), comun: t('rareza.comun'),
     });
   }, [idioma, t]);
 

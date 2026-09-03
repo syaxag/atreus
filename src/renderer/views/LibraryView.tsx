@@ -5,7 +5,7 @@ import {
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { duration, PLATFORM_LABEL, relative } from '@/lib/format';
+import { comparar, duration, PLATFORM_LABEL, relative } from '@/lib/format';
 import { useT, type Clave } from '@/i18n';
 import { Badge, Button, Empty, Input, Progress, Skeleton, ViewHeader } from '@/components/ui';
 import type { ContentAvailability, Game, PlatinumSummary } from '@shared/types';
@@ -123,7 +123,7 @@ export function LibraryView() {
       })
       .sort((a, b) => {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
-        if (sort === 'name') return a.name.localeCompare(b.name, 'es');
+        if (sort === 'name') return comparar(a.name, b.name);
         if (sort === 'played') return (b.playtimeMinutes ?? 0) - (a.playtimeMinutes ?? 0);
         /*
          * "Más cerca del platino" no es simplemente el porcentaje más alto: un

@@ -30,8 +30,9 @@ export const IDIOMAS: { id: Idioma; clave: Clave }[] = [
 /**
  * Etiqueta de configuración regional, para fechas y números.
  *
- * `format.ts` todavía lleva `'es-ES'` incrustado; esto es por dónde entrará
- * cuando le toque.
+ * De aquí la saca `format.ts`, que la guarda en una variable de módulo: es el
+ * único sitio donde se decide que el inglés de Atreus escribe las fechas como
+ * en Londres y no como en Nueva York.
  */
 export const LOCALE: Record<Idioma, string> = { es: 'es-ES', en: 'en-GB' };
 

@@ -24,18 +24,50 @@ export interface Unidades {
   hoy: string; dia: string; dias: string;
   mes: string; meses: string;
   anio: string; anios: string; y: string;
+  nunca: string;
 }
 
 let unidades: Unidades = {
   hoy: 'hoy', dia: 'día', dias: 'días',
   mes: 'mes', meses: 'meses',
   anio: 'año', anios: 'años', y: 'y',
+  nunca: 'nunca',
+};
+
+/**
+ * Los tramos de rareza, por el mismo motivo que las unidades.
+ *
+ * `rarity()` no formatea un número: lo traduce a una palabra. Esa palabra se
+ * quedaba en castellano con la interfaz en inglés, que es justo lo que este
+ * archivo existe para evitar.
+ */
+export interface Rarezas {
+  sinDatos: string; legendario: string; ultra: string;
+  raro: string; poco: string; comun: string;
+}
+
+let rarezas: Rarezas = {
+  sinDatos: 'Sin datos', legendario: 'Legendario', ultra: 'Ultra raro',
+  raro: 'Raro', poco: 'Poco común', comun: 'Común',
 };
 
 /** La llama el renderer al arrancar y cada vez que cambia el idioma. */
-export function configurarLocale(siguiente: string, palabras?: Unidades): void {
+export function configurarLocale(
+  siguiente: string, palabras?: Unidades, tramos?: Rarezas,
+): void {
   locale = siguiente;
   if (palabras) unidades = palabras;
+  if (tramos) rarezas = tramos;
+}
+
+/** Un número con los separadores de miles del idioma activo. */
+export function numero(valor: number): string {
+  return valor.toLocaleString(locale);
+}
+
+/** Compara dos textos como los ordenaría el idioma activo. */
+export function comparar(a: string, b: string): number {
+  return a.localeCompare(b, locale);
 }
 
 /** El separador decimal del idioma activo: coma en castellano, punto en inglés. */
@@ -55,7 +87,7 @@ export function bytes(value: number | null): string {
     n /= 1024;
     i++;
   }
-  return `${n.toFixed(n >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+  return `${conDecimales(n, n >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 /** Epoch en segundos → "12 mar 2026, 18:04". */
@@ -72,7 +104,7 @@ export function dateTime(epochSeconds: number | null): string {
 
 /** Epoch en segundos → "hace 3 días". */
 export function relative(epochSeconds: number | null): string {
-  if (!epochSeconds) return 'nunca';
+  if (!epochSeconds) return unidades.nunca;
   const diff = Date.now() / 1000 - epochSeconds;
   const steps: [number, Intl.RelativeTimeFormatUnit][] = [
     [60, 'second'],
@@ -147,12 +179,12 @@ export function percent(value: number | null, decimals = 1): string {
 
 /** Etiqueta de rareza, la misma escala que usa el informe de platino. */
 export function rarity(value: number | null): string {
-  if (value === null) return 'Sin datos';
-  if (value < 1) return 'Legendario';
-  if (value < 5) return 'Ultra raro';
-  if (value < 15) return 'Raro';
-  if (value < 40) return 'Poco común';
-  return 'Común';
+  if (value === null) return rarezas.sinDatos;
+  if (value < 1) return rarezas.legendario;
+  if (value < 5) return rarezas.ultra;
+  if (value < 15) return rarezas.raro;
+  if (value < 40) return rarezas.poco;
+  return rarezas.comun;
 }
 
 /**
