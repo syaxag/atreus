@@ -24,6 +24,7 @@ function game(
     exePath: null,
     iconUrl: null,
     headerUrl: null,
+    portraitUrl: null,
     sizeBytes: null,
     lastPlayed: null,
     playtimeMinutes: null,

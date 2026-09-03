@@ -15,6 +15,9 @@ import { join } from 'node:path';
 /** GameId → ruta absoluta del archivo de carátula. La rellena el catálogo. */
 const covers = new Map<string, string>();
 
+/** GameId → ruta absoluta del póster vertical. Mismo trato que las carátulas. */
+const posters = new Map<string, string>();
+
 /** Raíz de la caché de iconos de logros. La fija el módulo de Steam. */
 let iconRoot: string | null = null;
 
@@ -25,6 +28,11 @@ export function setIconRoot(path: string): void {
 export function setCoverPaths(entries: Map<string, string>): void {
   covers.clear();
   for (const [id, path] of entries) covers.set(id, path);
+}
+
+export function setPosterPaths(entries: Map<string, string>): void {
+  posters.clear();
+  for (const [id, path] of entries) posters.set(id, path);
 }
 
 /** Debe llamarse ANTES de `app.whenReady()`. */
@@ -50,6 +58,13 @@ export function registerProtocolHandlers(): void {
         if (existsSync(full)) return net.fetch(pathToFileURL(full).toString());
       }
       return new Response('icon not found', { status: 404 });
+    }
+
+    if (url.hostname === 'poster') {
+      const key = decodeURIComponent(url.pathname.replace(/^\//, '')).replace('.', ':');
+      const file = posters.get(key);
+      if (file) return net.fetch(pathToFileURL(file).toString());
+      return new Response('poster not found', { status: 404 });
     }
 
     if (url.hostname === 'cover') {

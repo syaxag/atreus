@@ -264,9 +264,9 @@ export function LibraryView() {
         )}
 
         {loading || loadingContent ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
-            {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="h-[186px] rounded-md" />
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(158px,1fr))] gap-4">
+            {Array.from({ length: 12 }, (_, i) => (
+              <Skeleton key={i} className="aspect-[2/3] rounded-md" />
             ))}
           </div>
         ) : visible.length === 0 ? games.length === 0 ? (
@@ -327,8 +327,23 @@ function CollectionOnboarding({
 function GameCoverImage({ game }: { game: Game }) {
   const [fallbackIndex, setFallbackIndex] = useState(0);
 
+  /*
+   * El póster vertical primero, y el banner apaisado solo como red.
+   *
+   * Un póster 2:3 llena la tarjeta; un banner 16:9 dentro de un hueco 2:3 hay
+   * que recortarlo, y se come la mitad de la imagen. Por eso se intenta el
+   * póster de la caché local, luego el de Steam directamente, y solo después
+   * lo apaisado. Los estrenos muy recientes no tienen póster en el CDN
+   * —comprobado con dos de la biblioteca de prueba—, y para esos el recorte
+   * del banner es mejor que un hueco.
+   */
   const fallbacks = useMemo(() => {
     const list: string[] = [];
+    if (game.portraitUrl) list.push(game.portraitUrl);
+    if (game.platform === 'steam' && game.nativeId) {
+      list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/library_600x900_2x.jpg`);
+      list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/library_600x900.jpg`);
+    }
     if (game.headerUrl) list.push(game.headerUrl);
     if (game.platform === 'steam' && game.nativeId) {
       list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/header.jpg`);
@@ -336,7 +351,7 @@ function GameCoverImage({ game }: { game: Game }) {
       list.push(`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.nativeId}/header.jpg`);
     }
     return list;
-  }, [game.headerUrl, game.platform, game.nativeId]);
+  }, [game.portraitUrl, game.headerUrl, game.platform, game.nativeId]);
 
   /**
    * Las carátulas que no estaban en disco se descargan en segundo plano y
@@ -495,7 +510,12 @@ function GameCard({
         open();
       }}
     >
-      <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden bg-inset">
+      {/*
+        2:3, la proporción del póster. Es el cambio que separa "una tabla con
+        miniaturas" de "una estantería de juegos", y es la forma en la que
+        Steam, GOG y Playnite enseñan una biblioteca desde hace años.
+      */}
+      <div className="relative flex aspect-[2/3] items-center justify-center overflow-hidden bg-inset">
         <GameCoverImage game={game} />
 
         <button

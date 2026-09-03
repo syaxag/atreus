@@ -145,6 +145,8 @@ export function scanSteam(steamPath: string): SteamScanResult {
           exePath: null, // Steam lanza por URL; no hace falta el exe salvo para el trainer.
           iconUrl: null,
           headerUrl: cover,
+          // Lo rellena withCovers() con lo que haya en la caché de pósters.
+          portraitUrl: null,
           sizeBytes: num(acf, 'AppState', 'SizeOnDisk'),
           lastPlayed: num(acf, 'AppState', 'LastPlayed'),
           playtimeMinutes: null, // Lo rellena decorate() con localconfig.vdf

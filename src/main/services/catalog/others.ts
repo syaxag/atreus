@@ -35,6 +35,7 @@ function base(
     exePath,
     iconUrl: null,
     headerUrl: null,
+    portraitUrl: null,
     sizeBytes: null,
     lastPlayed: null,
     playtimeMinutes: null,

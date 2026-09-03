@@ -169,7 +169,7 @@ export const mockApi: AtreusApi = {
         id: `manual:${Date.now().toString(36)}`,
         platform: 'manual', nativeId: name, name,
         installDir: exePath.replace(/[\\/][^\\/]+$/, ''), exePath,
-        iconUrl: null, headerUrl: null, sizeBytes: null, lastPlayed: null,
+        iconUrl: null, headerUrl: null, portraitUrl: null, sizeBytes: null, lastPlayed: null,
         playtimeMinutes: null,
         hasDefinition: false, multiplayer: false, favorite: false,
       };

@@ -6,13 +6,13 @@ import type { Game, GameId, ScanProgress } from '@shared/types';
 import { paths } from '../../paths';
 import { log } from '../../logger';
 import { emit } from '../../ipc/emit';
-import { setCoverPaths } from '../../protocol';
+import { setCoverPaths, setPosterPaths } from '../../protocol';
 import { getSettings, setSettings } from '../settings';
 import { findSteamPath, scanSteam, guessExe, isSteamGameAppId } from './steam';
 import { readUninstallEntries, scanBattleNet, scanEa, scanEpic, scanGog, scanXbox } from './others';
 import { forgetSteamPlaytime, recordSession, steamPlaytimeIndex, trackedMinutes } from '../playtime';
 import { applyDefinitions } from './definitions';
-import { completeCovers, localCovers } from './covers';
+import { completeCovers, localCovers, localPosters } from './covers';
 import { splitArgs } from './args';
 
 const logger = log('catalog');
@@ -108,12 +108,25 @@ function collectCovers(
  * navegador la dirección no habría cambiado.
  */
 function withCovers(games: Game[], covers: Map<string, string>): Game[] {
+  const posters = localPosters(games);
+  setPosterPaths(posters);
+
+  const sello = (file: string): number => {
+    try { return Math.floor(statSync(file).mtimeMs); } catch { return 0; }
+  };
+
   return games.map((game) => {
+    const clave = game.id.replace(':', '.');
+    const poster = posters.get(game.id);
+    const portraitUrl = poster ? `atreus://poster/${clave}?v=${sello(poster)}` : null;
+
     const file = covers.get(game.id);
-    if (!file) return game;
-    let stamp = 0;
-    try { stamp = Math.floor(statSync(file).mtimeMs); } catch { stamp = 0; }
-    return { ...game, headerUrl: `atreus://cover/${game.id.replace(':', '.')}?v=${stamp}` };
+    if (!file) return { ...game, portraitUrl };
+    return {
+      ...game,
+      portraitUrl,
+      headerUrl: `atreus://cover/${clave}?v=${sello(file)}`,
+    };
   });
 }
 
@@ -329,6 +342,7 @@ export function addManual(exePath: string): Game {
     exePath,
     iconUrl: null,
     headerUrl: null,
+    portraitUrl: null,
     sizeBytes: null,
     lastPlayed: null,
     playtimeMinutes: null,

@@ -22,6 +22,16 @@ export interface Game {
   exePath: string | null;
   iconUrl: string | null;
   headerUrl: string | null;
+  /**
+   * Póster vertical 2:3, servido por `atreus://poster/...`.
+   *
+   * Es con lo que se pinta la Colección: una parrilla de pósters se lee como
+   * una estantería de juegos, y la misma parrilla con banners apaisados se lee
+   * como una tabla de miniaturas. `headerUrl` sigue existiendo porque la
+   * cabecera de la ficha necesita el apaisado, donde el vertical no cabe.
+   * `null` cuando Steam no publica póster de ese juego.
+   */
+  portraitUrl: string | null;
   sizeBytes: number | null;
   lastPlayed: number | null;
   /**

@@ -46,6 +46,15 @@ interface IndexEntry {
   /** De dónde salió, para poder diagnosticar. */
   source: string;
   at: number;
+  /**
+   * El póster vertical 2:3, que es con lo que se pinta la Colección.
+   *
+   * Va aparte del banner apaisado porque los dos hacen falta: el póster para
+   * la parrilla, que así se lee como una estantería de juegos y no como una
+   * tabla de miniaturas, y el banner para la cabecera de la ficha, donde una
+   * imagen vertical no cabe. `null` = comprobado y no lo hay.
+   */
+  poster?: string | null;
 }
 
 let index: Record<string, IndexEntry> | null = null;
@@ -152,6 +161,20 @@ function normalize(value: string): string {
     .trim();
 }
 
+/**
+ * El póster vertical de la biblioteca de Steam.
+ *
+ * Comprobado sobre la biblioteca de prueba: lo tienen cuatro de seis juegos.
+ * Los que no son estrenos muy recientes cuyo arte aún no está en el CDN; para
+ * esos la parrilla recorta el banner, que es peor pero no es un hueco.
+ */
+function steamPosterUrls(appId: string): string[] {
+  return [
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900_2x.jpg`,
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`,
+  ];
+}
+
 function steamHeaderUrls(appId: string): string[] {
   return [
     `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`,
@@ -161,11 +184,22 @@ function steamHeaderUrls(appId: string): string[] {
 }
 
 /** Guarda un buffer en la caché y devuelve la ruta del archivo escrito. */
-function store(gameId: GameId, buffer: Buffer): string {
+function store(gameId: GameId, buffer: Buffer, sufijo = ''): string {
   mkdirSync(CACHE_DIR, { recursive: true });
-  const file = join(CACHE_DIR, `${safeName(gameId)}.jpg`);
+  const file = join(CACHE_DIR, `${safeName(gameId)}${sufijo}.jpg`);
   writeFileSync(file, buffer);
   return file;
+}
+
+/** Baja el póster vertical, si Steam lo publica para ese juego. */
+async function downloadPoster(game: Game): Promise<string | null> {
+  const appId = game.platform === 'steam' ? game.nativeId : await steamAppIdByName(game.name);
+  if (!appId) return null;
+  for (const url of steamPosterUrls(appId)) {
+    const buffer = await fetchBinary(url);
+    if (buffer) return store(game.id, buffer, '-p');
+  }
+  return null;
 }
 
 /** Descarga la carátula de un juego, si hay alguna forma de encontrarla. */
@@ -215,6 +249,19 @@ export function localCovers(games: Game[], steamPath: string | null): Map<GameId
   return out;
 }
 
+/** Pósters ya cacheados, sin red ni espera. Mismo papel que `localCovers`. */
+export function localPosters(games: Game[]): Map<GameId, string> {
+  const out = new Map<GameId, string>();
+  const cached = loadIndex();
+  for (const game of games) {
+    const nombre = cached[game.id]?.poster;
+    if (!nombre) continue;
+    const file = join(CACHE_DIR, nombre);
+    if (existsSync(file)) out.set(game.id, file);
+  }
+  return out;
+}
+
 /**
  * Completa las carátulas que faltan bajando lo necesario, una vez por juego.
  *
@@ -252,10 +299,29 @@ export async function completeCovers(
     }
   }
 
+  // Los pósters van en su propia pasada: un juego puede tener banner y no
+  // póster, y al revés, y no queremos que un fallo de uno tape al otro.
+  for (const game of games) {
+    const previous = cached[game.id];
+    if (previous && previous.poster !== undefined && (previous.poster || now - previous.at < MISS_TTL_MS)) continue;
+    try {
+      const file = await downloadPoster(game);
+      cached[game.id] = {
+        ...(previous ?? { file: null, source: 'solo póster', at: now }),
+        poster: file ? `${safeName(game.id)}-p.jpg` : null,
+        at: now,
+      };
+      changed = true;
+    } catch (e) {
+      logger.warn(`no se pudo resolver el póster de ${game.name}:`, e);
+    }
+  }
+
   if (changed) {
     saveIndex();
     const resolved = games.filter((g) => covers.has(g.id)).length;
-    logger.info(`carátulas: ${resolved}/${games.length} resueltas`);
+    const posters = games.filter((g) => cached[g.id]?.poster).length;
+    logger.info(`carátulas: ${resolved}/${games.length} resueltas, ${posters} con póster vertical`);
     return covers;
   }
   return null;
@@ -263,7 +329,7 @@ export async function completeCovers(
 
 /** Borra las imágenes cacheadas de juegos que ya no están en la biblioteca. */
 export function pruneCovers(games: Game[]): void {
-  const alive = new Set(games.map((g) => `${safeName(g.id)}.jpg`));
+  const alive = new Set(games.flatMap((g) => [`${safeName(g.id)}.jpg`, `${safeName(g.id)}-p.jpg`]));
   const cached = loadIndex();
   let removed = 0;
 
