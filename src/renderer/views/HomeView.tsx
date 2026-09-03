@@ -68,8 +68,15 @@ export function HomeView() {
 
   const enMarcha = protagonista ? activeGameIds.includes(protagonista.id) : false;
 
-  /** Todavía no ha llegado ningún resumen: el cálculo va por detrás. */
-  const calculando = Object.keys(platinum).length === 0;
+  /**
+   * Quedan juegos por calcular, así que el bloque de abajo puede crecer.
+   *
+   * No vale mirar si `platinum` está vacío: el store lo rellena de una vez con
+   * una fila por juego, en blanco para los que no se han calculado nunca. Con
+   * esa comprobación el hueco reservado no se veía jamás, que era justo lo que
+   * venía a arreglar.
+   */
+  const calculando = games.some((game) => (platinum[game.id]?.updatedAt ?? null) === null);
 
   /**
    * Lo empezado, del más avanzado al menos.
@@ -142,19 +149,18 @@ export function HomeView() {
                 El progreso se calcula en segundo plano y llega juego a juego.
                 Este es el bloque que da sentido a la pantalla, así que mientras
                 no haya llegado nada se reserva su sitio en vez de desaparecer:
-                al abrir Atreus en frío parecía que no había nada a medias.
+                al abrir Atreus en frío parecía que no había nada a medias. Lo
+                que ya se sabe se enseña; el hueco es solo cuando no hay nada.
               */}
-              {calculando ? (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2">
-                  {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-[76px] rounded-md" />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2">
-                  {aUnPaso.map((game) => (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2">
+                {aUnPaso.length > 0
+                  ? aUnPaso.map((game) => (
                     <Cercano key={game.id} game={game} summary={platinum[game.id]!} onOpen={() => open(game.id)} />
+                  ))
+                  : Array.from({ length: 3 }, (_, i) => (
+                    <Skeleton key={i} className="h-[76px] rounded-md" />
                   ))}
-                </div>
-              )}
+              </div>
             </section>
           )}
 
@@ -240,6 +246,7 @@ function Protagonista({
         type="button"
         onClick={() => open(game.id)}
         title={game.name}
+        aria-label={t('lateral.abrirFicha', { juego: game.name })}
         className="group relative w-24 shrink-0 self-start overflow-hidden rounded-sm border border-line"
       >
         <div className="aspect-[2/3] w-full bg-inset">

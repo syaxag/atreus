@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import { join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync } from 'node:fs';
 
 /**
  * Rutas de datos de Atreus.
@@ -47,13 +47,32 @@ const builtinData = app.isPackaged
 /** Contenido del usuario, editable y persistente entre versiones. */
 const userData = join(root, 'data');
 
+/**
+ * Dónde estaba la caché antes de que se le cambiara el nombre.
+ *
+ * Solo para mudar lo que sobrevivió —las subcarpetas— y no obligar a volver a
+ * descargar todas las carátulas. Lo demás ya lo había borrado Chromium.
+ */
+const cacheVieja = join(root, 'cache');
+
 export const paths = {
   root,
   settings: join(root, 'settings.json'),
   library: join(root, 'library.json'),
   profiles: join(root, 'profiles'),
   mods: join(root, 'mods'),
-  cache: join(root, 'cache'),
+  /**
+   * Lo que se puede volver a descargar: carátulas, iconos, el mapa de AppIDs.
+   *
+   * **No se llama `cache` a propósito.** Se llamaba así, y Chromium guarda lo
+   * suyo en `<userData>/Cache`, que en Windows es la misma carpeta. Chromium
+   * limpia los archivos sueltos que no reconoce de su directorio y respeta las
+   * subcarpetas, así que `platinum.json`, `guides.json`, `mapgenie.json` y
+   * `steam-appids.json` desaparecían **en cada arranque** mientras `covers/` e
+   * `icons/` sobrevivían. Nadie se enteraba: el efecto era que la primera vez
+   * siempre tardaba, todas las veces.
+   */
+  cache: join(root, 'cache-atreus'),
   backups: join(root, 'backups'),
   progress: join(root, 'progress'),
   /** Minutos que Atreus ha visto cada juego abierto. */
@@ -82,6 +101,28 @@ export const OPENABLE = {
 
 export type OpenableKey = keyof typeof OPENABLE;
 
+/**
+ * Trae lo que sobrevivió de la carpeta anterior.
+ *
+ * Solo `covers/` e `icons/`: son las dos subcarpetas, y son las únicas que
+ * Chromium no borraba. Mover una carpeta es instantáneo y evita volver a
+ * descargar la carátula de toda la biblioteca. Si algo falla, se calla: lo
+ * peor que pasa es que se descarguen otra vez.
+ */
+function mudarCacheVieja(): void {
+  if (!existsSync(cacheVieja)) return;
+  for (const nombre of ['covers', 'icons']) {
+    const desde = join(cacheVieja, nombre);
+    const hasta = join(paths.cache, nombre);
+    if (!existsSync(desde) || existsSync(hasta)) continue;
+    try {
+      renameSync(desde, hasta);
+    } catch {
+      // Si no se puede, se vuelven a descargar y ya está.
+    }
+  }
+}
+
 /** Crea el árbol de carpetas. Idempotente; llamar una vez al arrancar. */
 export function ensurePaths(): void {
   for (const dir of [
@@ -90,4 +131,5 @@ export function ensurePaths(): void {
   ]) {
     mkdirSync(dir, { recursive: true });
   }
+  mudarCacheVieja();
 }

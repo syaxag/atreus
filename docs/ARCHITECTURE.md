@@ -139,6 +139,12 @@ Y no guarda lo que no sabe: en un juego de Steam, un progreso `manual` significa
 se pudo leer el estado, no que sea cero. Ese resumen se descarta en vez de pintar un 0/31
 en un juego que llevas a medias.
 
+Recalcula tres cosas: lo que no se ha calculado nunca, lo que has jugado desde el último
+cálculo sin llegar al 100 %, y **lo que se guardó con una versión anterior del resumen**
+(`schema`). Lo tercero existe porque el resumen fue creciendo: sin ello, lo que aprendió
+a guardar después solo aparecería en los juegos que volvieras a tocar, y una función
+nueva saldría en tres juegos de dieciséis.
+
 ### `services/achievements/rarity.ts` — rareza global
 `rarity.ts` consulta `GetGlobalAchievementPercentagesForApp`, que es pública y no
 lleva clave. Devuelve qué porcentaje de los jugadores del mundo tiene cada logro, y se
@@ -163,6 +169,12 @@ inventarlo.
 
 `summaries()` sirve a la biblioteca entera desde una caché en disco: pedirle al cliente
 de Steam los logros de ciento cincuenta juegos abriría ciento cincuenta procesos.
+
+El resumen no es solo lo justo para ordenar: lleva además con qué **decidir** —la
+dificultad, el siguiente logro, el más raro que ya tienes, el último desbloqueo y los
+días con actividad—, y todo eso se recorta del informe al guardarlo. Por eso la Portada,
+el Perfil y la tarjeta de la Colección no abren una sola sesión de Steam: lo que enseñan
+ya estaba calculado.
 
 ### `services/guides` — guías con texto
 Tres fuentes en paralelo, ordenadas poniendo delante las que se pueden leer enteras
@@ -348,8 +360,25 @@ progress/<id>.json     checklist y notas locales por juego
 backups/<appid>/       copias del estado de logros antes de cada escritura
 profiles/<id>.json     perfiles de mods por juego
 mods/<id>/             staging de mods
-cache/platinum.json    último informe de cada juego, para la biblioteca
-cache/mapgenie.json    directorio de juegos con mapa, refrescado a diario
-cache/icons/<appid>/   iconos de logros convertidos a PNG
+platinum.json          resumen de cada juego, para la Colección, la Portada y el Perfil
+cache-atreus/mapgenie.json   directorio de juegos con mapa, refrescado a diario
+cache-atreus/icons/<appid>/  iconos de logros convertidos a PNG
+cache-atreus/covers/         carátulas descargadas
 logs/
 ```
+
+### Por qué la carpeta se llama `cache-atreus` y no `cache`
+
+Se llamaba `cache`, y Chromium guarda lo suyo en `<userData>/Cache`, que en
+Windows **es la misma carpeta**. Chromium borra los archivos sueltos que no
+reconoce de su directorio y respeta las subcarpetas, así que `platinum.json`,
+`guides.json`, `mapgenie.json` y `steam-appids.json` desaparecían en cada
+arranque mientras `covers/` e `icons/` sobrevivían.
+
+No daba ningún error: el efecto era que el calentamiento rehacía la biblioteca
+entera cada vez que abrías Atreus —quince juegos en lugar de tres— y que «la
+primera vez tarda» era todas las veces. Se vio poniendo un archivo marcador en
+esa carpeta y comprobando que desaparecía solo.
+
+`platinum.json` además se subió a la raíz: no es una caché. No se vuelve a
+descargar, se recalcula abriendo un proceso de Steam por juego.

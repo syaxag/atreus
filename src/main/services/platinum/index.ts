@@ -1,4 +1,4 @@
-import { readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import type {
   Achievement, AchievementSet, GameId, PlatinumReport, PlatinumSummary, SourceRef,
 } from '@shared/types';
@@ -35,9 +35,26 @@ const inflight = new Map<GameId, Promise<PlatinumReport>>();
 
 // ── Resúmenes persistentes ────────────────────────────────────
 
-const summaryFile = join(paths.cache, 'platinum.json');
+/**
+ * Junto a `library.json`, no en la caché.
+ *
+ * Esto **no es una caché**: no se vuelve a descargar, se recalcula abriendo un
+ * proceso de Steam por juego. Estaba en la carpeta de caché, que Chromium
+ * limpia, así que se perdía en cada arranque y el calentamiento rehacía la
+ * biblioteca entera cada vez. Ver la nota de `paths.cache`.
+ */
+const summaryFile = join(paths.root, 'platinum.json');
 let summaries: Record<GameId, PlatinumSummary> | null = null;
 
+/**
+ * Los resúmenes guardados, o nada si no hay con qué empezar.
+ *
+ * El `catch` de esta función borraba **todos** los resúmenes sin decirlo: un
+ * byte mal en el archivo y la biblioteca aparecía sin barras, sin que nadie
+ * supiera por qué y sin forma de mirar qué había pasado. Sigue sin ser fatal
+ * —el calentamiento los recalcula—, pero ahora se entera quien lea el registro
+ * y el archivo roto se aparta en vez de sobrescribirse.
+ */
 function loadSummaries(): Record<GameId, PlatinumSummary> {
   if (summaries) return summaries;
   try {
@@ -57,7 +74,17 @@ function loadSummaries(): Record<GameId, PlatinumSummary> {
       unlockDays: resumen.unlockDays ?? [],
       schema: resumen.schema ?? 1,
     }]));
-  } catch {
+  } catch (e) {
+    // Que no exista es lo normal la primera vez y no hay nada que contar.
+    if (existsSync(summaryFile)) {
+      const roto = `${summaryFile}.roto`;
+      try {
+        renameSync(summaryFile, roto);
+        logger.warn(`no se pudo leer ${summaryFile}, apartado en ${roto}:`, e);
+      } catch {
+        logger.warn(`no se pudo leer ni apartar ${summaryFile}:`, e);
+      }
+    }
     summaries = {};
   }
   return summaries;

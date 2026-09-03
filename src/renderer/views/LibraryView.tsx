@@ -526,7 +526,12 @@ function GameCard({
             })}
             className="absolute bottom-2 right-2 rounded-sm border border-line bg-base/85 px-1.5 py-0.5 font-mono text-[10px] font-medium text-fg backdrop-blur-sm"
           >
-            {numero(summary.difficulty.score)}/10
+            <span className="sr-only">
+              {t('col.dificultadPista', {
+                n: numero(summary.difficulty.score), tramo: t(DIFICULTAD[summary.difficulty.tier]),
+              })}
+            </span>
+            <span aria-hidden="true">{numero(summary.difficulty.score)}/10</span>
           </span>
         )}
 
