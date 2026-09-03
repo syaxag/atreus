@@ -453,7 +453,22 @@ function GameCard({
     <article
       className={cn(
         'group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-surface text-left',
-        'defer-render-lg animate-rise',
+        'defer-render-lg',
+        /*
+         * La entrada escalonada, solo en la primera pantalla.
+         *
+         * `animate-rise` rellena hacia atrás (`both`), o sea que mantiene la
+         * tarjeta invisible hasta que su animación arranca. Y `content-visibility`
+         * **no arranca las animaciones de lo que se salta**: una tarjeta que
+         * entraba en la rejilla justo fuera de vista se quedaba en blanco, con su
+         * hueco reservado, hasta que se desplazaba hasta ella. Se veía como un
+         * agujero en la parrilla.
+         *
+         * Las doce primeras son las que se ven al abrir, que es donde el gesto
+         * significa algo; las demás aparecen sin más, que es lo que hacían de
+         * todos modos al llegar a ellas.
+         */
+        index < 12 && 'animate-rise',
         'transition-[transform,border-color,box-shadow] duration-[180ms] ease-atreus',
         'hover:-translate-y-1 hover:border-accent hover:shadow-lg hover:shadow-accent/15',
         // Un juego rematado se reconoce de un vistazo en la parrilla: es el
@@ -464,7 +479,7 @@ function GameCard({
       )}
       // El escalonado se corta pronto: con veinte tarjetas ya se ha leído el
       // gesto, y esperar a la número cuarenta solo sería lentitud disfrazada.
-      style={{ animationDelay: `${Math.min(index, 14) * 22}ms` }}
+      style={index < 12 ? { animationDelay: `${index * 22}ms` } : undefined}
       /*
        * Toda la tarjeta abre, menos sus controles.
        *

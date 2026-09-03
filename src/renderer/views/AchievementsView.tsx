@@ -7,7 +7,7 @@ import type { Achievement, AchievementSet, GameStat, SteamSnapshot } from '@shar
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
-import { dateTime, percent as fmtPercent, rarity } from '@/lib/format';
+import { dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
 } from '@/components/ui';
@@ -421,11 +421,13 @@ export function AchievementsView() {
                 {visible.map((a) => {
                   const on = unlockedOf(a);
                   const dirty = a.apiName in achPatch;
+                  const token = rarityToken(a.globalPercent);
+                  const legendario = a.globalPercent !== null && a.globalPercent < 1;
                   return (
                     <div
                       key={a.apiName}
                       className={cn(
-                        'flex min-h-20 items-center gap-3 rounded-md border border-line bg-surface p-3',
+                        'relative flex min-h-20 items-center gap-3 overflow-hidden rounded-md border border-line bg-surface p-3 pl-4',
                         // Un juego puede traer más de quinientos logros: sin
                         // esto, cada desplazamiento repinta los quinientos.
                         'defer-render',
@@ -433,6 +435,16 @@ export function AchievementsView() {
                         dirty && 'border-accent bg-accent-soft',
                       )}
                     >
+                      {/* La banda de rareza en el canto. En una rejilla de
+                          quinientos logros es lo que deja barrer con la vista
+                          buscando los que van a costar el platino. */}
+                      {a.globalPercent !== null && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-y-0 left-0 w-1"
+                          style={{ background: `var(${token})` }}
+                        />
+                      )}
                       <div
                         className={cn(
                           'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-inset text-[18px] font-semibold shadow-sm',
@@ -453,14 +465,25 @@ export function AchievementsView() {
                               el que va a costar el platino, así que va junto al
                               nombre y no escondida en un detalle. */}
                           {a.globalPercent !== null && (
-                            <Badge tone={a.globalPercent < 5 ? 'warn' : 'neutral'}>
+                            <span
+                              className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-sm border px-1.5 text-[11px] font-semibold tabular-nums"
+                              style={{
+                                color: `var(${token})`,
+                                borderColor: `var(${token})`,
+                                // Solo lo legendario se ilumina. Si brillara
+                                // todo, no destacaría nada.
+                                boxShadow: legendario ? '0 0 10px var(--rare-legendario-glow)' : undefined,
+                              }}
+                            >
                               {fmtPercent(a.globalPercent)}
-                            </Badge>
+                            </span>
                           )}
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-[12px] leading-4 text-faint">{a.description}</p>
                         {a.globalPercent !== null && (
-                          <p className="mt-0.5 text-[11px] text-faint">{rarity(a.globalPercent)}</p>
+                          <p className="mt-0.5 text-[11px] font-medium" style={{ color: `var(${token})` }}>
+                            {rarity(a.globalPercent)}
+                          </p>
                         )}
                         {!on && (
                           <div className="mt-1.5 flex flex-wrap gap-1">
