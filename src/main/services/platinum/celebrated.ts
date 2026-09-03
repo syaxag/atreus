@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { GameId } from '@shared/types';
 import { paths } from '../../paths';
 import { log } from '../../logger';
+import { decidirCelebracion } from './regla-celebracion';
 
 const logger = log('platinum:celebrado');
 
@@ -15,14 +16,20 @@ const logger = log('platinum:celebrado');
  * que ya tenías de antes —tres, en una biblioteca normal—, que no deben
  * desfilar uno detrás de otro celebrando algo que hiciste hace meses.
  *
- * De ahí el `sembrado`: en la primera pasada se apuntan todos en silencio. A
- * partir de ahí, cualquier platino nuevo sí es noticia.
+ * La regla va **por juego**, no por biblioteca: la primera vez que Atreus
+ * calcula un juego concreto, si ya está al 100 % se apunta callando, porque ese
+ * platino es anterior a que Atreus supiera de él. A partir de ahí, que ese
+ * juego llegue al 100 % sí es noticia. Ver `registrar`.
  */
 
 const file = join(paths.root, 'platinos.json');
 
 interface Store {
-  /** true cuando ya se ha hecho el primer recorrido completo. */
+  /**
+   * Vestigio de cuando la decisión era global. Ya no se lee para decidir nada
+   * —lo hace `yaConocido`, por juego— pero se conserva al guardar para no
+   * romper un `platinos.json` escrito por una versión anterior.
+   */
   sembrado: boolean;
   /** gameId → epoch en segundos en que Atreus lo vio completo. */
   juegos: Record<GameId, number>;
@@ -56,38 +63,41 @@ function persist(): void {
 }
 
 /**
- * Apunta que un juego está al 100 %.
+ * Apunta que un juego está al 100 %. Devuelve true solo si hay que celebrarlo.
  *
- * Devuelve true solo si hay que celebrarlo: es nuevo y la biblioteca ya estaba
- * sembrada. Los de la primera pasada se guardan sin fiesta.
+ * `yaConocido` es la clave, y es **por juego**: dice si Atreus ya había
+ * calculado este juego alguna vez antes de ahora. Si no lo había calculado
+ * nunca, su 100 % es anterior a que Atreus supiera de él —lo terminaste antes
+ * de instalar esto, o antes de que le llegara el turno en el cálculo— y se
+ * apunta callando.
+ *
+ * Antes esto lo decidía una marca global de "biblioteca ya sembrada", que se
+ * cerraba al acabar la primera pasada del calentamiento. El problema es que
+ * una pasada termina igual aunque haya juegos que no se llegaron a calcular:
+ * si su consulta falla, o si se los salta porque había una partida abierta. Ese
+ * juego se calculaba días después, con la siembra ya cerrada, y su platino de
+ * hace meses se anunciaba como recién conseguido. Pasó de verdad, con
+ * `platinos.json` diciendo `sembrado: true` y cinco juegos dentro.
+ *
+ * Se relee del disco en vez de fiarse de la copia en memoria: es una escritura
+ * rara —solo al completar un juego— y así dos instancias abiertas a la vez no
+ * pueden celebrar el mismo platino dos veces, que también se vio en el registro.
  */
-export function registrar(gameId: GameId): boolean {
+export function registrar(gameId: GameId, yaConocido: boolean): boolean {
+  store = null;
   const datos = load();
-  if (datos.juegos[gameId]) return false;
+  const decision = decidirCelebracion(Boolean(datos.juegos[gameId]), yaConocido);
+  if (decision === 'nada') return false;
 
   datos.juegos[gameId] = Math.floor(Date.now() / 1000);
   persist();
 
-  if (!datos.sembrado) {
-    logger.info(`${gameId} ya estaba al 100 % antes de esta instalación; se apunta sin celebrar`);
+  if (decision === 'apuntar-callando') {
+    logger.info(`${gameId} ya estaba al 100 % la primera vez que Atreus lo miró; se apunta sin celebrar`);
     return false;
   }
   logger.info(`¡platino nuevo en ${gameId}!`);
   return true;
-}
-
-/** Cierra la primera pasada: a partir de aquí los platinos nuevos se celebran. */
-export function marcarSembrado(): void {
-  const datos = load();
-  if (datos.sembrado) return;
-  datos.sembrado = true;
-  persist();
-  logger.info(`biblioteca sembrada con ${Object.keys(datos.juegos).length} platino(s) previos`);
-}
-
-/** true si ya se hizo el primer recorrido. */
-export function estaSembrado(): boolean {
-  return load().sembrado;
 }
 
 /** Olvida un juego, para poder volver a ver su celebración. */

@@ -5,7 +5,6 @@ import { listGames } from '../catalog';
 import { runningGames } from '../catalog/activity';
 import * as webapi from '../steam/webapi';
 import { report, summariesFor } from './index';
-import { estaSembrado, marcarSembrado } from './celebrated';
 
 const logger = log('platinum:warmup');
 
@@ -59,10 +58,21 @@ function pending(): GameId[] {
     .map((game) => game.id);
 }
 
+/*
+ * Aquí había una marca de "biblioteca sembrada" que se cerraba al terminar la
+ * primera pasada, y era la que decidía si un platino se celebraba. Se ha ido:
+ * una pasada termina igual aunque haya juegos que no se llegaron a calcular —su
+ * consulta falla, o se los salta porque hay una partida abierta— y esos juegos,
+ * calculados días después, anunciaban como nuevo un platino de hace meses.
+ *
+ * Ahora la decisión va por juego y vive en `celebrated.ts`, que es donde se
+ * sabe si Atreus había calculado ese juego alguna vez. Así tampoco importa que
+ * el calentamiento no llegue nunca a terminar del todo.
+ */
+
 async function pass(): Promise<void> {
   const queue = pending();
   if (queue.length === 0) {
-    if (!estaSembrado()) marcarSembrado();
     logger.info('la biblioteca ya está al día');
     return;
   }
@@ -100,9 +110,6 @@ async function pass(): Promise<void> {
     await sleep(fast ? FAST_GAP_MS : SLOW_GAP_MS);
   }
 
-  // Cerrar la siembra aquí, y no antes, es lo que garantiza que los platinos
-  // que ya tenías no se celebren: durante esta pasada se apuntan callados.
-  if (!estaSembrado()) marcarSembrado();
   logger.info(`calentamiento terminado: ${done} de ${queue.length} juegos`);
 }
 

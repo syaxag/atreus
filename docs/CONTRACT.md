@@ -102,10 +102,25 @@ catálogo público de Steam, y el aviso de la vista dice dónde está la salida.
 **Dentro** — el evento `platinum:achieved`, que lleva el `PlatinumReport` entero del
 juego recién completado.
 
-Solo se emite para platinos **nuevos**. Los que ya tenías cuando se instaló Atreus se
-apuntan en silencio durante el primer recorrido de la biblioteca: si no, al abrir la
-aplicación por primera vez desfilarían seguidas las celebraciones de cosas que hiciste
-hace meses. Lo lleva `platinum/celebrated.ts` con una marca de *sembrado*.
+Solo se emite para platinos **nuevos**. Los que ya tenías se apuntan en silencio: si no,
+al abrir la aplicación por primera vez desfilarían seguidas las celebraciones de cosas
+que hiciste hace meses.
+
+La regla va **por juego**, y esto importó: la primera vez que Atreus calcula un juego
+concreto, si ya aparece al 100 % se apunta callando, porque ese platino es anterior a que
+Atreus supiera de su existencia. Da igual que sea el día de la instalación o un mes
+después, cuando por fin le llega el turno en el calentamiento.
+
+Antes lo decidía una marca global de *sembrado* que se cerraba al terminar la primera
+pasada del calentamiento, y estaba mal: una pasada termina igual aunque haya juegos que no
+se llegaron a calcular —su consulta falla, o se los salta porque hay una partida abierta—.
+Esos juegos se calculaban días después, con la siembra ya cerrada, y su platino de hace
+meses se anunciaba como recién conseguido. Se vio en vivo: `platinos.json` decía
+`sembrado: true` con cinco juegos dentro y aun así saltó la celebración de un sexto.
+
+La regla vive sola en `platinum/regla-celebracion.ts`, sin tocar disco, para poder
+probarla; `platinum/celebrated.ts` guarda y relee el archivo antes de decidir, para que
+dos instancias abiertas a la vez no puedan celebrar el mismo platino dos veces.
 
 ## Quinta tanda: los logros que Steam no deja tocar
 

@@ -211,14 +211,21 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
       : 'Steam no publica la rareza de este juego: la dificultad es una estimación gruesa.'),
   };
 
+  /*
+   * Si Atreus ya había calculado este juego antes. Hay que mirarlo **antes** de
+   * guardar el resumen nuevo, que es justo lo que borra la respuesta.
+   */
+  const yaConocido = loadSummaries()[gameId]?.updatedAt != null;
+
   rememberSummary(report);
 
   /*
    * El momento que da nombre a la aplicación. Solo se anuncia una vez por
-   * juego, y nunca en la primera pasada: si no, al instalar Atreus desfilarían
-   * seguidas las celebraciones de platinos que conseguiste hace meses.
+   * juego, y nunca la primera vez que se calcula: si no, al instalar Atreus
+   * desfilarían seguidas las celebraciones de platinos que conseguiste hace
+   * meses. Ver la nota de `celebrated.ts`.
    */
-  if (report.complete && report.total > 0 && registrar(gameId)) {
+  if (report.complete && report.total > 0 && registrar(gameId, yaConocido)) {
     emit('platinum:achieved', report);
   }
   return report;
