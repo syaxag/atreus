@@ -3,6 +3,7 @@ import { CheckCircle2, Info, TriangleAlert, XCircle, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useStore, type Toast } from '@/store';
+import { traducirAhora } from '@/i18n';
 
 const ICONS: Record<Toast['level'], LucideIcon> = {
   info: Info,
@@ -80,7 +81,7 @@ export function Toaster() {
             <p className="flex-1 text-[13px] leading-snug text-fg">{t.message}</p>
             <button
               onClick={() => close(t.id)}
-              aria-label="Descartar"
+              aria-label={traducirAhora('toast.descartar')}
               className="shrink-0 text-faint transition-colors hover:text-fg"
             >
               <X size={13} />

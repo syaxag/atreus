@@ -1,15 +1,15 @@
-import type { Settings } from '@shared/types';
+import type { Settings } from '../types';
 import { es, type Clave } from './es';
 import { en } from './en';
 
 /**
- * El traductor, sin React.
+ * El traductor, sin React y sin proceso.
  *
- * Vive aparte de `index.ts` por una razón concreta: el store también traduce
- * —los avisos efímeros se arman ya hechos— y `index.ts` se suscribe al store
- * para el hook. Si todo estuviera en el mismo archivo, los dos módulos se
- * importarían en círculo. Aquí solo entran los diccionarios, así que la
- * dependencia va en una sola dirección.
+ * Vive en `shared/` por dos razones. Una: el store del renderer también
+ * traduce, y el hook de `renderer/i18n` se suscribe al store, así que tenerlo
+ * todo junto los importaba en círculo. Dos: el menú de la bandeja lo construye
+ * Electron **en el proceso principal**, que no ve nada del renderer, y también
+ * habla el idioma que elijas.
  *
  * Traduce **la interfaz de Atreus, no lo que encuentra**. Una guía de Steam
  * escrita en inglés seguirá en inglés, y eso es lo correcto: reescribirla sería

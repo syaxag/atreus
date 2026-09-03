@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useStore } from '@/store';
 import { useT, type Clave } from '@/i18n';
+import { nombreGuia } from '@/lib/contenido';
 import { Badge, Button, Card, Empty, Input, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
@@ -171,7 +172,7 @@ function GuideCard({ entry, busy, onOpen }: { entry: GuideEntry; busy: boolean; 
           <h2 className="text-[14px] font-semibold leading-snug">{entry.title}</h2>
           {entry.snippet && <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-muted">{entry.snippet}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Badge mono>{entry.source}</Badge>
+            <Badge mono>{nombreGuia(t, entry.source)}</Badge>
             {entry.language === 'es' && <Badge tone="accent">{t('rutas.enCastellano')}</Badge>}
             {entry.author && (
               <span className="text-[11px] text-faint">{t('rutas.porAutor', { autor: entry.author })}</span>
@@ -261,8 +262,10 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
         <Button size="sm" variant="ghost" onClick={onBack}>
           <ChevronLeft size={15} /> {t('lateral.rutas')}
         </Button>
-        <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">{document.title}</p>
-        <Badge mono>{document.source}</Badge>
+        <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">
+          {document.title || t('rutas.guiaSinTitulo')}
+        </p>
+        <Badge mono>{nombreGuia(t, document.source)}</Badge>
         <Button size="sm" variant="outline" onClick={() => void api.settings.openPath(document.url)}>
           <ExternalLink size={13} /> {t('rutas.abrirFuera')}
         </Button>
@@ -286,14 +289,16 @@ function Reader({ document, onBack }: { document: GuideDocument; onBack: () => v
         {/* La columna se mide en caracteres: a 65 el ojo vuelve al principio de
             la línea siguiente sin perderse, que es de lo que va leer. */}
         <div className="mx-auto max-w-[65ch]">
-          <h1 className="text-[22px] font-semibold leading-tight">{document.title}</h1>
+          <h1 className="text-[22px] font-semibold leading-tight">
+            {document.title || t('rutas.guiaSinTitulo')}
+          </h1>
           {document.author && (
             <p className="mt-1 text-[12px] text-faint">{t('rutas.porAutor', { autor: document.author })}</p>
           )}
           {document.summary && <p className="mt-3 text-[13px] leading-6 text-muted">{document.summary}</p>}
 
           <p className="mt-4 border-y border-line py-2.5 text-[11px] leading-5 text-faint">
-            {t('rutas.textoDe', { fuente: document.source })}
+            {t('rutas.textoDe', { fuente: nombreGuia(t, document.source) })}
           </p>
 
           {document.partial ? (

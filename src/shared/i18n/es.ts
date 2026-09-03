@@ -16,6 +16,21 @@ export const es = {
   'barra.cerrar': 'Cerrar',
   'barra.datosPrueba': 'datos de prueba',
 
+  // ── Menú de la bandeja ──
+  'bandeja.abrir': 'Abrir Atreus',
+  'bandeja.carpetaDatos': 'Abrir carpeta de datos',
+  'bandeja.registro': 'Ver registro',
+  'bandeja.salir': 'Salir',
+
+  // ── La pantalla de fallo, y lo que no tiene sección propia ──
+  'error.titulo': 'Algo se rompió en la interfaz',
+  'error.pista': 'El fallo está en la ventana, no en tus datos. Nada de lo guardado se ha tocado.',
+  'error.componentes': 'Componentes:',
+  'error.recargar': 'Recargar la ventana',
+  'error.registro': 'Ver el registro',
+  'toast.descartar': 'Descartar',
+  'ui.dificultadDe': 'Dificultad {score} de 10',
+
   // ── Barra lateral ──
   'lateral.platino': 'platino',
   'lateral.platinos': 'platinos',
@@ -393,6 +408,15 @@ export const es = {
   'atlas.nombrePista': 'Mapa de coleccionables',
   'atlas.direccion': 'Dirección',
   'atlas.direccionPista': 'Tiene que empezar por https://',
+  'rutas.fuenteSteam': 'Guías de la comunidad de Steam',
+  'rutas.fuenteWiki': '{sitio} · wiki',
+  'rutas.guiaSinTitulo': 'Guía sin título',
+  'atlas.mapaDe': '{juego} · mapa interactivo',
+  'atlas.paginaDe': '{juego} · {pagina}',
+  'atlas.blurbMapgenie': 'Mapa completo con coleccionables, secretos y filtros por categoría. Puedes marcar lo que ya tengas.',
+  'atlas.blurbFandom': 'Mapa interactivo de la wiki, con sus capas y sus marcadores.',
+  'atlas.blurbWiki': 'Página de mapas de la wiki del juego.',
+  'atlas.provCatalogo': 'Catálogo de Atreus',
   'atlas.cancelar': 'Cancelar',
   'atlas.guardar': 'Guardar',
 

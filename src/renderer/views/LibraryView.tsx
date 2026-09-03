@@ -566,7 +566,7 @@ function GameCard({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); void toggleFavorite(game.id); }}
-          aria-label={game.favorite ? 'Quitar de favoritos' : 'Marcar favorito'}
+          aria-label={t(game.favorite ? 'col.quitarFavorito' : 'col.marcarFavorito')}
           className={cn(
             'absolute right-2 top-2 rounded-sm bg-surface/80 p-1.5 backdrop-blur-sm transition-all duration-[120ms]',
             'focus-visible:opacity-100',
@@ -597,7 +597,7 @@ function GameCard({
         <button
           type="button"
           onClick={launch}
-          aria-label={`Lanzar ${game.name}`}
+          aria-label={t('col.lanzar', { juego: game.name })}
           className="absolute bottom-2 left-2 rounded-sm bg-accent p-1.5 text-white opacity-0 shadow-md transition-all duration-[120ms] hover:bg-accent-hover hover:scale-110 focus-visible:opacity-100 group-hover:opacity-100"
         >
           <Play size={13} fill="currentColor" />
@@ -627,7 +627,7 @@ function GameCard({
           <p className={cn('flex items-center gap-1 text-[11px]', platino ? 'text-success' : 'text-faint')}>
             <Trophy size={10} className={platino ? 'text-success' : 'text-accent'} />
             {platino
-              ? <span className="font-medium">Platino</span>
+              ? <span className="font-medium">{t('col.platino')}</span>
               : <>
                 {summary.unlocked}/{summary.total}
                 <span className="tabular-nums">· {summary.percent.toFixed(0)} %</span>
@@ -637,7 +637,9 @@ function GameCard({
         </> : <>
           <div className="flex items-center gap-1.5">
             <Badge>{PLATFORM_LABEL[game.platform] ?? game.platform}</Badge>
-            {game.multiplayer && <Badge tone="warn"><Users size={10} className="mr-1" /> Multijugador</Badge>}
+            {game.multiplayer && (
+              <Badge tone="warn"><Users size={10} className="mr-1" /> {t('col.multijugador')}</Badge>
+            )}
           </div>
           <p className="text-[11px] text-faint">
             {game.playtimeMinutes ? `${duration(game.playtimeMinutes)} · ` : ''}{relative(game.lastPlayed)}

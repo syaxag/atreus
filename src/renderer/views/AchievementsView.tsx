@@ -558,7 +558,7 @@ export function AchievementsView() {
                     <p className="truncate text-[13px] font-medium">{s.displayName}</p>
                     <p className="truncate font-mono text-[11px] text-faint">{s.apiName}</p>
                   </div>
-                  {s.incrementOnly && <Badge tone="warn">solo incrementa</Badge>}
+                  {s.incrementOnly && <Badge tone="warn">{t('tro.soloIncrementa')}</Badge>}
                   <Badge mono>{s.type}</Badge>
                   <Input
                     type="number"
@@ -589,7 +589,7 @@ export function AchievementsView() {
           ) : backups.map((snapshot) => (
             <div key={snapshot.id} className="flex min-h-[56px] items-center gap-3 border-b border-line px-6 py-2">
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium">Copia anterior a un cambio</p>
+                <p className="text-[13px] font-medium">{t('tro.copiaAnterior')}</p>
                 <p className="text-[12px] text-faint">
                   {dateTime(snapshot.createdAt)} · {snapshot.achievements.length} logros · {snapshot.stats.length} estadísticas
                 </p>
@@ -649,7 +649,9 @@ export function AchievementsView() {
               onClick={() => (writable ? setConfirmOpen(true) : void commit())}
             >
               <Save size={14} />
-              {saving ? 'Guardando…' : writable ? 'Guardar en Steam' : 'Guardar mi registro'}
+              {t(saving
+                ? 'tro.guardando'
+                : writable ? 'tro.guardarSteam' : 'tro.guardarRegistro')}
             </Button>
           </div>
         </div>

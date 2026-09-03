@@ -325,14 +325,24 @@ export type GuideCategory = 'platinum' | 'achievements' | 'collectibles' | 'walk
 /** Quién publica la guía. Decide si Atreus sabe leer su texto entero. */
 export type GuideProvider = 'steam' | 'wiki' | 'web';
 
+/**
+ * De dónde sale una guía.
+ *
+ * `web` lleva el dominio porque es un dato de fuera; los otros dos son
+ * nuestros y se nombran en el idioma de la interfaz, no aquí.
+ */
+export type GuideSource =
+  | { kind: 'steam' }
+  | { kind: 'wiki'; site: string }
+  | { kind: 'web'; domain: string };
+
 export interface GuideEntry {
   /** Clave estable dentro de su proveedor. */
   id: string;
   title: string;
   snippet: string;
   url: string;
-  /** Dominio o nombre legible de la fuente. */
-  source: string;
+  source: GuideSource;
   provider: GuideProvider;
   author: string | null;
   /** Valoración de la comunidad, cuando la fuente la publica. */
@@ -351,9 +361,10 @@ export interface GuideSection {
 }
 
 export interface GuideDocument {
+  /** Vacío cuando la fuente no publicó ninguno; el título lo pone la vista. */
   title: string;
   url: string;
-  source: string;
+  source: GuideSource;
   provider: GuideProvider;
   author: string | null;
   summary: string;
@@ -371,13 +382,31 @@ export interface GuideDocument {
  * No se replica el mapa: se abre la web del proveedor en una pestaña integrada,
  * con sus marcadores, sus filtros y su progreso.
  */
+/**
+ * Cómo se llama un mapa y qué se dice de él.
+ *
+ * Las dos van como caso y datos por lo de siempre: *"mapa interactivo"* es una
+ * frase. `catalog` y `text` llevan texto tal cual porque lo escribió quien
+ * hizo la ficha del juego, o es el extracto de la wiki.
+ */
+export type MapLabel =
+  | { kind: 'catalog'; title: string }
+  | { kind: 'mapgenie'; game: string }
+  | { kind: 'page'; game: string; page: string };
+
+export type MapBlurb =
+  | { kind: 'text'; text: string }
+  | { kind: 'mapgenie' }
+  | { kind: 'fandom' }
+  | { kind: 'wikiPage' };
+
 export interface InteractiveMap {
   id: string;
-  title: string;
-  description: string;
+  label: MapLabel;
+  blurb: MapBlurb;
   url: string;
-  /** "MapGenie", "Wiki del juego", "Catálogo de Atreus"… */
-  provider: string;
+  /** El sitio del que sale: "MapGenie", el host de la wiki… null si es del catálogo. */
+  provider: string | null;
   /** true si lo añadiste tú y por tanto se puede quitar. */
   removable?: boolean;
 }

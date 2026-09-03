@@ -20,6 +20,21 @@ export const en: Record<Clave, string> = {
   'barra.cerrar': 'Close',
   'barra.datosPrueba': 'sample data',
 
+  // ── Tray menu ──
+  'bandeja.abrir': 'Open Atreus',
+  'bandeja.carpetaDatos': 'Open the data folder',
+  'bandeja.registro': 'View the log',
+  'bandeja.salir': 'Quit',
+
+  // ── The failure screen, and what has no section of its own ──
+  'error.titulo': 'Something broke in the interface',
+  'error.pista': 'The fault is in the window, not in your data. Nothing saved has been touched.',
+  'error.componentes': 'Components:',
+  'error.recargar': 'Reload the window',
+  'error.registro': 'View the log',
+  'toast.descartar': 'Dismiss',
+  'ui.dificultadDe': 'Difficulty {score} out of 10',
+
   // ── Sidebar ──
   'lateral.platino': 'platinum',
   'lateral.platinos': 'platinums',
@@ -29,7 +44,7 @@ export const en: Record<Clave, string> = {
   'lateral.coleccion': 'Collection',
   'lateral.actividad': 'Activity',
   'lateral.trofeos': 'Trophies',
-  'lateral.trofeosPista': 'achievements, rarity and history',
+  'lateral.trofeosPista': 'achievements, rarity, history',
   'lateral.rutas': 'Guides',
   'lateral.rutasPista': 'full text, read in here',
   'lateral.atlas': 'Atlas',
@@ -397,6 +412,15 @@ export const en: Record<Clave, string> = {
   'atlas.nombrePista': 'Collectibles map',
   'atlas.direccion': 'Address',
   'atlas.direccionPista': 'It has to start with https://',
+  'rutas.fuenteSteam': 'Steam community guides',
+  'rutas.fuenteWiki': '{sitio} · wiki',
+  'rutas.guiaSinTitulo': 'Untitled guide',
+  'atlas.mapaDe': '{juego} · interactive map',
+  'atlas.paginaDe': '{juego} · {pagina}',
+  'atlas.blurbMapgenie': 'A full map with collectibles, secrets and filters by category. You can tick off what you already have.',
+  'atlas.blurbFandom': 'The wiki\u2019s interactive map, with its layers and its markers.',
+  'atlas.blurbWiki': 'A map page from the game\u2019s wiki.',
+  'atlas.provCatalogo': 'Atreus catalogue',
   'atlas.cancelar': 'Cancel',
   'atlas.guardar': 'Save',
 

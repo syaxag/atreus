@@ -565,8 +565,12 @@ export const mockApi: AtreusApi = {
   maps: {
     async add(gameId, input) {
       await wait(200, 400);
-      extraMaps.push({ id: `user-${Date.now().toString(36)}`, title: input.title,
-        description: 'Mapa añadido por ti.', url: input.url, provider: 'manual', removable: true });
+      extraMaps.push({
+        id: `user-${Date.now().toString(36)}`,
+        label: { kind: 'catalog', title: input.title },
+        blurb: { kind: 'text', text: '' },
+        url: input.url, provider: 'manual', removable: true,
+      });
       return mockApi.maps.list(gameId);
     },
 

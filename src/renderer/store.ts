@@ -3,7 +3,7 @@ import type {
   Game, GameId, PlatinumReport, PlatinumSummary, ScanProgress, Settings,
 } from '@shared/types';
 import { api } from '@/lib/api';
-import { traducir, type Clave, type Huecos } from '@/i18n/traducir';
+import { traducir, type Clave, type Huecos } from '@shared/i18n';
 import { explicarAviso } from '@/lib/aviso';
 
 export type Section = 'library' | 'activity' | 'game' | 'achievements' | 'guides' | 'maps' | 'mods' | 'settings';

@@ -9,10 +9,12 @@ mecánico; retraducir lo que ya se hizo mal es trabajo tirado dos veces.
 
 ---
 
-## 1. Idiomas · *en marcha*
+## 1. Idiomas · *hecho, salvo el tercer idioma*
 
-Toda la interfaz está en castellano escrita dentro del JSX. Para repartir la
-aplicación hace falta, como mínimo, inglés.
+Toda la interfaz estaba en castellano escrita dentro del JSX. Para repartir la
+aplicación hacía falta, como mínimo, inglés. Ya lo habla entero: la ventana, el
+menú de la bandeja, las fechas, los números y la prosa que antes fabricaba el
+proceso principal.
 
 - [x] **Infraestructura.** Un diccionario por idioma y una función `t()`. Sin
       dependencias nuevas: el proyecto tiene cuatro en total y no merece una
@@ -55,17 +57,22 @@ aplicación hace falta, como mínimo, inglés.
       de la ficha de un juego, que la escribió quien hizo esa ficha, y el
       detalle técnico de un fallo del sistema. Atreus no traduce lo que
       encuentra.
-- [ ] **El menú de la bandeja**, que lo construye Electron en el proceso
-      principal y no llega a ver el diccionario. Para traducirlo hay que
-      mover los diccionarios a `shared/`, que es donde acabarán viviendo.
-      Cuatro cadenas.
+- [x] **El menú de la bandeja.** Los diccionarios se mudan a `shared/i18n`,
+      que es donde tenían que estar: el proceso principal también habla. Los
+      ajustes avisan de sus cambios y el menú se vuelve a montar, así que
+      cambiar de idioma no obliga a reiniciar.
+- [x] **Repasado con la app delante**, en los dos idiomas y sobre la
+      biblioteca real. Salieron nueve rezagados que el typecheck no podía
+      ver —`Multijugador`, `Platino`, `Guardar en Steam`, los de la pantalla
+      de fallo— porque eran cadenas sueltas con su clave ya escrita y sin
+      usar, y dos números que llevaban la coma puesta a mano.
 
-      Lo que **no** se va a traducir: los tres objetivos con los que nace la
-      lista de una partida. Se escriben en tu disco la primera vez y los
-      editas tú; traducirlos al pintarlos pisaría lo que hayas cambiado. Son
-      datos tuyos, no interfaz.
-- [ ] Un tercer idioma es solo un archivo de datos más. Portugués es el
-      candidato obvio por tamaño de público.
+      Lo que **no** se traduce: los tres objetivos con los que nace la lista
+      de una partida. Se escriben en tu disco la primera vez y los editas tú;
+      traducirlos al pintarlos pisaría lo que hayas cambiado. Son datos
+      tuyos, no interfaz.
+- [ ] Un tercer idioma, ahora sí, es solo un archivo de datos más.
+      Portugués es el candidato obvio por tamaño de público.
 
 **Lo que no cubre:** el contenido de fuera. Una guía de Steam en inglés seguirá
 en inglés; Atreus traduce su interfaz, no lo que encuentra.

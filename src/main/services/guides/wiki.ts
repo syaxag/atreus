@@ -91,7 +91,7 @@ export async function searchWiki(gameName: string, term: string): Promise<GuideE
         title: hit.title!,
         snippet: text(hit.snippet ?? ''),
         url: `https://${host}/wiki/${encodeURIComponent(hit.title!.replace(/ /g, '_'))}`,
-        source: `${pretty} · wiki`,
+        source: { kind: 'wiki', site: pretty },
         provider: 'wiki' as const,
         author: null,
         rating: null,

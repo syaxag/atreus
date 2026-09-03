@@ -7,6 +7,7 @@ import type { InteractiveMap } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { useT } from '@/i18n';
+import { proveedorMapa, textoMapa, tituloMapa } from '@/lib/contenido';
 import { Badge, Button, Card, Empty, Input, Modal, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
@@ -162,8 +163,10 @@ export function MapsView() {
           <Button size="sm" variant="ghost" aria-label={t('atlas.recargar')} onClick={() => frame.current?.reload()}>
             <RotateCw size={14} className={loadingFrame ? 'animate-spin' : undefined} />
           </Button>
-          <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">{active.title}</p>
-          <Badge mono>{active.provider}</Badge>
+          <p className="mx-2 min-w-0 flex-1 truncate text-[12px] text-muted">
+            {tituloMapa(t, active.label)}
+          </p>
+          <Badge mono>{proveedorMapa(t, active)}</Badge>
           <Button size="sm" variant="outline" onClick={() => void api.settings.openPath(active.url)}>
             <ExternalLink size={13} /> {t('atlas.abrirFuera')}
           </Button>
@@ -263,9 +266,10 @@ export function MapsView() {
                 <div className="flex items-start justify-between gap-2">
                   <MapIcon size={18} className="text-accent" />
                   <div className="flex items-center gap-1.5">
-                    <Badge mono>{map.provider}</Badge>
+                    <Badge mono>{proveedorMapa(t, map)}</Badge>
                     {map.removable && (
-                      <Button size="sm" variant="ghost" aria-label={t('atlas.quitarMapa', { mapa: map.title })}
+                      <Button size="sm" variant="ghost"
+                              aria-label={t('atlas.quitarMapa', { mapa: tituloMapa(t, map.label) })}
                               title={t('atlas.quitarMapaPista')}
                               onClick={() => void removeMap(map.id)}>
                         <Trash2 size={13} />
@@ -273,8 +277,8 @@ export function MapsView() {
                     )}
                   </div>
                 </div>
-                <h2 className="mt-3 text-[14px] font-semibold">{map.title}</h2>
-                <p className="mt-1 flex-1 text-[12px] leading-5 text-muted">{map.description}</p>
+                <h2 className="mt-3 text-[14px] font-semibold">{tituloMapa(t, map.label)}</h2>
+                <p className="mt-1 flex-1 text-[12px] leading-5 text-muted">{textoMapa(t, map.blurb)}</p>
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" variant="primary" onClick={() => setActive(map)}>
                     {loadingFrame ? <LoaderCircle size={13} className="animate-spin" /> : <MapIcon size={13} />}

@@ -136,10 +136,10 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
     if (!/^https:\/\//i.test(entry.url)) continue;
     out.push({
       id: entry.id,
-      title: entry.title,
-      description: entry.description ?? '',
+      label: { kind: 'catalog', title: entry.title },
+      blurb: { kind: 'text', text: entry.description ?? '' },
       url: entry.url,
-      provider: entry.provider ?? 'Catálogo de Atreus',
+      provider: entry.provider ?? null,
       // Solo se pueden quitar los que están escritos en la ficha; los que
       // vienen de una búsqueda automática no existen en ningún archivo.
       removable: true,
@@ -168,8 +168,8 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
   if (slug && !out.some((map) => map.url.includes(`mapgenie.io/${slug}`))) {
     out.push({
       id: `mapgenie:${slug}`,
-      title: `${game.name} · mapa interactivo`,
-      description: 'Mapa completo con coleccionables, secretos y filtros por categoría. Puedes marcar lo que ya tengas.',
+      label: { kind: 'mapgenie', game: game.name },
+      blurb: { kind: 'mapgenie' },
       url: `https://mapgenie.io/${slug}`,
       provider: 'MapGenie',
     });
@@ -189,8 +189,8 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
     if (out.some((existente) => existente.url === mapa.url)) continue;
     out.push({
       id: `fandom:${mapa.url}`,
-      title: `${game.name} · ${mapa.title}`,
-      description: 'Mapa interactivo de la wiki, con sus capas y sus marcadores.',
+      label: { kind: 'page', game: game.name, page: mapa.title },
+      blurb: { kind: 'fandom' },
       url: mapa.url,
       provider: mapa.host,
     });
@@ -211,10 +211,10 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
     for (const hit of fromWiki) {
       out.push({
         id: hit.id,
-        title: `${game.name} · ${hit.title}`,
-        description: hit.snippet || 'Página de mapas de la wiki del juego.',
+        label: { kind: 'page', game: game.name, page: hit.title },
+        blurb: hit.snippet ? { kind: 'text', text: hit.snippet } : { kind: 'wikiPage' },
         url: hit.url,
-        provider: hit.source,
+        provider: hit.source.kind === 'wiki' ? hit.source.site : null,
       });
     }
   }

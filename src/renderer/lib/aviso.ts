@@ -1,5 +1,5 @@
 import type { ToastNotice } from '@shared/types';
-import type { Clave, Huecos } from '@/i18n/traducir';
+import type { Clave, Huecos } from '@shared/i18n';
 
 /**
  * Los avisos que manda el proceso principal por su cuenta.

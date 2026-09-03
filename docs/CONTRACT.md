@@ -215,6 +215,10 @@ La regla que sale de aquí, y que vale para lo que venga:
   frase necesita —la cuenta, el número de juegos— ya venían en sus propios campos.
 - El evento `toast` cambia `message` por `notice: ToastNotice`.
 - `ScanProgress` pierde `message`: la fase ya decía lo mismo.
+- `GuideEntry.source` y `GuideDocument.source` pasan de `string` a `GuideSource`.
+  `web` sigue llevando el dominio, que es un dato de fuera; `steam` y `wiki` no.
+- `InteractiveMap` cambia `title` y `description` por `label` y `blurb`, y su
+  `provider` admite `null` para los que salen del catálogo.
 
 **Las dos excepciones, a propósito.** `Notice` tiene un caso `definition` que lleva
 texto tal cual: lo escribió quien hizo la ficha de ese juego, y Atreus no tiene con qué

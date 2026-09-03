@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ButtonHTMLAttributes, CSSProperties, InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/i18n';
 
 /**
  * Primitivas de interfaz. Todo el color sale de las variables de theme.css:
@@ -341,9 +342,11 @@ export function ProgressRing({
 // ── Medidor de dificultad ─────────────────────────────────────
 /** Diez muescas, de 1 a 10. Es la escala con la que ya cuenta la gente. */
 export function DifficultyMeter({ score, className }: { score: number; className?: string }) {
+  const t = useT();
   const filled = Math.round(score);
   return (
-    <div className={cn('flex items-center gap-[3px]', className)} aria-label={`Dificultad ${score} de 10`}>
+    <div className={cn('flex items-center gap-[3px]', className)}
+         aria-label={t('ui.dificultadDe', { score })}>
       {Array.from({ length: 10 }, (_, i) => (
         <span
           key={i}

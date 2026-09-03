@@ -161,7 +161,7 @@ export const MOCK_GUIDES: GuideEntry[] = [
     title: 'Balatro · guía completa de logros en español',
     snippet: 'Cada logro explicado, con el mazo y la apuesta recomendados para sacarlo sin repetir partidas.',
     url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=1',
-    source: 'Guías de la comunidad de Steam',
+    source: { kind: 'steam' },
     provider: 'steam', author: 'unjugador', rating: 5, language: 'es', readable: true,
   },
   {
@@ -169,7 +169,7 @@ export const MOCK_GUIDES: GuideEntry[] = [
     title: '100% Achievement Guide',
     snippet: 'Every achievement, ordered from easiest to hardest, with build suggestions.',
     url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=2',
-    source: 'Guías de la comunidad de Steam',
+    source: { kind: 'steam' },
     provider: 'steam', author: 'someone', rating: 4, language: 'en', readable: true,
   },
   {
@@ -177,7 +177,7 @@ export const MOCK_GUIDES: GuideEntry[] = [
     title: 'Achievements',
     snippet: 'Listado completo de logros con sus condiciones exactas.',
     url: 'https://balatro.fandom.com/wiki/Achievements',
-    source: 'balatro · wiki',
+    source: { kind: 'wiki', site: 'balatro' },
     provider: 'wiki', author: null, rating: null, language: 'en', readable: true,
   },
 ];
@@ -185,8 +185,8 @@ export const MOCK_GUIDES: GuideEntry[] = [
 export const MOCK_MAPS: InteractiveMap[] = [
   {
     id: 'mapgenie:demo',
-    title: 'Mapa interactivo del juego',
-    description: 'Mapa completo con coleccionables, secretos y filtros por categoría.',
+    label: { kind: 'mapgenie', game: 'Balatro' },
+    blurb: { kind: 'mapgenie' },
     url: 'https://mapgenie.io/',
     provider: 'MapGenie',
   },

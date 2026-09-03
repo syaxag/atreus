@@ -41,11 +41,27 @@ export function getSettings(): Settings {
   return cache;
 }
 
+/**
+ * Quién quiere enterarse de que los ajustes han cambiado.
+ *
+ * Lo pidió el menú de la bandeja: lo construye Electron una vez al arrancar,
+ * así que sin avisar seguiría en el idioma anterior hasta reiniciar Atreus.
+ */
+type Oyente = (settings: Settings) => void;
+const oyentes = new Set<Oyente>();
+
+/** Se suscribe a los cambios. Devuelve cómo darse de baja. */
+export function onSettingsChanged(oyente: Oyente): () => void {
+  oyentes.add(oyente);
+  return () => oyentes.delete(oyente);
+}
+
 /** Aplica un parche parcial y persiste. Devuelve los ajustes ya combinados. */
 export function setSettings(patch: Partial<Settings>): Settings {
   const next: Settings = { ...getSettings(), ...patch };
   cache = next;
   persist(next);
+  for (const oyente of oyentes) oyente(next);
   return next;
 }
 

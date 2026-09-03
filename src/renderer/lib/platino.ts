@@ -1,7 +1,7 @@
 import type {
   DifficultyTier, Notice, Platform, PlatinumDifficulty, PlatinumEstimate, SourceRef,
 } from '@shared/types';
-import type { Clave, Huecos } from '@/i18n/traducir';
+import type { Clave, Huecos } from '@shared/i18n';
 import { hours, numero, percent } from '@/lib/format';
 
 /**

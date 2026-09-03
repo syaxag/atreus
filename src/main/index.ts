@@ -4,7 +4,8 @@ import { ensurePaths, paths } from './paths';
 import { log } from './logger';
 import { registerIpc } from './ipc/register';
 import { registerSchemes, registerProtocolHandlers } from './protocol';
-import { getSettings } from './services/settings';
+import { getSettings, onSettingsChanged } from './services/settings';
+import { t } from './i18n';
 import { scan, rehydrateCovers, listGames, refreshDefinitions } from './services/catalog';
 import { watchDefinitions, stopWatching } from './services/catalog/definitions';
 import { closeAll as closeSteamSessions } from './services/steam/session';
@@ -233,6 +234,23 @@ function createWindow(): void {
   }
 }
 
+/**
+ * El menú de la bandeja, en el idioma elegido.
+ *
+ * Se vuelve a montar entero al cambiar de idioma en vez de intentar renombrar
+ * sus entradas: `Menu` no es editable una vez construido, y son cuatro.
+ */
+function trayMenu(): Menu {
+  return Menu.buildFromTemplate([
+    { label: t('bandeja.abrir'), click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+    { type: 'separator' },
+    { label: t('bandeja.carpetaDatos'), click: () => shell.openPath(paths.root) },
+    { label: t('bandeja.registro'), click: () => shell.openPath(paths.logs) },
+    { type: 'separator' },
+    { label: t('bandeja.salir'), click: () => { quitting = true; app.quit(); } },
+  ]);
+}
+
 function createTray(): void {
   const icon = nativeImage.createFromPath(appIconPath());
   // Un ICO ausente no debe impedir que la app arranque; sí queda registrado
@@ -240,17 +258,17 @@ function createTray(): void {
   if (icon.isEmpty()) logger.warn(`no se pudo cargar el icono de bandeja: ${appIconPath()}`);
   tray = new Tray(icon);
   tray.setToolTip('Atreus');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Abrir Atreus', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
-      { type: 'separator' },
-      { label: 'Abrir carpeta de datos', click: () => shell.openPath(paths.root) },
-      { label: 'Ver registro', click: () => shell.openPath(paths.logs) },
-      { type: 'separator' },
-      { label: 'Salir', click: () => { quitting = true; app.quit(); } },
-    ]),
-  );
+  tray.setContextMenu(trayMenu());
   tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus(); });
+
+  // El selector de Ajustes vive en el renderer y el menú aquí: sin esto, el
+  // idioma cambiaba en la ventana y la bandeja se quedaba en el anterior.
+  let idioma = getSettings().language;
+  onSettingsChanged((settings) => {
+    if (settings.language === idioma) return;
+    idioma = settings.language;
+    tray?.setContextMenu(trayMenu());
+  });
 }
 
 app.whenReady().then(() => {

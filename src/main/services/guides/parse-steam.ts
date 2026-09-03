@@ -110,7 +110,7 @@ export function parseGuideList(html: string): GuideEntry[] {
       title,
       snippet,
       url: `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`,
-      source: 'Guías de la comunidad de Steam',
+      source: { kind: 'steam' },
       provider: 'steam',
       author,
       rating: parseRating(card),
@@ -157,9 +157,9 @@ export function parseGuideDocument(html: string, url: string): GuideDocument | n
     sections[0]!.body.slice(0, 400);
 
   return {
-    title: title || 'Guía de Steam',
+    title,
     url,
-    source: 'Guías de la comunidad de Steam',
+    source: { kind: 'steam' },
     provider: 'steam',
     author,
     summary,

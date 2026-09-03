@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertOctagon, RotateCcw, ScrollText } from 'lucide-react';
 import { api } from '@/lib/api';
+import { traducirAhora } from '@/i18n';
 
 /**
  * Red de seguridad del renderer.
@@ -46,16 +47,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <AlertOctagon size={40} strokeWidth={1.25} className="text-danger" />
 
         <div className="text-center">
-          <h1 className="text-[18px] font-semibold">Algo se rompió en la interfaz</h1>
-          <p className="mt-1 text-[13px] text-muted">
-            El fallo está en la ventana, no en tus datos. Nada de lo guardado se ha tocado.
-          </p>
+          <h1 className="text-[18px] font-semibold">{traducirAhora('error.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{traducirAhora('error.pista')}</p>
         </div>
 
         <pre className="selectable max-h-56 w-full max-w-2xl overflow-auto rounded-md border border-line bg-inset p-3 font-mono text-[11px] leading-relaxed text-danger">
           {error.message}
           {error.stack ? `\n\n${error.stack}` : ''}
-          {componentStack ? `\n\nComponentes:${componentStack}` : ''}
+          {componentStack ? `\n\n${traducirAhora('error.componentes')}${componentStack}` : ''}
         </pre>
 
         <div className="flex gap-2">
@@ -63,13 +62,13 @@ export class ErrorBoundary extends Component<Props, State> {
             onClick={this.reload}
             className="inline-flex h-9 items-center gap-2 rounded-sm bg-accent px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover"
           >
-            <RotateCcw size={14} /> Recargar la ventana
+            <RotateCcw size={14} /> {traducirAhora('error.recargar')}
           </button>
           <button
             onClick={() => void api.app.openLogs()}
             className="inline-flex h-9 items-center gap-2 rounded-sm border border-line px-3.5 text-[13px] font-medium text-fg transition-colors hover:border-line-strong hover:bg-elevated"
           >
-            <ScrollText size={14} /> Ver el registro
+            <ScrollText size={14} /> {traducirAhora('error.registro')}
           </button>
         </div>
       </div>

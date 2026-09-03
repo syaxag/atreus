@@ -38,7 +38,7 @@ export async function searchWeb(query: string): Promise<GuideEntry[]> {
       title: result.title,
       snippet: result.snippet,
       url: result.url,
-      source: result.source,
+      source: { kind: 'web', domain: result.source },
       provider: 'web' as const,
       author: null,
       rating: null,

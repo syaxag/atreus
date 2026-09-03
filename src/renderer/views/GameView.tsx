@@ -7,7 +7,9 @@ import type { PlatinumReport, PlatinumSummary } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
-import { duration, hours, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span } from '@/lib/format';
+import {
+  duration, hours, numero, PLATFORM_LABEL, percent, rarity, rarityToken, relative, span,
+} from '@/lib/format';
 import {
   DIFICULTAD, explicarDificultad, explicarEstimacion, explicarNota, nombreFuente,
 } from '@/lib/platino';
@@ -309,7 +311,7 @@ function Report({
       <Metric
         icon={<Gauge size={15} />}
         label={t('ficha.dificultad')}
-        value={report.difficulty ? `${format(report.difficulty.score)}/10` : '—'}
+        value={report.difficulty ? `${numero(report.difficulty.score)}/10` : '—'}
         hint={report.difficulty ? t(DIFICULTAD[report.difficulty.tier]) : t('ficha.sinRareza')}
         extra={report.difficulty ? <DifficultyMeter score={report.difficulty.score} className="mt-2" /> : undefined}
       />
@@ -466,10 +468,6 @@ const CONFIDENCE: Record<'low' | 'medium' | 'high', Clave> = {
   medium: 'ficha.confianzaMedia',
   high: 'ficha.confianzaAlta',
 };
-
-function format(score: number): string {
-  return Number.isInteger(score) ? String(score) : score.toFixed(1).replace('.', ',');
-}
 
 function Metric({
   icon, label, value, hint, extra,
