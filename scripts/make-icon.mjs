@@ -6,10 +6,10 @@
  * que ya viene con Node. Todo se rasteriza a mano con distancias con signo, que
  * es lo que permite que el borde siga limpio a 16 píxeles.
  *
- * La marca: una loseta morada con la **A** calada en negativo y su travesaño
- * inclinado como un rayo. En negativo en vez de en positivo a propósito — a
- * tamaño de pestaña, una silueta llena se distingue de un vistazo y un trazo
- * fino se deshace.
+ * La marca: una loseta morada con la **A** calada en negativo, apoyada en una
+ * peana que la convierte en una copa. En negativo en vez de en positivo a
+ * propósito — a tamaño de pestaña, una silueta llena se distingue de un
+ * vistazo y un trazo fino se deshace.
  *
  *   node scripts/make-icon.mjs
  */
@@ -96,17 +96,26 @@ function segment(px, py, ax, ay, bx, by) {
 const mix = (a, b, t) => a + (b - a) * t;
 
 /**
- * Distancia a la letra: dos patas hasta el vértice y un travesaño inclinado.
+ * La A sobre su peana: una letra y un trofeo a la vez.
  *
- * El travesaño va en diagonal y no recto: es lo que convierte la A en una marca
- * propia en lugar de una letra cualquiera, y a la vez deja el guiño al rayo del
- * icono de cheats sin añadir una forma más que se pierda a 16 píxeles.
+ * El travesaño iba inclinado como un rayo, guiño al icono de cheats. Los
+ * cheats se fueron de la aplicación hace tiempo y el guiño se quedó apuntando
+ * a nada, así que la marca no decía qué hace esto.
+ *
+ * Ahora las dos patas bajan desde el vértice y se apoyan en una base ancha. La
+ * silueta se lee como una copa a primer golpe y como una A al mirarla, que es
+ * exactamente lo que persigue quien usa Atreus. Todo son barras rectas y
+ * gruesas: a 16 píxeles un trazo fino se deshace y una peana se ve.
  */
 function letterDistance(u, v) {
   return Math.min(
-    segment(u, v, -0.44, 0.54, -0.02, -0.52),
-    segment(u, v, 0.44, 0.54, 0.02, -0.52),
-    segment(u, v, -0.245, 0.30, 0.245, 0.16),
+    // Patas, del vértice a la base.
+    segment(u, v, -0.395, 0.28, -0.02, -0.555),
+    segment(u, v, 0.395, 0.28, 0.02, -0.555),
+    // Travesaño recto: es el que cierra el contra de la letra.
+    segment(u, v, -0.235, 0.08, 0.235, 0.08),
+    // Peana. Más ancha que la huella de las patas, como la de un trofeo.
+    segment(u, v, -0.48, 0.475, 0.48, 0.475),
   );
 }
 

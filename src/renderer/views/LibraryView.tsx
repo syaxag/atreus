@@ -184,8 +184,15 @@ export function LibraryView() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar en tu colección…"
-            className="w-full pl-8"
+            className="w-full pl-8 pr-14"
           />
+          {/* El atajo existía desde el principio y no lo sabía nadie. Se
+              esconde al escribir para no estorbar encima del texto. */}
+          {query === '' && (
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-[4px] border border-line bg-elevated px-1.5 py-0.5 font-sans text-[10px] font-medium text-faint">
+              Ctrl K
+            </kbd>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((f) => (

@@ -60,19 +60,33 @@ function WindowButton({
 }
 
 /**
- * La marca de Atreus, la misma que el icono del ejecutable.
+ * La marca de Atreus: la A sobre su peana, una letra y un trofeo a la vez.
  *
  * Va como SVG en línea y no como imagen: son cuatro trazos, y así hereda el
  * color del tema sin pedir un archivo ni pasar por la CSP.
+ *
+ * Es **la misma geometría** que `scripts/make-icon.mjs`, que es el que genera
+ * el icono del ejecutable. Antes no lo era —aquí una A maciza, allí una de
+ * trazo— y la aplicación se presentaba con dos marcas distintas según dónde la
+ * miraras. Al tocar una hay que tocar la otra: las coordenadas de allí son
+ * `[-1, 1]`, y aquí se mapean con `x = (u + 1) · 16`.
  */
 function Mark() {
   return (
-    <svg width="15" height="15" viewBox="0 0 32 32" aria-hidden="true" className="shrink-0">
+    <svg width="16" height="16" viewBox="0 0 32 32" aria-hidden="true" className="shrink-0">
       <rect width="32" height="32" rx="9" fill="var(--accent)" />
-      <path
-        d="M7.6 24.6 15.1 7.9h1.8l7.5 16.7h-3.6l-1.75-4.1h-6.1l-1.75 4.1zM14.1 17.7h3.8L16 13.2z"
-        fill="var(--bg-base)"
-      />
+      <g
+        stroke="var(--bg-base)"
+        strokeWidth="3.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      >
+        <path d="M9.68 20.48 15.68 7.12" />
+        <path d="M22.32 20.48 16.32 7.12" />
+        <path d="M12.24 17.28h7.52" />
+        <path d="M8.32 23.6h15.36" />
+      </g>
     </svg>
   );
 }

@@ -131,6 +131,37 @@ segundo, que es justo lo contrario de lo que pide quien la desactiva.
   Los botones llevan `no-drag`.
 - Sidebar: sin iconos de colores. Item activo = texto blanco + barra morada de 2px
   a la izquierda + fondo `--accent-soft`.
+- **La barra lateral va en dos grupos, y el juego los separa.** Colección y
+  Actividad valen siempre. Trofeos, Rutas, Atlas y Taller operan sobre el juego
+  en contexto y no significan nada sin él, así que van **debajo del juego y
+  sangrados**, bajo el rótulo *Sobre este juego*. Estaban todos en la misma
+  lista y el juego que los gobierna aparecía al final de la barra, lejos: pulsar
+  "Trofeos" sin haber elegido nada no hacía nada y tampoco lo explicaba.
+- **Un nombre con carácter lleva su traducción debajo.** "Rutas" o "Taller" son
+  la voz de la aplicación y se quedan, pero cada uno de esos cuatro lleva una
+  línea en `--text-faint` diciendo qué hay dentro —*guías con su texto completo*,
+  *instalar y ordenar mods*—. Un nombre bonito que hay que adivinar estorba.
+- **Los atajos se ven.** El buscador de la Colección enseña su `Ctrl K` en una
+  tecla dibujada al final del campo, y la esconde en cuanto hay texto. Un atajo
+  que no se anuncia no existe.
+
+## La marca
+
+Una loseta morada con la **A** calada en negativo, apoyada en una peana ancha:
+se lee como una copa a primer golpe y como una A al mirarla, que es exactamente
+lo que persigue quien usa esto. Antes el travesaño iba inclinado como un rayo,
+guiño al icono de cheats; los cheats se fueron de la aplicación y el guiño se
+quedó señalando a nada.
+
+Todo son barras rectas y gruesas porque el examen de un icono es a **16 píxeles**:
+ahí un trazo fino se deshace y una peana se ve.
+
+Vive en dos sitios y tienen que dibujar **la misma geometría**: `scripts/make-icon.mjs`
+(que rasteriza el `.ico` y el `.png` con distancias con signo) y el `<Mark>` de
+`TitleBar.tsx` (SVG en línea, para que herede los tokens del tema). Estuvieron
+desacompasados —una A maciza aquí, una de trazo allí— y la aplicación se
+presentaba con dos marcas distintas según dónde la miraras. **Al tocar una hay
+que tocar la otra.**
 
 ## Componentes: notas concretas
 

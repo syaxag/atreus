@@ -1,4 +1,4 @@
-import { Gem, Trophy, Compass, Map, Package, Settings2, Activity } from 'lucide-react';
+import { Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight } from 'lucide-react';
 import { useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -7,11 +7,13 @@ import { useContador } from '@/lib/contar';
 import { useStore, type Section } from '@/store';
 
 /**
- * Seis destinos, ni uno más.
+ * Seis destinos, ni uno más, en dos grupos que no son lo mismo.
  *
- * Cinco operan sobre el juego en contexto y están en el orden en que se usan al
- * ir a por un platino: ver qué falta, leer cómo se hace, encontrar dónde está,
- * y solo al final los mods.
+ * Dos valen siempre. Los otros cuatro **operan sobre el juego en contexto** y
+ * no significan nada sin él: por eso van debajo del juego y sangrados, no
+ * mezclados con los primeros. Antes estaban todos en la misma lista y el juego
+ * que los gobierna aparecía al final de la barra, lejos y sin relación visible;
+ * pulsar "Trofeos" sin haber elegido nada no hacía nada y no lo explicaba.
  *
  * Los nombres no son los genéricos de un launcher, porque esto no lo es.
  * "Colección" es lo que tiene un coleccionista, no una estantería de programas;
@@ -19,14 +21,28 @@ import { useStore, type Section } from '@/store';
  * que se sigue para un platino, que no es lo mismo que un manual; "Atlas" es un
  * libro de mapas, que es exactamente lo que ofrece; y "Taller" es como se ha
  * llamado siempre en español el sitio donde se le mete mano a un juego.
+ *
+ * Que tengan carácter no quita que haya que decir qué hacen: cada uno del
+ * segundo grupo lleva su descripción debajo. Un nombre bonito que hay que
+ * adivinar es un nombre que estorba.
  */
-const ITEMS: { id: Section; label: string; icon: LucideIcon; needsGame?: boolean }[] = [
+interface Destino {
+  id: Section;
+  label: string;
+  icon: LucideIcon;
+  hint?: string;
+}
+
+const GENERALES: Destino[] = [
   { id: 'library', label: 'Colección', icon: Gem },
   { id: 'activity', label: 'Actividad', icon: Activity },
-  { id: 'achievements', label: 'Trofeos', icon: Trophy, needsGame: true },
-  { id: 'guides', label: 'Rutas', icon: Compass, needsGame: true },
-  { id: 'maps', label: 'Atlas', icon: Map, needsGame: true },
-  { id: 'mods', label: 'Taller', icon: Package, needsGame: true },
+];
+
+const DEL_JUEGO: Destino[] = [
+  { id: 'achievements', label: 'Trofeos', icon: Trophy, hint: 'logros, rareza e historial' },
+  { id: 'guides', label: 'Rutas', icon: Compass, hint: 'guías con su texto completo' },
+  { id: 'maps', label: 'Atlas', icon: Map, hint: 'mapas interactivos' },
+  { id: 'mods', label: 'Taller', icon: Package, hint: 'instalar y ordenar mods' },
 ];
 
 export function Sidebar() {
@@ -54,11 +70,11 @@ export function Sidebar() {
   const platinosMostrados = useContador(marcador.platinos);
 
   return (
-    <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col border-r border-line bg-surface">
+    <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col overflow-y-auto border-r border-line bg-surface">
       <button
         onClick={() => go('library')}
         title="Ir a tu colección"
-        className="flex items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
+        className="flex shrink-0 items-center gap-3 border-b border-line px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-elevated"
       >
         <span className="text-[26px] font-semibold leading-none tabular-nums text-fg">
           {platinosMostrados}
@@ -73,61 +89,103 @@ export function Sidebar() {
         </span>
       </button>
 
-      <div className="flex flex-1 flex-col gap-0.5 p-2">
-        {ITEMS.map((item) => (
+      <div className="flex flex-col gap-0.5 p-2">
+        {GENERALES.map((item) => (
           <Item
             key={item.id}
             {...item}
-            disabled={item.needsGame === true && !selected}
             active={section === item.id}
             onClick={() => go(item.id)}
           />
         ))}
       </div>
 
-      {/*
-        Juego en contexto: las demás vistas operan sobre él, y es la única
-        entrada a su ficha, así que tiene que ser pulsable. Enseña además el
-        progreso hacia el platino, que es el dato que se quiere tener siempre a
-        la vista mientras se navega por las otras secciones.
-      */}
-      {selected && (
-        <button
-          onClick={() => go('game')}
-          aria-current={section === 'game' ? 'page' : undefined}
-          title={`Abrir la ficha de ${selected.name}`}
-          className={cn(
-            'group relative border-t border-line px-3 py-2.5 text-left',
-            'transition-colors duration-[120ms] ease-atreus',
-            section === 'game' ? 'bg-accent-soft' : 'hover:bg-elevated',
-          )}
-        >
-          {section === 'game' && (
-            <span className="animate-marca absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-full bg-accent" />
-          )}
-          <p className="text-[11px] uppercase tracking-wide text-faint">Persiguiendo</p>
-          <p className="mt-0.5 truncate text-[13px] font-medium" title={selected.name}>
-            {selected.name}
-          </p>
-          {summary && summary.total > 0 && (
-            <>
-              <Progress
-                value={summary.percent}
-                tone={summary.complete ? 'success' : 'accent'}
-                className="mt-1.5 h-1"
-                label={`${selected.name}: ${summary.unlocked} de ${summary.total} trofeos`}
+      <Grupo titulo={selected ? 'Sobre este juego' : 'Necesitan un juego'} />
+
+      {selected ? (
+        <>
+          {/*
+            El juego en contexto, justo encima de lo que gobierna. Es además la
+            única entrada a su ficha, y enseña el progreso hacia el platino, que
+            es el dato que se quiere tener a la vista mientras se navega.
+          */}
+          <button
+            onClick={() => go('game')}
+            aria-current={section === 'game' ? 'page' : undefined}
+            title={`Abrir la ficha de ${selected.name}`}
+            className={cn(
+              'group relative mx-2 rounded-sm px-2.5 py-2 text-left',
+              'transition-colors duration-[120ms] ease-atreus',
+              section === 'game' ? 'bg-accent-soft' : 'hover:bg-elevated',
+            )}
+          >
+            {section === 'game' && (
+              <span className="animate-marca absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-accent" />
+            )}
+            {/* Sin un segundo rótulo encima: el del grupo ya dice de qué va
+                esto, y dos etiquetas en mayúsculas seguidas no informan más. */}
+            <p className="flex items-center gap-1 text-[13px] font-medium">
+              <span className="min-w-0 truncate" title={`Abrir la ficha de ${selected.name}`}>
+                {selected.name}
+              </span>
+              <ChevronRight
+                size={13}
+                className="shrink-0 text-faint transition-transform duration-[120ms] group-hover:translate-x-0.5"
               />
-              <p className={cn('mt-1 text-[11px]', summary.complete ? 'text-success' : 'text-faint')}>
-                {summary.complete
-                  ? 'Platino conseguido'
-                  : `${summary.unlocked}/${summary.total} trofeos`}
-              </p>
-            </>
-          )}
-        </button>
+            </p>
+            {summary && summary.total > 0 && (
+              <>
+                <Progress
+                  value={summary.percent}
+                  tone={summary.complete ? 'success' : 'accent'}
+                  className="mt-1.5 h-1"
+                  label={`${selected.name}: ${summary.unlocked} de ${summary.total} trofeos`}
+                />
+                <p className={cn('mt-1 text-[11px]', summary.complete ? 'text-success' : 'text-faint')}>
+                  {summary.complete
+                    ? 'Platino conseguido'
+                    : `${summary.unlocked}/${summary.total} trofeos`}
+                </p>
+              </>
+            )}
+          </button>
+
+          <div className="flex flex-col gap-0.5 p-2 pt-1.5">
+            {DEL_JUEGO.map((item) => (
+              <Item
+                key={item.id}
+                {...item}
+                sangrado
+                active={section === item.id}
+                onClick={() => go(item.id)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        /*
+         * Cuatro elementos apagados no dicen por qué están apagados; una frase
+         * sí. Se ve poco: en cuanto la biblioteca carga, `loadLibrary` elige el
+         * primer juego. Es la barra de una instalación recién estrenada, que es
+         * justo cuando más falta hace saber qué va a pasar aquí.
+         */
+        <div className="mx-2 rounded-sm border border-dashed border-line px-3 py-3">
+          <p className="text-[12px] leading-5 text-muted">
+            Cuando tengas un juego elegido, aquí estarán sus trofeos, sus rutas,
+            sus mapas y su taller.
+          </p>
+          <button
+            onClick={() => go('library')}
+            className="mt-2 flex items-center gap-1 text-[12px] font-medium text-accent transition-colors hover:text-accent-hover"
+          >
+            Ir a la Colección <ChevronRight size={12} />
+          </button>
+        </div>
       )}
 
-      <div className="border-t border-line p-2">
+      <div className="flex-1" />
+
+      <div className="shrink-0 border-t border-line p-2">
         <Item
           id="settings"
           label="Ajustes"
@@ -140,47 +198,56 @@ export function Sidebar() {
   );
 }
 
+/** Rótulo de grupo: separa lo que vale siempre de lo que necesita un juego. */
+function Grupo({ titulo }: { titulo: string }) {
+  return (
+    <p className="mt-1 px-4 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-faint">
+      {titulo}
+    </p>
+  );
+}
+
 function Item({
-  label, icon: Icon, active, disabled, onClick,
-}: {
-  id: Section;
-  label: string;
-  icon: LucideIcon;
+  label, hint, icon: Icon, active, sangrado, onClick,
+}: Destino & {
   active: boolean;
-  disabled?: boolean;
+  sangrado?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
-      title={disabled ? 'Elige un juego en la Colección' : undefined}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group/item relative flex h-9 items-center gap-2.5 rounded-sm px-3 text-[13px] font-medium',
+        'group/item relative flex items-center gap-2.5 rounded-sm px-3 text-left text-[13px] font-medium',
         'transition-colors duration-[120ms] ease-atreus',
-        disabled
-          ? 'cursor-not-allowed text-faint/60'
-          : active
-            ? 'bg-accent-soft text-fg'
-            : 'text-muted hover:bg-elevated hover:text-fg',
+        hint ? 'py-1.5' : 'h-9',
+        sangrado && 'ml-2',
+        active ? 'bg-accent-soft text-fg' : 'text-muted hover:bg-elevated hover:text-fg',
       )}
     >
       {/* Barra morada de 2px: la única marca de estado activo. Crece desde su
           centro para que el salto entre secciones se vea llegar. */}
-      {active && !disabled && (
+      {active && (
         <span className="animate-marca absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-accent" />
       )}
       <Icon
         size={16}
         strokeWidth={1.75}
         className={cn(
-          'transition-transform duration-[180ms] ease-atreus',
-          !disabled && 'group-hover/item:scale-110',
+          'shrink-0 transition-transform duration-[180ms] ease-atreus',
+          'group-hover/item:scale-110',
           active && 'scale-110',
         )}
       />
-      {label}
+      <span className="min-w-0">
+        {label}
+        {hint && (
+          <span className="block truncate text-[11px] font-normal leading-tight text-faint">
+            {hint}
+          </span>
+        )}
+      </span>
     </button>
   );
 }
