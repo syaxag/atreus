@@ -9,6 +9,7 @@ import { getDefinition } from '../catalog/definitions';
 import { searchWiki } from '../guides/wiki';
 import { addMap, removeMap } from '../catalog/user-defs';
 import { matchSlug, parseDirectory } from './match';
+import { fandomMaps } from './fandom';
 
 export { matchSlug, normalizeName, parseDirectory } from './match';
 
@@ -159,6 +160,8 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
     logger.warn(`no se pudo consultar la wiki de ${game.name}:`, e);
     return [];
   });
+  // Los mapas interactivos de Fandom salen a la vez que lo demás.
+  const fandomEnMarcha = fandomMaps(game.name);
 
   // 2. MapGenie, emparejado por nombre contra su directorio público.
   const slug = matchSlug(game.name, (await directory(refresh)).games);
@@ -173,12 +176,33 @@ export async function list(gameId: GameId, refresh = false): Promise<Interactive
   }
 
   /*
-   * 3. La wiki del juego, como red de seguridad.
+   * 3. Los mapas interactivos de la wiki de Fandom.
    *
-   * MapGenie cubre unos doscientos juegos: para todo lo demás, la página de
-   * mapas de la wiki es lo que hay, y es infinitamente mejor que un hueco
-   * vacío. Solo se busca cuando no ha aparecido nada antes, para no llenar la
-   * vista de enlaces de segunda cuando ya existe un mapa de verdad.
+   * MapGenie cubre unos doscientos juegos y ahí se acaba. Fandom tiene su
+   * propia extensión de mapas —con capas, filtros y marcadores que se tachan—
+   * y los guarda en un espacio de nombres propio, así que se pueden pedir por
+   * API en miles de wikis sin mantener ninguna lista. Son mapas de verdad, no
+   * una página con una imagen, y por eso van **antes** que el respaldo de la
+   * búsqueda normal de la wiki.
+   */
+  for (const mapa of await fandomEnMarcha) {
+    if (out.some((existente) => existente.url === mapa.url)) continue;
+    out.push({
+      id: `fandom:${mapa.url}`,
+      title: `${game.name} · ${mapa.title}`,
+      description: 'Mapa interactivo de la wiki, con sus capas y sus marcadores.',
+      url: mapa.url,
+      provider: mapa.host,
+    });
+  }
+
+  /*
+   * 4. La búsqueda normal en la wiki, como última red.
+   *
+   * Cuando no hay ni MapGenie ni mapa interactivo de Fandom, una página de
+   * mapas de la wiki es infinitamente mejor que un hueco vacío. Solo se usa
+   * si no ha aparecido nada antes, para no llenar la vista de enlaces de
+   * segunda cuando ya existe un mapa de verdad.
    */
   if (out.length === 0) {
     const fromWiki = (await wikiEnMarcha)

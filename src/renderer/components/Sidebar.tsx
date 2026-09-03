@@ -1,6 +1,7 @@
 import { Gem, Trophy, Compass, Map, Package, Settings2, Activity, ChevronRight } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { Progress } from '@/components/ui';
 import { useContador } from '@/lib/contar';
@@ -68,6 +69,12 @@ export function Sidebar() {
   // El marcador sube contando: es el número que da nombre a la aplicación y
   // el que cambia cuando de verdad ha pasado algo.
   const platinosMostrados = useContador(marcador.platinos);
+
+  /** La versión, para el pie. Se pide una vez y no cambia en toda la sesión. */
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    void api.app.version().then((res) => setVersion(res.ok ? `v${res.data}` : null));
+  }, []);
 
   return (
     <nav className="flex w-[var(--sidebar-w)] shrink-0 flex-col overflow-y-auto border-r border-line bg-surface">
@@ -185,14 +192,37 @@ export function Sidebar() {
 
       <div className="flex-1" />
 
-      <div className="shrink-0 border-t border-line p-2">
-        <Item
-          id="settings"
-          label="Ajustes"
-          icon={Settings2}
-          active={section === 'settings'}
+      {/*
+        Ajustes no es un destino como los demás: no opera sobre un juego ni
+        forma parte del recorrido hacia un platino. Estaba puesto como un
+        elemento más de la lista, suelto al fondo, y se leía como una sección
+        huérfana. Aquí es un pie: el engranaje a un lado, la versión al otro.
+        Ocupa una fila, dice qué versión llevas y deja de fingir que compite
+        con Colección o Trofeos.
+      */}
+      <div className="flex shrink-0 items-center gap-1 border-t border-line px-2 py-1.5">
+        <button
           onClick={() => go('settings')}
-        />
+          aria-current={section === 'settings' ? 'page' : undefined}
+          title="Carpetas, claves, catálogo y actualizaciones"
+          className={cn(
+            'group/item flex h-8 flex-1 items-center gap-2.5 rounded-sm px-2.5 text-[13px] font-medium',
+            'transition-colors duration-[120ms] ease-atreus',
+            section === 'settings'
+              ? 'bg-accent-soft text-fg'
+              : 'text-muted hover:bg-elevated hover:text-fg',
+          )}
+        >
+          <Settings2
+            size={15}
+            strokeWidth={1.75}
+            className="shrink-0 transition-transform duration-[240ms] ease-atreus group-hover/item:rotate-45"
+          />
+          Ajustes
+        </button>
+        <span className="shrink-0 px-1.5 font-mono text-[10px] text-faint" title="Versión instalada">
+          {version ?? ''}
+        </span>
       </div>
     </nav>
   );

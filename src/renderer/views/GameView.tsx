@@ -3,7 +3,7 @@ import {
   BookOpen, Clock, Gamepad2, Gauge, Hourglass, LoaderCircle, Map, NotebookPen, Package, Play,
   RefreshCw, Sparkles, Target, Trophy,
 } from 'lucide-react';
-import type { PlatinumReport } from '@shared/types';
+import type { PlatinumReport, PlatinumSummary } from '@shared/types';
 import trofeo from '@/assets/trofeo.png';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
@@ -34,6 +34,12 @@ export function GameView() {
   const pushToast = useStore((state) => state.pushToast);
   const loadPlatinum = useStore((state) => state.loadPlatinum);
   const gameId = game?.id;
+  /*
+   * El resumen que ya tiene la biblioteca. Sirve para pintar el anillo desde
+   * el primer fotograma mientras se calcula el informe completo, en vez de
+   * enseñar un esqueleto teniendo el dato principal a mano.
+   */
+  const resumen = useStore((state) => (gameId ? state.platinum[gameId] : undefined));
 
   const [report, setReport] = useState<PlatinumReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +132,9 @@ export function GameView() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        {loading && !report ? <ReportSkeleton gameName={game.name} /> : report ? (
+        {loading && !report ? (
+          <ReportSkeleton gameName={game.name} resumen={resumen} />
+        ) : report ? (
           <Report report={report} readableGuideCount={readableGuideCount} onRefresh={() => void load(true)} />
         ) : null}
 
@@ -450,13 +458,48 @@ function Metric({
   );
 }
 
-function ReportSkeleton({ gameName }: { gameName: string }) {
+/**
+ * Lo que se ve mientras llega el informe.
+ *
+ * Si Atreus ya sabe cuántos logros llevas —lo guarda el resumen de la
+ * biblioteca, que es lo que ordena la Colección— **se enseña ya**, con su
+ * anillo, y solo esperan los números que hay que calcular. Antes toda la ficha
+ * era un esqueleto durante los segundos que tarda el informe en frío, teniendo
+ * el dato principal a mano.
+ */
+function ReportSkeleton({ gameName, resumen }: { gameName: string; resumen?: PlatinumSummary }) {
+  const sabemos = resumen !== undefined && resumen.total > 0;
+
   return <>
-    <div className="mb-4 flex items-center gap-2 text-[13px] text-muted" role="status" aria-live="polite">
-      <RefreshCw size={14} className="animate-spin text-accent" />
-      <span>Leyendo logros, horas y rareza de {gameName}…</span>
-    </div>
-    <Skeleton className="h-40" />
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center gap-6">
+        {sabemos ? (
+          <ProgressRing
+            value={resumen.percent}
+            tone={resumen.complete ? 'success' : 'accent'}
+            label={`${gameName}: ${resumen.unlocked} de ${resumen.total} logros`}
+          >
+            <span className="text-[28px] font-semibold leading-none tabular-nums">
+              {Math.round(resumen.percent)}
+              <span className="text-[15px] font-medium text-muted"> %</span>
+            </span>
+            <span className="mt-1 text-[11px] tabular-nums text-faint">
+              {resumen.unlocked}/{resumen.total}
+            </span>
+          </ProgressRing>
+        ) : (
+          <Skeleton className="h-[132px] w-[132px] rounded-full" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[13px] text-muted" role="status" aria-live="polite">
+            <RefreshCw size={14} className="animate-spin text-accent" />
+            <span>Leyendo logros, horas y rareza de {gameName}…</span>
+          </div>
+          <Skeleton className="mt-3 h-4 w-2/3" />
+          <Skeleton className="mt-2 h-4 w-1/2" />
+        </div>
+      </div>
+    </Card>
     <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
       {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-28" />)}
     </div>
