@@ -188,6 +188,44 @@ setecientos millones de segundos". Todo epoch que cruza el puente —incluido
 `ContentAvailability.updatedAt`— es en segundos, como `unlockedAt`,
 `installedAt` y `lastPlayed`.
 
+## Séptima tanda: el contrato deja de mandar frases
+
+Saltó al traducir la interfaz. Con Atreus en inglés, la ficha seguía diciendo
+*Exigente* y *"Con tus 16,4 h llevas 30 de 38 logros"*, y Trofeos seguía diciendo
+*"Cliente de Steam"*. No era un olvido de traducción: eran frases **ya redactadas** que
+el proceso principal mandaba hechas, y ninguna traducción del renderer podía tocarlas.
+
+La regla que sale de aquí, y que vale para lo que venga:
+
+> **Por el IPC viajan datos, no frases.** El proceso principal no sabe en qué idioma
+> está la interfaz, y no tiene por qué saberlo. Manda el caso y sus números; la frase la
+> escribe quien la va a pintar.
+
+**Cambios de forma:**
+
+- `PlatinumDifficulty` pierde `label` y `explanation`, y gana `tier`
+  (`'veryEasy' | 'easy' | 'demanding' | 'hard' | 'brutal'`), `knownPercents` y `total`.
+- `PlatinumEstimate` pierde `explanation` y gana `reason`, una unión etiquetada con lo
+  que hace falta para escribir la frase: las horas jugadas, los logros, cuánto más
+  cuesta lo que falta, el tramo del juego.
+- `AchievementSet.source` pasa de `string` a `SourceRef`, un identificador con sus
+  datos. `PlatinumReport.sources` es ahora una lista de esos.
+- `AchievementSet.note` y `PlatinumReport.warning` pasan de `string` a `Notice`.
+- `steam.checkKey` y `xbox.checkKey` cambian `message` por `status`. Los datos que la
+  frase necesita —la cuenta, el número de juegos— ya venían en sus propios campos.
+- El evento `toast` cambia `message` por `notice: ToastNotice`.
+- `ScanProgress` pierde `message`: la fase ya decía lo mismo.
+
+**Las dos excepciones, a propósito.** `Notice` tiene un caso `definition` que lleva
+texto tal cual: lo escribió quien hizo la ficha de ese juego, y Atreus no tiene con qué
+traducirlo. Y el `detail` de un fallo lleva el mensaje del sistema. Es la misma línea
+que separa la interfaz de Atreus del contenido que encuentra: una guía de Steam en
+inglés se queda en inglés.
+
+**Dónde se escribe la frase:** `renderer/lib/platino.ts` para el informe y los logros,
+`renderer/lib/aviso.ts` para los avisos del proceso principal. Los dos reciben el
+traductor como argumento, así que no dependen de estar dentro de un componente.
+
 ## Cómo se implementa
 
 ```ts
