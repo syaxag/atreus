@@ -123,6 +123,16 @@ para ver si el ejecutable sale bien marcado—:
 npm run pack
 ```
 
+Y antes de dar por buena una versión, abrir Atreus de verdad y comprobar que
+hace lo que dice:
+
+```bash
+npm run smoke
+```
+
+Arranca la aplicación dos veces, la recorre entera y comprueba lo que ni el
+typecheck ni los tests pueden ver. Tarda unos tres minutos.
+
 Comprobar además, con la app **instalada** y no en desarrollo:
 
 - El icono y el nombre en el Administrador de tareas dicen «Atreus», no

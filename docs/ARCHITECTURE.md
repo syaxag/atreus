@@ -382,3 +382,8 @@ esa carpeta y comprobando que desaparecía solo.
 
 `platinum.json` además se subió a la raíz: no es una caché. No se vuelve a
 descargar, se recalcula abriendo un proceso de Steam por juego.
+
+Lo vigila `npm run smoke`, que comprueba que ningún archivo de Atreus acabe en
+una carpeta con `Cache_Data` dentro. Esa comprobación es de **disposición**, no
+de supervivencia, y el motivo importa: Chromium limpia cuando le toca, no en
+cada arranque, así que reiniciar dos veces daba verde con el fallo puesto.
