@@ -350,7 +350,10 @@ function GameCoverImage({ game }: { game: Game }) {
       list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${game.nativeId}/capsule_616x353.jpg`);
       list.push(`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.nativeId}/header.jpg`);
     }
-    return list;
+    // Una cadena vacía es una candidata que el navegador acepta y no pinta:
+    // deja un `<img>` roto de 0×0 en vez de caer a las iniciales. Medido en
+    // Minecraft, que llegaba con la dirección en blanco.
+    return list.filter((url) => url.trim().length > 0);
   }, [game.portraitUrl, game.headerUrl, game.platform, game.nativeId]);
 
   /**
@@ -363,16 +366,56 @@ function GameCoverImage({ game }: { game: Game }) {
 
   const imgSrc = fallbacks[fallbackIndex] ?? null;
 
+  /*
+   * Un banner apaisado no se estira para llenar un hueco vertical.
+   *
+   * Medido: los juegos sin póster caían a su banner de 460×215 metido con
+   * `cover` en una tarjeta de 217×325. Eso amplía **1,5 veces en vertical** y
+   * recorta el 69 % del ancho: la imagen sale pixelada y descuadrada, que es
+   * justo como se veía.
+   *
+   * La proporción no se sabe hasta que la imagen carga —puede ganar cualquiera
+   * de las candidatas—, así que se mide al cargarla. Si es apaisada, se
+   * presenta como lo hacen Playnite o GOG cuando les falta el arte vertical:
+   * el propio banner difuminado llenando el fondo y el banner entero encima,
+   * sin recortar ni ampliar. Parece hecho a propósito en vez de roto.
+   */
+  const [proporcion, setProporcion] = useState<number | null>(null);
+  const apaisada = proporcion !== null && proporcion > 1.1;
+
   if (imgSrc) {
     return (
-      <img
-        src={imgSrc}
-        alt=""
-        onError={() => setFallbackIndex((value) => value + 1)}
-        loading="lazy"
-        decoding="async"
-        className="h-full w-full object-cover transition-transform duration-500 ease-atreus group-hover:scale-[1.07]"
-      />
+      <div className="relative h-full w-full overflow-hidden">
+        {apaisada && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 scale-125 bg-cover bg-center opacity-45 blur-lg"
+            style={{ backgroundImage: `url("${imgSrc}")` }}
+          />
+        )}
+        <img
+          src={imgSrc}
+          alt=""
+          onError={() => setFallbackIndex((value) => value + 1)}
+          onLoad={(event) => {
+            const { naturalWidth: w, naturalHeight: h } = event.currentTarget;
+            if (w > 0 && h > 0) setProporcion(w / h);
+          }}
+          loading="lazy"
+          decoding="async"
+          className={cn(
+            'relative h-full w-full transition-transform duration-500 ease-atreus group-hover:scale-[1.07]',
+            apaisada ? 'object-contain' : 'object-cover',
+          )}
+        />
+        {/* Con el banner centrado sobra sitio arriba y abajo: el nombre lo
+            ocupa, que es lo que haría falta leer de todos modos. */}
+        {apaisada && (
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2.5 pb-2 pt-6 text-center text-[12px] font-semibold leading-tight text-white">
+            {game.name}
+          </span>
+        )}
+      </div>
     );
   }
 
