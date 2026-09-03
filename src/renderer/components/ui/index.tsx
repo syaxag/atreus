@@ -309,7 +309,13 @@ export function ProgressRing({
       className="relative shrink-0"
       style={{ width: size, height: size }}
     >
-      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+      {/*
+        `overflow-visible` no sobra: el trazo llega justo al borde del lienzo
+        —radio (size − stroke) / 2 más media anchura de trazo es exactamente
+        size / 2— y un SVG recorta a su viewport. El resplandor se pintaba
+        fuera y salía cortado en cuadrado alrededor del anillo.
+      */}
+      <svg width={size} height={size} className="-rotate-90 overflow-visible" aria-hidden="true">
         <circle
           cx={size / 2} cy={size / 2} r={radio}
           fill="none" stroke="var(--bg-inset)" strokeWidth={stroke}
