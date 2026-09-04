@@ -15,3 +15,9 @@ release/
 # Capturas sueltas de la raiz: material de trabajo, no del proyecto.
 /*.png
 !resources/*.png
+
+# El proyecto del video promocional y su MP4: material de marketing, no de
+# la aplicacion. El video pesa 26 MB y las capturas ya viven en docs/imagenes.
+videos/
+*.mp4
+!src/renderer/assets/*.mp4
