@@ -1,7 +1,7 @@
 import {
   linkSync, copyFileSync, mkdirSync, rmSync, rmdirSync, existsSync, renameSync, readdirSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import type { GameId, Mod } from '@shared/types';
 import { log } from '../../logger';
 import { listFiles } from './archive';
@@ -160,9 +160,29 @@ export function purge(gameId: GameId): number {
 }
 
 function removeEmptyDirs(root: string, relativePaths: string[]): void {
+  /*
+   * La cadena entera de carpetas, no solo la madre de cada archivo.
+   *
+   * Antes se cogía `dirname(p)` y ya: para `nueva/hondo/x.txt` eso es
+   * `nueva/hondo`, así que se retiraba esa y **`nueva` se quedaba vacía dentro
+   * del directorio del juego**. Purgar prometía no dejar rastro y dejaba las
+   * carpetas intermedias de cada mod. Lo encontró `test/deploy.test.ts`, que
+   * compara el árbol entero antes y después en vez de mirar archivo a archivo.
+   */
+  const todas = new Set<string>();
+  for (const ruta of relativePaths) {
+    let dir = dirname(ruta);
+    while (dir && dir !== '.' && dir !== sep && !/^[a-zA-Z]:[\\/]?$/.test(dir)) {
+      todas.add(dir);
+      const padre = dirname(dir);
+      if (padre === dir) break;
+      dir = padre;
+    }
+  }
+
   // De más profundo a menos, para que una carpeta padre pueda quedar vacía
   // después de haber vaciado a sus hijas.
-  const dirs = [...new Set(relativePaths.map((p) => dirname(p)).filter((d) => d && d !== '.'))]
+  const dirs = [...todas]
     .sort((a, b) => b.split(/[\\/]/).length - a.split(/[\\/]/).length);
 
   for (const relative of dirs) {
