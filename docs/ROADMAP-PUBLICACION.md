@@ -55,10 +55,11 @@ describir la aplicación y describía su pasado.
 Importa más de lo que parece al publicar: es lo primero que se lee, decide cómo
 te clasifica quien llega de fuera y aparece en la dirección para siempre.
 
-- Repositorio: **`atreus`**.
+- Repositorio: **`atreus`** — github.com/syaxag/atreus.
 - Carpeta local: **`Atreus`**.
 - `package.json` y el instalador ya se llamaban Atreus; ahí no había nada que
-  cambiar.
+  cambiar. Se le añaden `homepage`, `repository` y `bugs`, que es de donde
+  GitHub y npm sacan los enlaces de una ficha de proyecto.
 
 ## 2. El repositorio, público · ✅
 
@@ -68,6 +69,9 @@ tener Releases públicas, que es de donde la gente descarga.
 Con esto arranca además el CI que ya estaba escrito y no corría por no haber
 remoto: lint, tipos y 355 tests en cada empujón, sobre Windows.
 
+Y los temas del repositorio, que son como se encuentra desde fuera: steam,
+achievements, electron, trophy-hunter, platinum y los demás.
+
 ## 3. La Release, con el instalable · ✅
 
 `Atreus-0.1.1-setup.exe` publicado como Release `v0.1.1`, con su `latest.yml`
@@ -75,14 +79,30 @@ al lado —que es lo que hace posible el paso siguiente— y su `blockmap`, que
 permite descargar solo lo que cambia en las actualizaciones.
 
 **Windows va a avisar** de que no reconoce al editor. Tiene razón: firmar cuesta
-un certificado de pago que este proyecto no tiene. El README lo dice antes de
-que pase, con la alternativa —compilarlo uno mismo— al lado.
+un certificado de pago que este proyecto no tiene. El README y la propia release
+lo dicen antes de que pase, con la alternativa —compilarlo uno mismo— al lado.
+
+Comprobado que lo publicado es lo construido: el SHA-512 del `latest.yml` que
+sirve GitHub coincide con el del instalador que salió de `npm run dist`.
 
 ## 4. Las actualizaciones automáticas · ✅
 
 `electron-updater` estaba montado desde hacía meses y no tenía a quién
 preguntar. Ahora sí: el origen apunta a las Releases del repositorio y Atreus
 comprueba solo si hay versión nueva.
+
+Y el ajuste **viene vacío a propósito**, porque vacío ahora significa "las
+releases oficiales". Pedirle a cada usuario que pegue una URL para algo que solo
+tiene una respuesta posible es trabajo suyo que debería ser nuestro. Sigue
+siendo un ajuste: quien quiera apuntar a otro sitio, lo escribe.
+
+Eso dejaba dos cosas mintiendo en la interfaz y se arreglaron con él: el
+interruptor de descarga automática se desactivaba cuando el campo estaba vacío
+—que ahora es el caso normal— y la pista decía que había que configurarlo una
+vez.
+
+Comprobado con la aplicación instalada: se conecta al feed y contesta que ya
+está en la última versión.
 
 Publicar una versión pasa a ser: subir el número en `package.json`,
 `npm run dist`, y colgar la Release. Quien la tenga instalada se entera sola.
