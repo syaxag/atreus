@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction,
+} from 'react';
 import type { Mod, ModProfile, RemoteMod } from '@shared/types';
 import { api } from '@/lib/api';
 import { useTurno } from '@/lib/vigencia';
@@ -47,6 +49,22 @@ export function useMods(gameId: string | undefined, avisar: (mensaje: string) =>
   const [cargandoRemote, setCargandoRemote] = useState(false);
   const turno = useTurno();
 
+  /*
+   * Cómo avisar, por referencia y no por dependencia.
+   *
+   * La vista pasa `(mensaje) => pushToast('error', mensaje)`, que es lo normal
+   * y es una función **nueva en cada render**. Con ella en las dependencias de
+   * `recargar`, el efecto que la ejecuta se disparaba en cada render: cada
+   * carga invalidaba el turno de la anterior —que por eso salía sin apagar
+   * `cargando`— y encendía el suyo. El Taller se quedaba en esqueletos para
+   * siempre, pidiendo la lista sin parar.
+   *
+   * Se arregla aquí y no en quien llama: pedirle a cada vista que memorice su
+   * callback es una trampa que se olvida una vez y vuelve el mismo fallo.
+   */
+  const avisarRef = useRef(avisar);
+  avisarRef.current = avisar;
+
   const ordenar = (lista: Mod[]) => [...lista].sort((a, b) => a.order - b.order);
 
   const recargar = useCallback(async () => {
@@ -57,9 +75,9 @@ export function useMods(gameId: string | undefined, avisar: (mensaje: string) =>
     if (!vigente()) return;
     setMods(m.ok ? ordenar(m.data) : []);
     setProfiles(p.ok ? p.data : []);
-    if (!m.ok) avisar(m.error);
+    if (!m.ok) avisarRef.current(m.error);
     setCargando(false);
-  }, [gameId, avisar, turno]);
+  }, [gameId, turno]);
 
   const descubrir = useCallback(async () => {
     if (!gameId) return;
