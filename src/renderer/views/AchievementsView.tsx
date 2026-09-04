@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Search, Trophy, Lock, RotateCcw, Save, EyeOff, History, ShieldAlert, Filter, NotebookPen,
+  Search, Trophy, Lock, RotateCcw, Save, History, Filter, NotebookPen,
   Eye, BookOpen, Map as MapIcon,
 } from 'lucide-react';
-import type { Achievement, AchievementSet, GameStat, SteamSnapshot } from '@shared/types';
+import type { Achievement, GameStat, SteamSnapshot } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { comparar, dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
 import { explicarNota, nombreFuente } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
-import { useTurno } from '@/lib/vigencia';
+import { useLogros } from '@/hooks/useLogros';
+import { AchievementIcon, needsMap, RiskDialog } from './trofeos/piezas';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
 } from '@/components/ui';
@@ -49,24 +50,11 @@ export function AchievementsView() {
   const appId = game?.nativeId;
 
   const [tab, setTab] = useState<Tab>('achievements');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /**
-   * De dónde salen los logros de este juego. Manda sobre casi todo lo demás:
-   * si la plataforma no publica el progreso, la vista pasa a ser un registro
-   * que rellenas tú, y ni el aviso de riesgo ni el botón de guardar en Steam
-   * tienen sentido.
-   */
-  const [set, setSet] = useState<AchievementSet | null>(null);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [stats, setStats] = useState<GameStat[]>([]);
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
-  const [backups, setBackups] = useState<SteamSnapshot[]>([]);
   /** Filtro rápido: casi siempre interesa solo lo que falta. */
   const [onlyRemaining, setOnlyRemaining] = useState(false);
   const [sort, setSort] = useState<Sort>('common');
-  const turno = useTurno();
 
   /*
    * Aviso de riesgo. No se enseña al entrar —sería un peaje en cada visita—
@@ -91,58 +79,30 @@ export function AchievementsView() {
    */
   const [statDrafts, setStatDrafts] = useState<Record<string, string>>({});
 
+  /**
+   * De dónde salen los datos. Todo lo demás de esta vista es qué has cambiado
+   * sin guardar y cómo se pinta. Ver `hooks/useLogros.ts`.
+   *
+   * `set` manda sobre casi todo: si la plataforma no publica el progreso, la
+   * vista pasa a ser un registro que rellenas tú, y ni el aviso de riesgo ni el
+   * botón de guardar en Steam tienen sentido.
+   */
+  const {
+    set, items: achievements, stats, backups,
+    cargando: loading, error, recargar,
+  } = useLogros(gameId, appId);
+
+  /** Recargar es también tirar los borradores: eran contra los datos viejos. */
   const load = useCallback(async () => {
-    if (!gameId) return;
-    /*
-     * Steam tarda segundos y la barra lateral está a un clic: sin este guardia,
-     * abrir un juego y saltar a otro pintaba los logros del primero sobre el
-     * segundo cuando su respuesta llegaba tarde. Ver `lib/vigencia.ts`.
-     */
-    const vigente = turno();
-    setLoading(true);
-    setError(null);
     setAchPatch({});
     setStatPatch({});
     setStatDrafts({});
+    await recargar();
+  }, [recargar]);
 
-    // Una sola llamada, valga el juego de la tienda que valga: el backend
-    // decide si puede hablar con Steam o si toca el catálogo público.
-    const response = await api.achievements.list(gameId);
-    if (!vigente()) return;
-    if (!response.ok) {
-      setError(response.error);
-      setLoading(false);
-      return;
-    }
-    setSet(response.data);
-    setAchievements(response.data.items);
-
-    // Estadísticas e historial solo existen cuando manda el cliente de Steam.
-    if (response.data.writable && appId) {
-      const [s, b] = await Promise.all([api.steam.stats(appId), api.steam.backups(appId)]);
-      if (!vigente()) return;
-      if (s.ok) setStats(s.data);
-      if (b.ok) setBackups(b.data);
-    } else {
-      setStats([]);
-      setBackups([]);
-    }
-    setLoading(false);
-  }, [gameId, appId, turno]);
-
+  // Lo que sí es de la vista y no de los datos: el filtro y la pestaña vuelven
+  // a su sitio al cambiar de juego.
   useEffect(() => {
-    void load();
-    // Cada sesión es un proceso hijo de Steam. Sin este cierre, visitar cinco
-    // juegos deja cinco procesos vivos hasta que se cierre la app.
-    return () => { if (appId) void api.steam.close(appId); };
-  }, [load, appId]);
-
-  // Al cambiar de juego se descarta lo anterior en vez de enseñar los logros
-  // del juego previo mientras cargan los nuevos.
-  useEffect(() => {
-    setSet(null);
-    setAchievements([]);
-    setStats([]);
     setQuery('');
     setTab('achievements');
   }, [gameId]);
@@ -671,137 +631,3 @@ export function AchievementsView() {
 }
 
 /** Los mapas ayudan cuando el propio texto apunta a lugares o coleccionables. */
-function needsMap(achievement: Achievement): boolean {
-  return /coleccion|collect|ubicaci[oó]n|location|mapa|map\b|tesoro|treasure|secreto|secret|reliquia|relic/i
-    .test(`${achievement.displayName} ${achievement.description}`);
-}
-
-/**
- * El icono del logro, tal como lo enseña Steam.
- *
- * Steam publica dos imágenes por logro: la de color y la apagada. Antes se
- * cogía siempre la de color y se apagaba con un filtro CSS, que no es lo mismo
- * — la versión gris de Steam suele ser otro dibujo, no el mismo en gris. Ahora
- * se pide la que toca según el estado, con la otra de reserva y, como último
- * intento, el mismo archivo en el otro CDN de Valve: uno de los dos responde
- * casi siempre, y así el icono aparece incluso cuando el cliente todavía no lo
- * ha descargado a su caché.
- */
-function AchievementIcon({ achievement, unlocked }: { achievement: Achievement; unlocked: boolean }) {
-  const chain = useMemo(() => {
-    const preferred = unlocked ? achievement.iconUrl : achievement.iconGrayUrl;
-    const other = unlocked ? achievement.iconGrayUrl : achievement.iconUrl;
-    const urls = [preferred, other].filter((url): url is string => Boolean(url));
-    // Valve sirve lo mismo desde dos dominios; si uno falla, el otro vale.
-    const mirrors = urls
-      .filter((url) => url.startsWith('https://cdn.cloudflare.steamstatic.com/'))
-      .map((url) => url.replace('https://cdn.cloudflare.steamstatic.com/', 'https://media.steampowered.com/'));
-    return [...new Set([...urls, ...mirrors])];
-  }, [achievement.iconUrl, achievement.iconGrayUrl, unlocked]);
-
-  const [index, setIndex] = useState(0);
-
-  // Al cambiar de juego —o al pasar de bloqueado a desbloqueado— se vuelve a
-  // empezar por la primera opción en vez de quedarse en la reserva anterior.
-  useEffect(() => { setIndex(0); }, [chain]);
-
-  const src = chain[index] ?? null;
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt=""
-        onError={() => setIndex((value) => value + 1)}
-        loading="lazy"
-        decoding="async"
-        className={cn(
-          'h-full w-full object-cover transition-all duration-200 ease-atreus',
-          // El icono gris de Steam ya viene apagado; bajarle más la opacidad
-          // sería apagarlo dos veces.
-          !unlocked && !achievement.iconGrayUrl && 'opacity-40 grayscale contrast-75',
-          !unlocked && 'saturate-[.85]',
-        )}
-      />
-    );
-  }
-
-  if (achievement.hidden) {
-    return <EyeOff size={16} className={cn(!unlocked && 'opacity-40')} />;
-  }
-
-  return (
-    <span className={cn('select-none font-bold', !unlocked && 'opacity-40')}>
-      {achievement.displayName.charAt(0).toUpperCase()}
-    </span>
-  );
-}
-
-/**
- * El aviso antes de tocar un logro.
- *
- * Se sale del tono habitual de la aplicación a propósito: no es una nota al
- * pie, es la única pantalla que pide una decisión informada. Dice las tres
- * cosas que hacen falta y ninguna más — qué hace, qué no pasa, y qué se pierde
- * de verdad — sin dramatizar ni quitarle importancia.
- */
-function RiskDialog({
-  open, onAccept, onCancel,
-}: { open: boolean; onAccept: () => void; onCancel: () => void }) {
-  const t = useT();
-  return (
-    <Modal
-      open={open}
-      title={t('tro.avisoTitulo')}
-      icon={<ShieldAlert size={18} className="text-warn" />}
-      onClose={onCancel}
-      footer={<>
-        <Button variant="ghost" onClick={onCancel}>{t('tro.avisoMejorNo')}</Button>
-        <Button variant="primary" onClick={onAccept}>{t('tro.avisoContinuar')}</Button>
-      </>}
-    >
-      <p className="text-[13px] leading-6">{t('aviso.entradilla')}</p>
-
-      <div className="mt-4 flex flex-col gap-3">
-        <Point tone="ok" title={t('tro.avisoNoBaneable')}>
-          {t('aviso.noBaneableCuerpo')}
-        </Point>
-
-        <Point tone="warn" title={t('tro.avisoArruina')}>
-          {t('aviso.arruinaCuerpo')}
-        </Point>
-
-        <Point tone="warn" title={t('tro.avisoSinVuelta')}>
-          {t('aviso.sinVueltaCuerpo')}
-        </Point>
-      </div>
-
-      {/* La salida va partida en dos claves con el enlace en medio: una sola
-          cadena con etiquetas dentro obligaría a traducir HTML, y eso es
-          justo donde una traducción rompe la interfaz. */}
-      <p className="mt-4 rounded-sm border border-line bg-inset px-3 py-2.5 text-[12px] leading-5 text-muted">
-        {t('aviso.salidaAntes')}
-        <strong className="text-fg">{t('tro.avisoJugandoFuerte')}</strong>
-        {t('aviso.salidaDespues')}
-      </p>
-
-      <p className="mt-3 text-[11px] leading-5 text-faint">{t('aviso.soloUnaVez')}</p>
-    </Modal>
-  );
-}
-
-function Point({
-  tone, title, children,
-}: { tone: 'ok' | 'warn'; title: string; children: React.ReactNode }) {
-  return (
-    <div className={cn(
-      'rounded-sm border-l-2 pl-3',
-      tone === 'ok' ? 'border-[var(--success-line)]' : 'border-[var(--warn-line)]',
-    )}>
-      <p className={cn('text-[13px] font-semibold', tone === 'ok' ? 'text-success' : 'text-warn')}>
-        {title}
-      </p>
-      <p className="mt-0.5 text-[12px] leading-5 text-muted">{children}</p>
-    </div>
-  );
-}

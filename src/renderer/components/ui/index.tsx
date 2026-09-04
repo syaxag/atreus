@@ -405,17 +405,80 @@ export function Modal({
   useEffect(() => {
     if (!open) return;
     modalesAbiertos++;
+
+    /*
+     * Quién tenía el foco antes, para devolvérselo al cerrar.
+     *
+     * Sin esto, cerrar un diálogo dejaba el foco en el `<body>`: el tabulador
+     * volvía a empezar por la esquina de la ventana en vez de seguir por donde
+     * ibas, y quien navega con teclado perdía el sitio en cada confirmación.
+     */
+    const teniaElFoco = window.document.activeElement as HTMLElement | null;
     dialog.current?.focus();
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      cerrar.current();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        cerrar.current();
+        return;
+      }
+
+      /*
+       * El tabulador no sale del diálogo.
+       *
+       * Es lo que le faltaba: `aria-modal` se lo dice a un lector de pantalla,
+       * pero al tabulador no le dice nada, así que el foco se iba a los botones
+       * de la vista de detrás —que están tapados por el fondo y no se pueden
+       * ver— y desde ahí se podía pulsar a ciegas lo que hubiera debajo.
+       */
+      if (event.key !== 'Tab' || !dialog.current) return;
+
+      /*
+       * Sin filtrar por visibilidad a propósito.
+       *
+       * El primer intento descartaba lo que tuviera `offsetParent` nulo, y eso
+       * está mal por dos lados: jsdom no maqueta y lo devuelve siempre nulo
+       * —los tests salían con un solo elemento enfocable—, y en el navegador
+       * también es nulo para todo lo que cuelgue de `position: fixed`, que es
+       * justo cómo está montado este diálogo. El selector ya deja fuera lo
+       * deshabilitado y lo que se saca del tabulador, que es lo que importa.
+       */
+      const enfocables = [...dialog.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]),'
+        + ' textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )].filter((el) => !el.hasAttribute('hidden'));
+
+      // Un diálogo sin nada que enfocar retiene el foco en sí mismo, que ya es
+      // enfocable por código.
+      if (enfocables.length === 0) {
+        event.preventDefault();
+        dialog.current.focus();
+        return;
+      }
+
+      const primero = enfocables[0]!;
+      const ultimo = enfocables[enfocables.length - 1]!;
+      const actual = window.document.activeElement;
+
+      // Se envuelve por los dos extremos, y también cuando el foco está en el
+      // propio diálogo: ahí Shift+Tab debe ir al último, no salirse.
+      if (event.shiftKey && (actual === primero || actual === dialog.current)) {
+        event.preventDefault();
+        ultimo.focus();
+      } else if (!event.shiftKey && actual === ultimo) {
+        event.preventDefault();
+        primero.focus();
+      }
     };
+
     window.addEventListener('keydown', onKeyDown, true);
     return () => {
       modalesAbiertos--;
       window.removeEventListener('keydown', onKeyDown, true);
+      // Solo si sigue en el documento: el botón que abrió el diálogo puede
+      // haberse ido con él.
+      if (teniaElFoco?.isConnected) teniaElFoco.focus();
     };
   }, [open]);
 
