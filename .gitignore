@@ -11,3 +11,7 @@ release/
 
 # Cachés de compilación de TypeScript: se regeneran solas.
 *.tsbuildinfo
+
+# Capturas sueltas de la raiz: material de trabajo, no del proyecto.
+/*.png
+!resources/*.png

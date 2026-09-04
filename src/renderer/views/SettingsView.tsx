@@ -371,7 +371,7 @@ export function SettingsView() {
               <Input
                 value={settings.updateSource}
                 onChange={(event) => void patch({ updateSource: event.target.value })}
-                placeholder="https://updates.tudominio.com/atreus"
+                placeholder={t('ajustes.origenPorDefecto')}
                 className="w-96 max-w-full font-mono text-[12px]"
               />
             </Row>
@@ -390,7 +390,6 @@ export function SettingsView() {
             >
               <Toggle
                 checked={settings.autoDownloadUpdates}
-                disabled={!settings.updateSource.trim()}
                 onChange={(value) => void patch({ autoDownloadUpdates: value })}
               />
             </Row>

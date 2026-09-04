@@ -5,6 +5,14 @@
   "private": true,
   "author": "Syax",
   "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/syaxag/atreus",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syaxag/atreus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/syaxag/atreus/issues"
+  },
   "main": "./out/main/index.js",
   "engines": {
     "node": ">=22.6"

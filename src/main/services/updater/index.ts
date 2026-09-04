@@ -82,8 +82,26 @@ export interface UpdateCheck {
   version: string | null;
 }
 
+/**
+ * De dónde se bajan las versiones nuevas cuando nadie ha dicho otra cosa.
+ *
+ * `electron-updater` llevaba meses montado sin nadie a quien preguntar: el
+ * ajuste venía vacío, así que "Buscar actualizaciones" contestaba que no había
+ * origen configurado y quien instalaba Atreus se quedaba en su versión para
+ * siempre. Pedirle a cada usuario que pegue una URL para algo que solo tiene
+ * una respuesta posible es trabajo suyo que debería ser nuestro.
+ *
+ * `/releases/latest/download/` es la dirección estable de GitHub: apunta
+ * siempre a los archivos de la última Release publicada, sin nombrar versiones.
+ * Ahí es donde `npm run dist` deja el instalador y su `latest.yml`.
+ *
+ * Sigue siendo un ajuste: quien quiera apuntar a otro sitio —una copia propia,
+ * una versión de pruebas— lo cambia en Ajustes y esto deja de aplicarse.
+ */
+const FEED_POR_DEFECTO = 'https://github.com/syaxag/atreus/releases/latest/download';
+
 function releaseFeed(): string | null {
-  const source = getSettings().updateSource.trim().replace(/\/+$/, '');
+  const source = (getSettings().updateSource.trim() || FEED_POR_DEFECTO).replace(/\/+$/, '');
   if (!source) return null;
   try {
     const url = new URL(source);
