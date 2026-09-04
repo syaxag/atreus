@@ -7,6 +7,7 @@ import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
 import { relative } from '@/lib/format';
 import { IDIOMAS, useT, type Clave, type Huecos } from '@/i18n';
+import { DONAR, TIKTOK } from '@/lib/enlaces';
 import { Badge, Button, Card, Input, Toggle, ViewHeader } from '@/components/ui';
 
 interface KeyCheck {
@@ -35,6 +36,15 @@ export function SettingsView() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<number | null>(null);
+
+  /*
+   * Alias local del enlace de donación.
+   *
+   * TypeScript no conserva el estrechamiento de un import dentro de una función
+   * flecha —para él una importación puede cambiar por debajo—, así que sin esto
+   * el `onClick` no sabe que ya se comprobó que no es nulo.
+   */
+  const donar = DONAR;
 
   const loadCatalog = useCallback(async () => {
     const res = await api.catalog.version();
@@ -435,20 +445,36 @@ export function SettingsView() {
                     TikTok. No se traduce —es un nombre, no una frase— y va en
                     monoespaciada como el resto de los identificadores de Atreus.
                   */}
-                  <Badge tone="accent" mono>@hv_syax</Badge>
+                  {TIKTOK.etiqueta && <Badge tone="accent" mono>{TIKTOK.etiqueta}</Badge>}
                 </div>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted">
                   {t('ajustes.apoyoCuerpo')}
                 </p>
               </div>
 
-              <Button
-                variant="primary"
-                onClick={() => void api.settings.openPath('https://www.tiktok.com/@hv_syax')}
-              >
-                {/* El identificador no se traduce: es un nombre, no una frase. */}
-                <ExternalLink size={14} /> {t('ajustes.apoyoBoton')}
-              </Button>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {/*
+                  Donar va primero y en morado; seguir, al lado y apagado.
+                  No porque importe más, sino porque son dos acciones distintas
+                  y una interfaz con dos botones iguales obliga a leerlos los
+                  dos para elegir.
+
+                  Si no hay dirección de donación, este botón no existe. Ver
+                  `lib/enlaces.ts`: uno que no lleva a ninguna parte es peor que
+                  ninguno, porque quien lo pulsa ya venía con la intención.
+                */}
+                {donar && (
+                  <Button variant="primary" onClick={() => void api.settings.openPath(donar.url)}>
+                    <Heart size={14} fill="currentColor" /> {t('ajustes.apoyoDonar')}
+                  </Button>
+                )}
+                <Button
+                  variant={donar ? 'outline' : 'primary'}
+                  onClick={() => void api.settings.openPath(TIKTOK.url)}
+                >
+                  <ExternalLink size={14} /> {t('ajustes.apoyoBoton')}
+                </Button>
+              </div>
             </div>
           </Card>
 

@@ -124,12 +124,18 @@ Electron 33 · TypeScript · React 18 · Tailwind 3.4 · Zustand · koffi (FFI a
 
 ## Apóyame con este proyecto
 
-Atreus lo hago yo solo, por gusto y en mis ratos. No pide dinero, no lleva
-anuncios y no recoge nada tuyo. Si te sirve, el apoyo que vale es un seguimiento:
+Atreus lo hago yo solo, por gusto y en mis ratos. **Es gratis y va a seguir
+siéndolo**: no lleva anuncios, no pide cuenta y no recoge nada tuyo.
 
-**→ TikTok: [@hv_syax](https://www.tiktok.com/@hv_syax)**
+Si te sirve y te apetece echar una mano:
 
-Ahí voy contando cómo se construye y qué cae después.
+- **Sígueme en TikTok** — [@hv_syax](https://www.tiktok.com/@hv_syax). Ahí voy
+  contando cómo se construye y qué cae después. Es gratis y es lo que más ayuda.
+- **Invítame a un café** — <!-- DONAR --> *(en cuanto tenga el enlace puesto)*
+
+Ni lo uno ni lo otro desbloquea nada dentro de la aplicación. No hay versión de
+pago, ni funciones guardadas detrás de una donación: lo que ves es todo lo que
+hay, para todo el mundo.
 
 ## Créditos
 

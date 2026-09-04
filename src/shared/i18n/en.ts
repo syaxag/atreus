@@ -675,8 +675,9 @@ export const en: Record<Clave, string> = {
   'ajustes.yaAlDia': 'You are on the latest version',
   'ajustes.descargandoAviso': 'Downloading the update; Atreus will restart when it finishes.',
   'ajustes.apoyo': 'Support this project',
-  'ajustes.apoyoCuerpo': 'I build Atreus on my own, for fun, in my spare time. It asks for no money, carries no ads and collects nothing of yours. If it is useful to you, a follow is the support that counts: that is where I show how it is built and what comes next.',
+  'ajustes.apoyoCuerpo': 'I build Atreus on my own, for fun, in my spare time. It is free and it is staying free: no ads, no accounts, nothing of yours collected. Chipping in is optional and unlocks nothing — there is no paid version.',
   'ajustes.apoyoBoton': 'Follow on TikTok',
+  'ajustes.apoyoDonar': 'Buy me a coffee',
   'ajustes.alcance': 'Scope',
   'ajustes.alcanceCuerpo': 'Atreus modifies neither the memory nor the files of your games. It reads your library, talks to the Steam client for achievements, and everything else —guides, maps, rarity— is a query to a public source. Mods do write into the game folder, and they always say so first.',
 
