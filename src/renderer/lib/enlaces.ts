@@ -29,8 +29,11 @@ export const TIKTOK: Enlace = {
 /**
  * Donde se puede echar una mano, si alguien quiere.
  *
- * `null` mientras no haya una dirección de verdad, y la interfaz **no pinta el
- * botón** en ese caso: un botón de donar que no lleva a ninguna parte es peor
- * que no tenerlo, porque el que lo pulsa ya venía con la intención puesta.
+ * Admite `null`, y entonces la interfaz **no pinta el botón**: uno que no lleva
+ * a ninguna parte es peor que no tenerlo, porque el que lo pulsa ya venía con
+ * la intención puesta. Sirve para dejar la aplicación publicable mientras la
+ * dirección no exista, y para quitarla sin tocar ninguna vista.
  */
-export const DONAR: Enlace | null = null;
+export const DONAR: Enlace | null = {
+  url: 'https://paypal.me/yaelarellano',
+};

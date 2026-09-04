@@ -675,7 +675,7 @@ export const en: Record<Clave, string> = {
   'ajustes.yaAlDia': 'You are on the latest version',
   'ajustes.descargandoAviso': 'Downloading the update; Atreus will restart when it finishes.',
   'ajustes.apoyo': 'Support this project',
-  'ajustes.apoyoCuerpo': 'I build Atreus on my own, for fun, in my spare time. It is free and it is staying free: no ads, no accounts, nothing of yours collected. Chipping in is optional and unlocks nothing — there is no paid version.',
+  'ajustes.apoyoCuerpo': 'I build Atreus on my own, for fun, in my spare time. It is free and it is staying free: no ads, no accounts, nothing of yours collected. If it is useful to you, you can buy me a coffee or follow me on TikTok. Both help, neither is needed, and neither unlocks anything: there is no paid version.',
   'ajustes.apoyoBoton': 'Follow on TikTok',
   'ajustes.apoyoDonar': 'Buy me a coffee',
   'ajustes.alcance': 'Scope',

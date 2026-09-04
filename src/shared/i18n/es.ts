@@ -671,7 +671,7 @@ export const es = {
   'ajustes.yaAlDia': 'Ya estás en la última versión',
   'ajustes.descargandoAviso': 'Descargando actualización; Atreus se reiniciará al terminar.',
   'ajustes.apoyo': 'Apóyame con este proyecto',
-  'ajustes.apoyoCuerpo': 'Atreus lo hago yo solo, por gusto y en mis ratos. Es gratis y va a seguir siéndolo: sin anuncios, sin cuentas y sin recoger nada tuyo. Echar una mano es opcional y no desbloquea nada — no hay versión de pago.',
+  'ajustes.apoyoCuerpo': 'Atreus lo hago yo solo, por gusto y en mis ratos. Es gratis y va a seguir siéndolo: sin anuncios, sin cuentas y sin recoger nada tuyo. Si te sirve, puedes invitarme a un café o seguirme en TikTok. Las dos ayudan, ninguna hace falta, y ninguna desbloquea nada: no hay versión de pago.',
   'ajustes.apoyoBoton': 'Seguir en TikTok',
   'ajustes.apoyoDonar': 'Invítame a un café',
   'ajustes.alcance': 'Alcance',

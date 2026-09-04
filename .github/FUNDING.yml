@@ -1,0 +1,7 @@
+# El botón "Sponsor" de la página del repositorio.
+#
+# PayPal no es uno de los servicios que GitHub reconoce por nombre, así que va
+# como enlace propio. Es el mismo que enseña la aplicación en Ajustes, y vive
+# también en src/renderer/lib/enlaces.ts: si cambia, hay que cambiarlo en los
+# dos sitios.
+custom: ['https://paypal.me/yaelarellano']
