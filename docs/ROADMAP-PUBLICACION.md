@@ -56,7 +56,11 @@ Importa más de lo que parece al publicar: es lo primero que se lee, decide cóm
 te clasifica quien llega de fuera y aparece en la dirección para siempre.
 
 - Repositorio: **`atreus`** — github.com/syaxag/atreus.
-- Carpeta local: **`Atreus`**.
+- Carpeta local: **`Atreus`**. Windows no deja renombrar un directorio que es
+  el directorio actual de algún proceso, así que se hace al cerrar la terminal:
+  `Videos/renombrar-a-atreus.ps1` espera a que se libere y lo renombra solo.
+  No arrastra nada, porque nada del proyecto guarda su propia ruta —ni los
+  lanzadores de `node_modules`— y se comprobó antes.
 - `package.json` y el instalador ya se llamaban Atreus; ahí no había nada que
   cambiar. Se le añaden `homepage`, `repository` y `bugs`, que es de donde
   GitHub y npm sacan los enlaces de una ficha de proyecto.
