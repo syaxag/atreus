@@ -1,8 +1,11 @@
 # Hoja de ruta de calidad
 
-Quince cosas que salieron de revisar el proyecto entero con los tests pasando y
-el typecheck limpio. No son funcionalidad: son los bordes que quedan cuando lo
-que se ve por delante ya funciona.
+Dieciocho cosas que salieron de revisar el proyecto entero con los tests pasando
+y el typecheck limpio. Empezaron siendo quince; las tres últimas se anotaron al
+cerrar esa lista, porque arreglar una cosa enseña la siguiente.
+
+No son funcionalidad: son los bordes que quedan cuando lo que se ve por delante
+ya funciona.
 
 El orden **no es por gravedad, es por dependencia**. Lo primero es el arnés —CI,
 linter, compilador más estricto—, porque cada arreglo posterior se comprueba con
@@ -10,8 +13,11 @@ linter, compilador más estricto—, porque cada arreglo posterior se comprueba 
 encima. Lo último son las vistas, que es donde más código se mueve y donde más
 falta hace tener todo lo demás en verde.
 
-Estado: **los quince, hechos.** Y el arnés encontró por su cuenta cuatro
-defectos más que esta lista no traía: están al final, en su propia sección.
+Estado: **los quince, hechos**, más los tres bordes que quedaron anotados al
+cerrarla (fase 5). Y el arnés encontró por su cuenta cuatro defectos más que
+esta lista no traía: están al final, en su propia sección.
+
+De 266 tests a **397**.
 
 ---
 
@@ -274,6 +280,67 @@ entero** antes y después en vez de mirar archivo a archivo. `removeEmptyDirs`
 recogía la carpeta madre de cada archivo, no la cadena entera: un mod con
 `nueva/hondo/x.txt` dejaba `nueva/` vacía dentro del directorio del juego.
 Purgar prometía no dejar rastro y dejaba una carpeta por cada mod anidado.
+
+---
+
+---
+
+## Fase 5 · Los bordes que quedaron sin red
+
+La fase 3 abrió la puerta a probar el proceso principal, y con ella se cerró lo
+más destructivo. Pero quedaron tres sitios donde Atreus **decide qué se puede
+tocar del disco**, y ninguno tenía una comprobación. Se anotaron al cerrar la
+lista y son la continuación natural de la fase 3, no una lista nueva.
+
+### 16. Las copias de seguridad de Steam · ✅
+
+Es la pieza que la fase 0 resucitó: `saveSnapshot` estaba importada y no la
+llamaba nadie, así que la carpeta de copias estaba siempre vacía y "Restaurar"
+no podía funcionar. Se arregló, y desde entonces lo único que respalda que
+funcione es que el código **parece** correcto.
+
+Eso no basta para la red de seguridad de lo único que escribe en Steam. Ahora
+se comprueba lo que promete: que la copia se guarda **entera** —cada logro y
+cada estadística, con su valor de partida, o no se podría revertir—, que se
+recupera por su identificador, que un archivo corrupto no se lleva por delante a
+los buenos, que media copia se descarta en vez de aplicarse, y que se conservan
+doce por juego, que son las doce últimas y no doce cualesquiera.
+
+**Comprobación:** `test/backups.test.ts`, 14 tests.
+
+### 17. El protocolo `atreus://` · ✅
+
+Sirve archivos del disco al renderer y valida las rutas a mano. Es un borde de
+la misma familia que los de la fase 2 —lo que entra decide qué se lee— y era el
+único que quedaba sin una sola comprobación. Un fallo ahí convierte "enseñar una
+carátula" en "leer cualquier archivo que el renderer sepa nombrar", y el
+renderer enseña texto de webs de terceros.
+
+Era **imposible de probar** hasta ahora: `protocol.handle()` registra un
+manejador que solo llama Chromium. El doble de Electron se queda con él y lo
+presta, que es la misma regla de la fase 3 aplicada un escalón más allá.
+
+**Comprobación:** `test/protocolo.test.ts`, 12 tests. Entre ellos, que un AppID
+que no es un número no entra en una ruta, que un nombre de icono no puede
+salirse de su carpeta, y que registrar de nuevo **olvida** lo anterior: si se
+acumulara, un juego desinstalado seguiría sirviendo su carátula para siempre.
+
+### 18. Las definiciones que llegan de fuera · ✅
+
+La fase 2 cerró el origen (HTTPS) y el destino (`mods.root`). Lo que quedaba en
+medio sin probar era el portero: qué JSON se acepta como definición de juego.
+Importa porque estos archivos **no siempre los escribe quien usa Atreus**: se
+sincronizan de un catálogo y caen en la capa del usuario, que manda sobre la de
+fábrica.
+
+Se prueba dejando archivos donde los deja el catálogo y releyendo, no llamando a
+la función de validación: así entra también lo que la rodea —qué archivos se
+miran, qué pasa con un JSON roto, qué capa gana—, que es donde de verdad se
+puede colar algo.
+
+**Comprobación:** `test/definiciones.test.ts`, 13 tests. El que más vale es el
+del identificador: acaba siendo un nombre de carpeta, así que se comprueba que
+un `steam:../../etc` no pasa.
 
 ---
 

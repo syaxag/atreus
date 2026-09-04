@@ -42,16 +42,23 @@ export const app = {
   requestSingleInstanceLock: () => true,
 };
 
-/**
- * La red, apagada por defecto.
- *
- * Un test que llegue aquí sin querer falla diciendo lo que intentó pedir, en
- * vez de salir de verdad a internet y tardar treinta segundos en decir nada.
- * Para probar una respuesta concreta se pone `net.fetch` a mano.
- */
 export const net = {
+  /**
+   * La red, apagada; el disco, no.
+   *
+   * Un `file://` sí se sirve: es lo que hace el protocolo `atreus://` para
+   * entregarle una carátula al renderer, y sin esto no se podría comprobar que
+   * entrega **la que toca**. Cualquier otra cosa falla diciendo lo que intentó
+   * pedir, en vez de salir de verdad a internet y tardar treinta segundos.
+   */
   fetch: async (url: string | URL): Promise<Response> => {
-    throw new Error(`Un test intentó salir a la red: ${String(url)}`);
+    const texto = String(url);
+    if (texto.startsWith('file:')) {
+      const { readFileSync } = await import('node:fs');
+      const { fileURLToPath } = await import('node:url');
+      return new Response(readFileSync(fileURLToPath(texto)));
+    }
+    throw new Error(`Un test intentó salir a la red: ${texto}`);
   },
 };
 
@@ -79,10 +86,33 @@ export const ipcMain = {
   on: () => undefined,
 };
 
+/**
+ * El registro de esquemas propios, con memoria.
+ *
+ * `protocol.handle()` se queda con la función que le pasa la aplicación, para
+ * que un test pueda pedirle un `atreus://…` y ver qué contesta. Sin esto, el
+ * protocolo era código imposible de ejercitar: registra un manejador al
+ * arrancar y nadie fuera de Chromium puede llamarlo.
+ *
+ * Es el mismo criterio que el resto del doble: no se inventa comportamiento,
+ * se guarda lo que la aplicación entrega para poder mirarlo.
+ */
+const manejadores = new Map<string, (peticion: Request) => Promise<Response> | Response>();
+
 export const protocol = {
   registerSchemesAsPrivileged: () => undefined,
-  handle: () => undefined,
+  handle: (esquema: string, fn: (peticion: Request) => Promise<Response> | Response) => {
+    manejadores.set(esquema, fn);
+  },
 };
+
+/** Lo que contestaría Atreus a esa dirección. Solo para los tests. */
+export function pedirA(url: string): Promise<Response> | Response {
+  const esquema = url.slice(0, url.indexOf(':'));
+  const fn = manejadores.get(esquema);
+  if (!fn) throw new Error(`Nadie registró el esquema "${esquema}"`);
+  return fn(new Request(url));
+}
 
 export const BrowserWindow = class {
   static getAllWindows() { return []; }
