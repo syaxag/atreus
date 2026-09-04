@@ -1,10 +1,29 @@
 # Atreus
 
-Aplicación personal de Windows para **cazar platinos**: saber qué te falta para el
+Aplicación de Windows para **cazar platinos**: saber qué te falta para el
 100 % de logros de cada juego, cuánto te va a costar, leer las guías que lo explican y
 abrir los mapas donde está cada cosa — todo dentro de la misma ventana.
 
-Uso personal. Ver [docs/SCOPE.md](docs/SCOPE.md).
+Gratis. Sin cuentas, sin anuncios y sin telemetría: Atreus no manda nada a
+ninguna parte. Ver [docs/SCOPE.md](docs/SCOPE.md).
+
+## Descargar
+
+**[→ Descarga la última versión](../../releases/latest)** · Windows 10 u 11, 64 bits.
+
+Bájate el `Atreus-<versión>-setup.exe` de la sección *Assets* y ábrelo. No hace falta
+tener nada más instalado.
+
+> **Windows te va a avisar** de que no reconoce al editor, y tiene razón: firmar un
+> ejecutable cuesta un certificado de pago que este proyecto no tiene. Pulsa
+> *Más información* → *Ejecutar de todas formas*. Si prefieres no fiarte de eso
+> —haces bien—, el código está entero aquí y puedes compilarlo tú: mira *Arrancar*.
+
+Atreus se actualiza solo cuando hay versión nueva, si lo dejas activado en Ajustes.
+
+Es gratis y puedes usarlo en los equipos que quieras, pero **no se puede
+redistribuir**: si quieres pasárselo a alguien, pásale este enlace. Los términos
+completos, en [LICENSE](LICENSE).
 
 ## Qué hace
 
@@ -61,10 +80,20 @@ abiertos. Para el backend real:
 npm run dev
 ```
 
-Comprobar que el contrato sigue en pie:
+Comprobar que todo sigue en pie —linter, tipos y 355 tests—:
 
 ```bash
-npm run typecheck
+npm test
+```
+
+```bash
+npm run lint && npm run typecheck
+```
+
+Y con la aplicación delante, que es lo que no ven ni el uno ni los otros:
+
+```bash
+npm run smoke
 ```
 
 **Instalable**: `npm run dist` genera `release/Atreus-<versión>-setup.exe`. El
@@ -80,7 +109,7 @@ nuevo. Los tres caminos, con su estado real, en [docs/UPDATING.md](docs/UPDATING
 
 ```
 docs/                 Arquitectura, contrato, diseño, alcance, actualizaciones
-scripts/              Herramientas: icono, trofeo, manifiesto de versiones
+scripts/              Herramientas: icono, manifiesto de versiones, prueba de humo
 data/games/           Fichas por juego (mapas, proveedores de mods) — extensible
 src/shared/           Tipos e interfaz IPC, compartidos por los dos lados
 src/main/             Proceso principal: catálogo, Steam, platino, guías, mapas, mods

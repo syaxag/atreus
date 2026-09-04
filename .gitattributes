@@ -1,0 +1,27 @@
+# Finales de línea: LF en el repositorio, lo que toque en el disco.
+#
+# Sin esto, cada `git add` desde Windows escupe veinte avisos de "LF will be
+# replaced by CRLF" y, lo que importa más, un clon hecho en otro sistema puede
+# acabar con diferencias en archivos que nadie ha tocado.
+* text=auto eol=lf
+
+# Los .cjs y .mjs son código igual que el resto; se dicen aparte porque git no
+# siempre los reconoce como texto por la extensión.
+*.cjs   text eol=lf
+*.mjs   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+
+# Binarios: que git no intente arreglarles nada ni enseñar diferencias.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.mp4   binary
+*.7z    binary
+*.zip   binary
+*.exe   binary
