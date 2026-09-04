@@ -118,7 +118,9 @@ export function LibraryView() {
     });
     return () => { alive = false; };
     // `loadingContent` no es dependencia a propósito: cambiarlo no debe
-    // cancelar la consulta que acabamos de iniciar.
+    // cancelar la consulta que acabamos de iniciar. Se silencia con el motivo
+    // escrito, que es la única forma honesta de callar a esta regla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsContent, contentComplete, games, pushToast]);
 
   const visible = useMemo(() => {

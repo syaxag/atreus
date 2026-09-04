@@ -504,7 +504,7 @@ export const mockApi: AtreusApi = {
       return ok(undefined);
     },
 
-    async deleteProfile(gameId, profileId) {
+    async deleteProfile(_gameId, profileId) {
       await wait(120, 240);
       profiles = profiles.filter((p) => p.id !== profileId);
       return ok(undefined);
@@ -539,7 +539,7 @@ export const mockApi: AtreusApi = {
   },
 
   guides: {
-    async list(gameId, category, query, refresh) {
+    async list(gameId, category, query, _refresh) {
       await wait(400, 900);
       const game = games.find((g) => g.id === gameId);
       const name = game?.name ?? 'el juego';
@@ -601,7 +601,7 @@ export const mockApi: AtreusApi = {
       return mockApi.maps.list(gameId);
     },
 
-    async list(gameId, refresh) {
+    async list(gameId, _refresh) {
       await wait(300, 700);
       const game = games.find((g) => g.id === gameId);
       if (!game) return err(`Juego no encontrado: ${gameId}`, 'NOT_FOUND');

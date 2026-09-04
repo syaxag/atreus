@@ -44,10 +44,17 @@ export function SettingsView() {
     void loadCatalog();
   }, [loadCatalog]);
 
+  /*
+   * Las dos claves, y las dos en las dependencias.
+   *
+   * Solo estaba la de Steam: la de Xbox se copiaba al campo pero nadie miraba
+   * si había cambiado, así que el cuadro se quedaba con lo que hubiera al
+   * montar la vista. Lo cazó `react-hooks/exhaustive-deps`, no un uso.
+   */
   useEffect(() => {
     setApiKey(settings?.steamWebApiKey ?? '');
     setXboxKey(settings?.xboxApiKey ?? '');
-  }, [settings?.steamWebApiKey]);
+  }, [settings?.steamWebApiKey, settings?.xboxApiKey]);
 
   useEffect(() => api.on('update:available', ({ version: nextVersion }) => {
     setUpdateVersion(nextVersion);

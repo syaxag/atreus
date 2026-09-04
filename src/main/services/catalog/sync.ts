@@ -1,5 +1,5 @@
 import {
-  readFileSync, writeFileSync, copyFileSync, readdirSync, existsSync, mkdirSync, rmSync,
+  readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync,
 } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';

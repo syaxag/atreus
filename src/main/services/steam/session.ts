@@ -1,4 +1,5 @@
 import { fork, type ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type {
   Achievement, AchievementPatch, GameStat, StatPatch, SteamSession, SteamSessionState,
@@ -373,16 +374,45 @@ export async function canWrite(appId: string): Promise<boolean> {
   return (await connected(appId)).writable;
 }
 
+/**
+ * Guarda cómo estaba el juego **antes** de tocarlo.
+ *
+ * Es lo que hace que la pestaña de Historial signifique algo: sin esta llamada
+ * la carpeta de copias se queda vacía para siempre y "Restaurar" no tiene nada
+ * que restaurar. Estuvo así: `saveSnapshot` existía, estaba importada y no la
+ * llamaba nadie —lo destapó `noUnusedLocals`, no una prueba—.
+ *
+ * Se lee del cliente, no de la caché: el estado que hay que poder devolver es
+ * el que Steam tiene en este momento, no el que Atreus pintó hace media hora.
+ *
+ * Un fallo aquí **detiene la escritura**. Escribir logros sin haber podido
+ * guardar la vuelta atrás es exactamente lo que la copia existe para evitar.
+ */
+async function snapshot(worker: Worker, appId: string): Promise<void> {
+  const [achievementList, statList] = await Promise.all([worker.achievements(), worker.stats()]);
+  saveSnapshot({
+    id: randomUUID(),
+    appId,
+    createdAt: Math.floor(Date.now() / 1000),
+    achievements: achievementList,
+    stats: statList,
+  });
+  logger.info(`${appId}: copia de seguridad guardada antes de escribir`);
+}
+
 export async function commit(
   appId: string,
   patch: { achievements: AchievementPatch[]; stats: StatPatch[] },
 ): Promise<{ applied: number; rejected: string[] }> {
   const worker = await connected(appId);
+  await snapshot(worker, appId);
   return worker.commit(patch.achievements, patch.stats);
 }
 
 export async function resetAll(appId: string): Promise<void> {
-  await (await connected(appId)).resetAll();
+  const worker = await connected(appId);
+  await snapshot(worker, appId);
+  await worker.resetAll();
 }
 
 export function backups(appId: string): SteamSnapshot[] {
@@ -390,11 +420,14 @@ export function backups(appId: string): SteamSnapshot[] {
 }
 
 export async function restore(appId: string, snapshotId: string): Promise<{ applied: number }> {
-  const snapshot = getSnapshot(appId, snapshotId);
-  if (!snapshot) throw new Error('No se encontró la copia de seguridad solicitada');
+  const previa = getSnapshot(appId, snapshotId);
+  if (!previa) throw new Error('No se encontró la copia de seguridad solicitada');
   const worker = await connected(appId);
+  // Restaurar también escribe: sin esta copia, volver de una restauración
+  // equivocada al estado de hace un minuto sería imposible.
+  await snapshot(worker, appId);
   return worker.commit(
-    snapshot.achievements.filter((a) => !a.protected).map((a) => ({ apiName: a.apiName, unlocked: a.unlocked })),
-    snapshot.stats.filter((s) => !s.incrementOnly).map((s) => ({ apiName: s.apiName, value: s.value })),
+    previa.achievements.filter((a) => !a.protected).map((a) => ({ apiName: a.apiName, unlocked: a.unlocked })),
+    previa.stats.filter((s) => !s.incrementOnly).map((s) => ({ apiName: s.apiName, value: s.value })),
   );
 }

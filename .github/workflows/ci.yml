@@ -1,0 +1,45 @@
+# Lo que se ejecuta solo en cada empujón.
+#
+# Había 266 tests, un typecheck y una prueba de humo, y nada los ejecutaba
+# salvo la memoria de quien programa. Esto es esa memoria, escrita.
+#
+# La prueba de humo (`npm run smoke`) **no está aquí a propósito**: arranca
+# Electron con ventana y necesita una sesión gráfica de Windows. En un runner
+# sin pantalla daría rojo por el entorno y no por el código, y un CI que falla
+# por costumbre no lo mira nadie. Se ejecuta a mano antes de publicar; ver
+# docs/PUBLISHING.md.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verificar:
+    # Atreus es una aplicación de Windows: se comprueba donde se ejecuta. Las
+    # rutas, el registro y la localización de Steam no se parecen en nada en
+    # Linux, y un verde ahí no diría gran cosa.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # La misma que exige `engines`: `--experimental-strip-types` es de 22.6.
+          node-version: '22.x'
+          cache: npm
+
+      # `npm ci` y no `npm install`: instala exactamente el lockfile, así que
+      # un fallo aquí es del código y no de una versión que se movió sola.
+      - run: npm ci
+
+      - name: Linter
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test

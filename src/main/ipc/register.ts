@@ -34,6 +34,11 @@ const registered = new Set<IpcChannel>();
  */
 function handle<T>(
   channel: IpcChannel,
+  // El único `any` del proyecto, y es a propósito: cada canal tiene su propia
+  // firma y aquí llegan todos. Los argumentos se tipan en la llamada, que es
+  // donde se sabe cuáles son; ponerlos en `unknown[]` obligaría a un `as` por
+  // handler, que es el mismo agujero repetido treinta veces.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fn: (...args: any[]) => Promise<Result<T>> | Result<T>,
 ): void {
   registered.add(channel);

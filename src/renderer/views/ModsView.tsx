@@ -235,16 +235,15 @@ export function ModsView() {
     if (!res.ok) pushToast('error', res.error);
   }
 
-  if (!game) {
-    return (
-      <Empty icon={<Package size={40} strokeWidth={1.25} />} title={t('taller.sinJuego')}
-             hint={t('taller.sinJuegoPista')} />
-    );
-  }
-
-  const active = profiles.find((p) => p.isActive);
-  const enabledCount = mods.filter((m) => m.enabled).length;
-  const conflictingEnabled = mods.filter((m) => m.enabled && m.conflictsWith.length > 0).length;
+  /*
+   * Antes del retorno por "no hay juego", no después.
+   *
+   * Estaba debajo, y eso es un hook que se ejecuta en unos renders y en otros
+   * no: al deseleccionar el juego React encontraba menos hooks de los que tenía
+   * apuntados y tiraba la vista entera. Nunca dio la cara porque hace falta
+   * pasar de un juego a ninguno con el Taller abierto. Lo cazó el linter, no
+   * una prueba ni el compilador.
+   */
   const visibleMods = useMemo(() => {
     const search = installedQuery.trim().toLowerCase();
     const filtered = search
@@ -257,6 +256,17 @@ export function ModsView() {
       return a.order - b.order;
     });
   }, [mods, installedQuery, installedSort]);
+
+  if (!game) {
+    return (
+      <Empty icon={<Package size={40} strokeWidth={1.25} />} title={t('taller.sinJuego')}
+             hint={t('taller.sinJuegoPista')} />
+    );
+  }
+
+  const active = profiles.find((p) => p.isActive);
+  const enabledCount = mods.filter((m) => m.enabled).length;
+  const conflictingEnabled = mods.filter((m) => m.enabled && m.conflictsWith.length > 0).length;
   const canReorder = installedSort === 'order' && !installedQuery.trim();
 
   /*

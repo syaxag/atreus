@@ -6,7 +6,7 @@ import { registerIpc } from './ipc/register';
 import { registerSchemes, registerProtocolHandlers } from './protocol';
 import { getSettings, onSettingsChanged } from './services/settings';
 import { t } from './i18n';
-import { scan, rehydrateCovers, listGames, refreshDefinitions } from './services/catalog';
+import { scan, rehydrateCovers, refreshDefinitions } from './services/catalog';
 import { watchDefinitions, stopWatching } from './services/catalog/definitions';
 import { closeAll as closeSteamSessions } from './services/steam/session';
 import { emit } from './ipc/emit';

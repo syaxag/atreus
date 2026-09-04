@@ -50,7 +50,7 @@ export function richText(value: string): string {
       .replace(/<li[^>]*>/gi, '· ')
       .replace(/<[^>]*>/g, ''),
   )
-    .replace(/[ \t ]+/g, ' ')
+    .replace(/[ \t\u00A0]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .split('\n')
     .map((line) => line.trim())

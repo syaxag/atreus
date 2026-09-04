@@ -240,7 +240,6 @@ describe('las piezas sueltas', () => {
       title: 'No hay nada', hint: 'Prueba con otra cosa',
       action: React.createElement('button', null, 'Reintentar'),
     }));
-    const dice = vista;
     assert.ok(contiene(vista, 'No hay nada'));
     assert.ok(contiene(vista, 'Prueba con otra cosa'));
     assert.equal(botones(vista).length, 1);

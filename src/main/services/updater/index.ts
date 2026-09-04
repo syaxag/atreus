@@ -41,7 +41,6 @@ let configuredFeed: string | null = null;
 function getUpdater(): UpdaterModule['autoUpdater'] | null {
   if (loaded !== undefined) return loaded;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('electron-updater') as UpdaterModule;
     loaded = mod.autoUpdater;
     loaded.autoDownload = false;

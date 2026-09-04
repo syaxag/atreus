@@ -62,7 +62,6 @@ export function addMap(gameId: GameId, input: { title: string; url: string; desc
   if (!title) throw new Error('El mapa necesita un nombre');
   if (!url || !/^https:\/\//i.test(url)) throw new Error('La dirección tiene que empezar por https://');
   try {
-    // eslint-disable-next-line no-new
     new URL(url);
   } catch {
     throw new Error('La dirección no es una URL válida');
