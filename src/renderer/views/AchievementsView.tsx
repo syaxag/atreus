@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn';
 import { comparar, dateTime, percent as fmtPercent, rarity, rarityToken } from '@/lib/format';
 import { explicarNota, nombreFuente } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
+import { useTurno } from '@/lib/vigencia';
 import {
   Badge, Button, Empty, Input, Modal, Progress, Skeleton, Toggle, ViewHeader,
 } from '@/components/ui';
@@ -65,6 +66,7 @@ export function AchievementsView() {
   /** Filtro rápido: casi siempre interesa solo lo que falta. */
   const [onlyRemaining, setOnlyRemaining] = useState(false);
   const [sort, setSort] = useState<Sort>('common');
+  const turno = useTurno();
 
   /*
    * Aviso de riesgo. No se enseña al entrar —sería un peaje en cada visita—
@@ -91,6 +93,12 @@ export function AchievementsView() {
 
   const load = useCallback(async () => {
     if (!gameId) return;
+    /*
+     * Steam tarda segundos y la barra lateral está a un clic: sin este guardia,
+     * abrir un juego y saltar a otro pintaba los logros del primero sobre el
+     * segundo cuando su respuesta llegaba tarde. Ver `lib/vigencia.ts`.
+     */
+    const vigente = turno();
     setLoading(true);
     setError(null);
     setAchPatch({});
@@ -100,6 +108,7 @@ export function AchievementsView() {
     // Una sola llamada, valga el juego de la tienda que valga: el backend
     // decide si puede hablar con Steam o si toca el catálogo público.
     const response = await api.achievements.list(gameId);
+    if (!vigente()) return;
     if (!response.ok) {
       setError(response.error);
       setLoading(false);
@@ -111,6 +120,7 @@ export function AchievementsView() {
     // Estadísticas e historial solo existen cuando manda el cliente de Steam.
     if (response.data.writable && appId) {
       const [s, b] = await Promise.all([api.steam.stats(appId), api.steam.backups(appId)]);
+      if (!vigente()) return;
       if (s.ok) setStats(s.data);
       if (b.ok) setBackups(b.data);
     } else {
@@ -118,7 +128,7 @@ export function AchievementsView() {
       setBackups([]);
     }
     setLoading(false);
-  }, [gameId, appId]);
+  }, [gameId, appId, turno]);
 
   useEffect(() => {
     void load();

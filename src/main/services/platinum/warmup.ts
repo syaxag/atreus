@@ -5,6 +5,7 @@ import { listGames } from '../catalog';
 import { runningGames } from '../catalog/activity';
 import * as webapi from '../steam/webapi';
 import { report, summariesFor, SUMMARY_SCHEMA } from './index';
+import { recorrer } from './cola';
 
 const logger = log('platinum:warmup');
 
@@ -28,8 +29,15 @@ const FAST_GAP_MS = 1_500;
 const SLOW_GAP_MS = 20_000;
 /** Espera inicial: primero que la ventana termine de pintarse. */
 const START_DELAY_MS = 8_000;
-/** Si hay un juego abierto, se reintenta más tarde en vez de abandonar. */
+/** Si hay un juego abierto, se reintenta el mismo juego más tarde. */
 const BUSY_RETRY_MS = 60_000;
+/**
+ * Cuántas esperas por juego antes de aplazarlo.
+ *
+ * Treinta minutos. Una partida corta no debe costar ningún resumen; una tarde
+ * entera no debe dejar la cola parada detrás del primer juego de la lista.
+ */
+const MAX_BUSY_WAITS = 30;
 
 let timer: NodeJS.Timeout | null = null;
 let running = false;
@@ -87,35 +95,38 @@ async function pass(): Promise<void> {
     `calentando ${queue.length} juego(s) ${fast ? 'por la Web API' : 'con el cliente de Steam, despacio'}`,
   );
 
-  let done = 0;
-  for (const gameId of queue) {
-    if (stopped) return;
+  // El recorrido vive en `cola.ts`, sin Electron, para poder probarlo. Aquí
+  // queda lo que sí necesita la aplicación: quién juega, qué se calcula y a
+  // quién se avisa.
+  const resultado = await recorrer(queue, {
+    hayPartida: () => runningGames().length > 0,
+    parado: () => stopped,
+    esperar: sleep,
+    pausaMs: fast ? FAST_GAP_MS : SLOW_GAP_MS,
+    pausaOcupadoMs: BUSY_RETRY_MS,
+    esperasMaximas: MAX_BUSY_WAITS,
 
-    // Jugar manda: mientras haya una partida abierta, ni un proceso más.
-    if (runningGames().length > 0) {
-      logger.info('hay una partida en marcha; el calentamiento espera');
-      await sleep(BUSY_RETRY_MS);
-      if (stopped) return;
-      continue;
-    }
+    // Sin clave de la Web API hay que preguntarle al cliente: es lento, pero
+    // es la única forma de saber el estado real. Evitarlo aquí produciría
+    // resúmenes de 0 logros para juegos a medio hacer, que es peor que nada.
+    calcular: async (gameId) => { await report(gameId, false, fast); },
 
-    try {
-      // Sin clave de la Web API hay que preguntarle al cliente: es lento, pero
-      // es la única forma de saber el estado real. Evitarlo aquí produciría
-      // resúmenes de 0 logros para juegos a medio hacer, que es peor que nada.
-      await report(gameId, false, fast);
-      done++;
-      // Se avisa juego a juego: la biblioteca se va rellenando a la vista en
-      // vez de dar un salto al final.
-      emit('platinum:summaries', summariesFor());
-    } catch (e) {
-      logger.warn(`no se pudo calcular el informe de ${gameId}:`, e);
-    }
+    // Se avisa juego a juego: la biblioteca se va rellenando a la vista en vez
+    // de dar un salto al final.
+    hecho: () => emit('platinum:summaries', summariesFor()),
+    fallo: (gameId, e) => logger.warn(`no se pudo calcular el informe de ${gameId}:`, e),
+  });
 
-    await sleep(fast ? FAST_GAP_MS : SLOW_GAP_MS);
+  if (resultado.aplazados > 0) {
+    logger.info(
+      `${resultado.aplazados} juego(s) aplazados: llevabas jugando más de ` +
+      `${(MAX_BUSY_WAITS * BUSY_RETRY_MS) / 60_000} minutos y el cálculo no se cuela delante de una partida`,
+    );
   }
-
-  logger.info(`calentamiento terminado: ${done} de ${queue.length} juegos`);
+  logger.info(
+    `calentamiento terminado: ${resultado.hechos} de ${queue.length} juegos` +
+    (resultado.interrumpido ? ' (interrumpido al cerrar)' : ''),
+  );
 }
 
 /** Arranca el calentamiento. Idempotente. */

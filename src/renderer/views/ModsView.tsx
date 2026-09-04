@@ -9,6 +9,7 @@ import { useStore } from '@/store';
 import { cn } from '@/lib/cn';
 import { bytes, comparar, numero } from '@/lib/format';
 import { useT } from '@/i18n';
+import { useTurno } from '@/lib/vigencia';
 import { Badge, Button, Card, Empty, Modal, Skeleton, Toggle, ViewHeader } from '@/components/ui';
 
 /** Extensiones que el backend sabe extraer. Ver services/mods/archive.ts. */
@@ -46,27 +47,38 @@ export function ModsView() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareLeft, setCompareLeft] = useState('');
   const [compareRight, setCompareRight] = useState('');
+  const turno = useTurno();
 
   const load = useCallback(async () => {
     if (!gameId) return;
+    const vigente = turno();
     setLoading(true);
     const [m, p] = await Promise.all([api.mods.list(gameId), api.mods.profiles(gameId)]);
+    if (!vigente()) return;
     setMods(m.ok ? [...m.data].sort((a, b) => a.order - b.order) : []);
     setProfiles(p.ok ? p.data : []);
     if (!m.ok) pushToast('error', m.error);
     setLoading(false);
-  }, [gameId, pushToast]);
+  }, [gameId, pushToast, turno]);
 
-  /** Consulta el catálogo público del juego. */
+  /**
+   * Consulta el catálogo público del juego.
+   *
+   * Es la carga más lenta del Taller —sale a Thunderstore, GameBanana o
+   * Modrinth—, y por tanto la que más fácil pisaba a la del juego siguiente:
+   * se veían los mods de Balatro en la ficha de otro juego.
+   */
   const discover = useCallback(async () => {
     if (!gameId) return;
+    const vigente = turno();
     setLoadingRemote(true);
     setRemoteError(null);
     const res = await api.mods.discover(gameId);
+    if (!vigente()) return;
     setLoadingRemote(false);
     if (!res.ok) { setRemoteError(res.error); setRemote(null); return; }
     setRemote(res.data);
-  }, [gameId]);
+  }, [gameId, turno]);
 
   useEffect(() => { void load(); }, [load]);
 

@@ -7,6 +7,7 @@ import type { InteractiveMap } from '@shared/types';
 import { api } from '@/lib/api';
 import { useStore } from '@/store';
 import { useT } from '@/i18n';
+import { useTurno } from '@/lib/vigencia';
 import { proveedorMapa, textoMapa, tituloMapa } from '@/lib/contenido';
 import { Badge, Button, Card, Empty, Input, Modal, Skeleton, ViewHeader } from '@/components/ui';
 
@@ -33,21 +34,26 @@ export function MapsView() {
   const [draft, setDraft] = useState({ title: '', url: '' });
   const [saving, setSaving] = useState(false);
   const [refreshingMaps, setRefreshingMaps] = useState(false);
+  const turno = useTurno();
   const frame = useRef<HTMLElement & {
     reload(): void; goBack(): void; goForward(): void; canGoBack(): boolean;
   } | null>(null);
 
   const loadMaps = useCallback(async (refresh = false) => {
     if (!gameId) { setMaps(null); return; }
+    // Buscar el mapa de un juego consulta el directorio de MapGenie y, si no
+    // está, su wiki: es lento de sobra para que dé tiempo a cambiar de juego.
+    const vigente = turno();
     if (refresh) setRefreshingMaps(true);
     setMaps(null);
     const response = await api.maps.list(gameId, refresh);
+    if (!vigente()) return;
     if (refresh) setRefreshingMaps(false);
     if (!response.ok) { setMaps([]); pushToast('error', response.error); return; }
     setMaps(response.data);
     // Con un solo mapa no tiene sentido obligar a elegir.
     if (response.data.length === 1) setActive(response.data[0]!);
-  }, [gameId, pushToast]);
+  }, [gameId, pushToast, turno]);
 
   useEffect(() => {
     setActive(null);

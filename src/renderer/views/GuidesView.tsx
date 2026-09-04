@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 import { useStore } from '@/store';
 import { useT, type Clave } from '@/i18n';
 import { nombreGuia } from '@/lib/contenido';
+import { useTurno } from '@/lib/vigencia';
 import { Badge, Button, Card, Empty, Input, Skeleton, ViewHeader } from '@/components/ui';
 
 /**
@@ -46,22 +47,28 @@ export function GuidesView() {
   const [reading, setReading] = useState<string | null>(null);
   const [document, setDocument] = useState<GuideDocument | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  /** Evita que una búsqueda lenta anterior pise la categoría o el logro actual. */
-  const requestId = useRef(0);
+  /**
+   * Evita que una búsqueda lenta anterior pise la categoría o el logro actual.
+   *
+   * Este guardia lo tenía esta vista y solo esta, escrito a mano con un
+   * `useRef(0)`. Ahora vive en `lib/vigencia.ts` y lo usan las cinco: era el
+   * mismo defecto en las otras cuatro, sin nadie que lo hubiera escrito.
+   */
+  const turno = useTurno();
 
   const load = useCallback(async (refresh = false) => {
     if (!gameId) return;
-    const currentRequest = ++requestId.current;
+    const vigente = turno();
     if (refresh) setRefreshing(true);
     else setRefreshing(false);
     setEntries(null);
     setError(null);
     const response = await api.guides.list(gameId, category, submitted || undefined, refresh);
-    if (currentRequest !== requestId.current) return;
+    if (!vigente()) return;
     setRefreshing(false);
     if (!response.ok) { setEntries([]); setError(response.error); return; }
     setEntries(response.data);
-  }, [gameId, category, submitted]);
+  }, [gameId, category, submitted, turno]);
 
   useEffect(() => { setDocument(null); void load(); }, [load]);
 

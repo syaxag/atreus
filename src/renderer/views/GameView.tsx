@@ -14,6 +14,7 @@ import {
   DIFICULTAD, explicarDificultad, explicarEstimacion, explicarNota, nombreFuente,
 } from '@/lib/platino';
 import { useT, type Clave } from '@/i18n';
+import { useTurno } from '@/lib/vigencia';
 import {
   Badge, Button, Card, DifficultyMeter, Empty, ProgressRing, Skeleton,
 } from '@/components/ui';
@@ -51,11 +52,16 @@ export function GameView() {
   const [report, setReport] = useState<PlatinumReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [readableGuideCount, setReadableGuideCount] = useState<number | null>(null);
+  const turno = useTurno();
 
   const load = useCallback(async (refresh = false) => {
     if (!gameId) return;
+    // El informe puede tardar —abre una sesión de Steam— y la ficha cambia de
+    // juego con un clic. Ver `lib/vigencia.ts`.
+    const vigente = turno();
     setLoading(true);
     const response = await api.platinum.report(gameId, refresh);
+    if (!vigente()) return;
     setLoading(false);
     if (!response.ok) {
       setReport(null);
@@ -68,10 +74,11 @@ export function GameView() {
     // La recomendación no inventa una guía por logro: dice cuántas rutas de
     // platino legibles hay antes de mandar al usuario a esa pantalla.
     void api.guides.list(gameId, 'platinum').then((guides) => {
+      if (!vigente()) return;
       setReadableGuideCount(guides.ok ? guides.data.filter((guide) => guide.readable).length : 0);
     });
     void loadPlatinum();
-  }, [gameId, pushToast, loadPlatinum]);
+  }, [gameId, pushToast, loadPlatinum, turno]);
 
   useEffect(() => { setReport(null); void load(); }, [load]);
 
