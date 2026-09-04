@@ -237,13 +237,28 @@ export function origenRemoto(source: string): URL | null {
   return url;
 }
 
+/**
+ * El catálogo oficial, para cuando nadie ha dicho otra cosa.
+ *
+ * Es lo que convierte "añadir un juego" en algo que **le llega a todo el
+ * mundo**: sin esto, la ficha de un juego nuevo —sus mapas, su proveedor de
+ * mods— solo la tenía quien se bajara un instalador nuevo, aunque el mecanismo
+ * para repartirla estuviera hecho desde hacía meses y solo le faltara una
+ * dirección.
+ *
+ * Va contra `master` y no contra una etiqueta a propósito: el catálogo tiene
+ * que poder adelantarse a las versiones de la aplicación, que es su razón de
+ * ser. Lo genera `npm run catalog` y lleva el SHA-256 de cada definición, así
+ * que lo que se descarga se comprueba.
+ *
+ * Sigue siendo un ajuste: quien quiera su propio catálogo —o ninguno— lo dice
+ * en Ajustes y esto deja de aplicarse.
+ */
+export const CATALOGO_OFICIAL =
+  'https://raw.githubusercontent.com/syaxag/atreus/master/data/catalog.json';
+
 export async function sync(source: string): Promise<SyncResult> {
-  const trimmed = source.trim();
-  if (!trimmed) {
-    throw new Error(
-      'No hay origen configurado. Indica una carpeta o una URL en Ajustes → Catálogo.',
-    );
-  }
+  const trimmed = source.trim() || CATALOGO_OFICIAL;
 
   mkdirSync(paths.userGameDefs, { recursive: true });
   logger.info(`sincronizando desde ${trimmed}`);
@@ -275,7 +290,9 @@ let autoSyncTimer: NodeJS.Timeout | null = null;
 
 async function automaticSync(): Promise<void> {
   const settings = getSettings();
-  if (!settings.autoSyncCatalog || !settings.catalogSource.trim()) return;
+  // Sin origen escrito ya no significa "no sincronizar": significa el catálogo
+  // oficial. Quien no lo quiera, apaga el interruptor de Ajustes.
+  if (!settings.autoSyncCatalog) return;
   try {
     const result = await sync(settings.catalogSource);
     const games = refreshDefinitions();

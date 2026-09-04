@@ -5,9 +5,9 @@ es lo que lleva a pensar que hay que reempaquetar para todo, y no es así.
 
 | Qué | Cómo | ¿Reempaquetar? | Estado |
 |---|---|---|---|
-| **Fichas de juego** (`data/games/*.json`) | Dejar el JSON en la carpeta, o Ajustes → Catálogo → Sincronizar | **No** | ✅ verificado en la app instalada |
+| **Fichas de juego** (`data/games/*.json`) | Se traen solas del catálogo oficial; o dejar el JSON en la carpeta | **No** | ✅ verificado en la app instalada |
 | **Mods** | Mods → Descubrir, o arrastrar el archivo | **No** | ✅ verificado con catálogos reales |
-| **La app** (código) | Auto-actualización desde Ajustes | Sí, solo la primera vez | ⚠️ requiere publicar un feed HTTPS |
+| **La app** (código) | Se actualiza sola desde las releases | Sí, solo la primera vez | ✅ publicado |
 
 ---
 
@@ -38,24 +38,47 @@ definiciones: 11 (11 de fábrica, 1 del usuario, las del usuario mandan)
 
 ### Traerlas de fuera
 
-`settings.catalogSource` admite tres formas:
+**Por defecto no hay nada que configurar.** Con el ajuste vacío, Atreus se trae
+las fichas del catálogo oficial al arrancar y cada seis horas:
+
+    https://raw.githubusercontent.com/syaxag/atreus/master/data/catalog.json
+
+Es lo que convierte añadir un juego en algo que le llega a todo el mundo. Antes
+esto existía y no tenía dirección: el mecanismo estaba hecho y cada usuario
+tenía que pegar una URL que no le había dado nadie.
+
+`settings.catalogSource` sigue admitiendo, para quien quiera otro:
 
 - una **carpeta local**;
 - una **URL a un `.zip`** — vale el de un repositorio de GitHub
   (`.../archive/refs/heads/main.zip`); se recogen los `*.json` a cualquier
   profundidad;
-- una **URL a un `.json`** suelto.
+- una **URL a un `.json`** suelto o a un manifiesto.
 
 Sincronizar es idempotente: si nada cambió, no reescribe nada. Los archivos que
 no son JSON válido se descartan con su motivo, sin tocar los buenos.
 
-### Catálogo versionado recomendado
+### Publicar una ficha para todo el mundo
 
-Además de ZIP y JSON individuales, Atreus acepta un manifiesto
-`atreus.catalog/v1`. Incluye versión, fecha, URL HTTPS y SHA-256 de cada
-definición. Usa
-[`data/catalog.manifest.example.json`](../data/catalog.manifest.example.json)
-como plantilla para el feed.
+El catálogo oficial es un manifiesto `atreus.catalog/v1`: versión, fecha, y
+para cada definición su URL HTTPS y su **SHA-256**. Atreus se baja solo las que
+cambiaron y **comprueba el hash de cada una**, así que una ficha no puede
+cambiar por el camino sin que se note.
+
+Añadir un juego al catálogo son tres pasos:
+
+1. Dejar la ficha en `data/games/`.
+2. Regenerar el manifiesto con los hashes al día:
+
+   ```bash
+   npm run catalog
+   ```
+
+3. Empujar. En seis horas como mucho, la tiene todo el mundo.
+
+El paso 2 no se puede olvidar: si el manifiesto se queda con el hash viejo, la
+sincronización rechaza esa ficha en el equipo del usuario. `test/catalogo.test.ts`
+lo caza antes, comparando cada hash con su archivo.
 
 ## 2. Mods — sin reempaquetar
 

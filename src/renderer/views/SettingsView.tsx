@@ -339,7 +339,7 @@ export function SettingsView() {
               <Button
                 variant="outline"
                 onClick={syncCatalog}
-                disabled={syncing || !settings.catalogSource.trim()}
+                disabled={syncing}
               >
                 <RefreshCw size={14} className={syncing ? 'animate-spin' : undefined} />
                 {t(syncing ? 'ajustes.sincronizando' : 'ajustes.sincronizar')}

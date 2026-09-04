@@ -27,6 +27,7 @@
     "build": "npm run lint && npm run typecheck && npm test && electron-vite build",
     "pack": "npm run build && electron-builder --dir",
     "release:manifest": "node scripts/make-latest-yml.mjs",
+    "catalog": "node scripts/make-catalog.mjs",
     "dist": "npm run build && electron-builder --win nsis && npm run release:manifest",
     "lint": "eslint ."
   },
