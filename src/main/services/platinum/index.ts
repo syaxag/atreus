@@ -6,6 +6,7 @@ import { paths } from '../../paths';
 import { log } from '../../logger';
 import { getGame, listGames } from '../catalog';
 import * as achievements from '../achievements';
+import * as steam from '../steam/session';
 import { steamMinutes, trackedMinutes } from '../playtime';
 import { difficultyOf, estimateOf } from './estimate';
 import { guardarResumenes, leerResumenes, resumenDe, SUMMARY_SCHEMA } from './summaries';
@@ -162,12 +163,35 @@ async function build(gameId: GameId, avoidClient = false): Promise<PlatinumRepor
     updatedAt: Math.floor(Date.now() / 1000),
   };
 
+  /*
+   * Si aquí se abre una sesión de Steam, aquí se cierra.
+   *
+   * `achievements.list()` arranca una sesión sin decirlo —es la única forma de
+   * leer el estado real del cliente— y **nadie la cerraba**: la sesión de cada
+   * juego calculado se quedaba viva hasta salir de Atreus. Dos consecuencias,
+   * las dos visibles y ninguna evidente desde el código:
+   *
+   *  1. Steam le decía a tus amigos que estabas jugando a ese juego. Con la
+   *     biblioteca entera calculándose al arrancar, a los quince seguidos.
+   *  2. Con la sesión abierta, Steam cree que el juego **ya está en marcha** e
+   *     ignora `steam://rungameid`. Es decir: el botón de Jugar no hacía nada.
+   *
+   * Solo se cierra si la abrimos nosotros: si Trofeos ya la tenía puesta, es
+   * suya y la necesita para poder escribir.
+   */
+  const laTeniaAbierta = game.platform === 'steam' && steam.abierta(game.nativeId);
+
   let set: AchievementSet;
   try {
     set = await achievements.list(gameId, { avoidClient });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return { ...base, warning: { kind: 'unreadable', detail: message } };
+  } finally {
+    if (game.platform === 'steam' && !laTeniaAbierta && steam.abierta(game.nativeId)) {
+      steam.close(game.nativeId);
+      logger.debug(`${gameId}: sesión de Steam liberada tras calcular el informe`);
+    }
   }
 
   if (set.items.length === 0) {

@@ -12,6 +12,7 @@ import { findSteamPath, scanSteam, guessExe, isSteamGameAppId } from './steam';
 import { readUninstallEntries, scanBattleNet, scanEa, scanEpic, scanGog, scanXbox } from './others';
 import { forgetSteamPlaytime, recordSession, steamPlaytimeIndex, trackedMinutes } from '../playtime';
 import { applyDefinitions } from './definitions';
+import * as steam from '../steam/session';
 import { completeCovers, localCovers, localPosters } from './covers';
 import { splitArgs } from './args';
 
@@ -382,6 +383,24 @@ export async function launch(id: GameId, args?: string): Promise<{ pid: number }
   const game = getGame(id);
   if (!game) throw new Error(`Juego no encontrado: ${id}`);
 
+  /*
+   * Antes de pedir nada, soltar el juego.
+   *
+   * Si Atreus tiene una sesión de Steam abierta para este AppID, Steam cree que
+   * el juego **ya está en marcha** y descarta `steam://rungameid` sin decir ni
+   * pío: pulsabas Jugar y no pasaba absolutamente nada. Es el mismo motivo por
+   * el que aparecías jugando a juegos que solo habías mirado.
+   *
+   * Se cierra siempre, no solo en Steam: leer logros mientras el juego arranca
+   * no le hace ningún favor a nadie.
+   */
+  if (game.platform === 'steam' && steam.abierta(game.nativeId)) {
+    steam.close(game.nativeId);
+    logger.info(`${id}: sesión de Steam cerrada para dejar arrancar el juego`);
+    // Steam necesita un instante para darse cuenta de que el juego ya no corre.
+    await new Promise((r) => setTimeout(r, 400));
+  }
+
   // Steam, Epic y Xbox se lanzan por URL: así el launcher hace su trabajo
   // (DRM, overlay, sincronización de partidas) y no lo esquivamos.
   const url =
@@ -391,7 +410,18 @@ export async function launch(id: GameId, args?: string): Promise<{ pid: number }
     : null;
 
   if (url) {
-    await shell.openExternal(url);
+    // El lanzamiento no dejaba ni rastro en el registro, que es justo lo
+    // primero que hace falta cuando alguien dice "le doy a Jugar y no pasa
+    // nada". Ahora se apunta lo que se pide y lo que contesta el sistema.
+    logger.info(`lanzando "${game.name}" (${game.platform}): ${url}`);
+    try {
+      await shell.openExternal(url);
+    } catch (e) {
+      logger.error(`no se pudo lanzar "${game.name}" con ${url}:`, e);
+      throw new Error(
+        `Windows no pudo abrir ${url}. ¿Está instalado el launcher de ${game.platform}?`,
+      );
+    }
     emit('game:started', { gameId: id, pid: 0 });
     return { pid: 0 };
   }

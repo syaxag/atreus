@@ -92,7 +92,7 @@ async function pass(): Promise<void> {
 
   const fast = webapi.available();
   logger.info(
-    `calentando ${queue.length} juego(s) ${fast ? 'por la Web API' : 'con el cliente de Steam, despacio'}`,
+    `calentando ${queue.length} juego(s) ${fast ? 'por la Web API' : 'sin tocar el cliente de Steam'}`,
   );
 
   // El recorrido vive en `cola.ts`, sin Electron, para poder probarlo. Aquí
@@ -106,10 +106,23 @@ async function pass(): Promise<void> {
     pausaOcupadoMs: BUSY_RETRY_MS,
     esperasMaximas: MAX_BUSY_WAITS,
 
-    // Sin clave de la Web API hay que preguntarle al cliente: es lento, pero
-    // es la única forma de saber el estado real. Evitarlo aquí produciría
-    // resúmenes de 0 logros para juegos a medio hacer, que es peor que nada.
-    calcular: async (gameId) => { await report(gameId, false, fast); },
+    /*
+     * El calentamiento **nunca** abre el cliente de Steam.
+     *
+     * Antes sí: sin clave de la Web API preguntaba al cliente juego por juego,
+     * porque es la única forma de saber el estado real. El precio no se había
+     * medido, y era este: arrancar la aplicación anunciaba en Steam que estabas
+     * jugando a los quince juegos de la biblioteca, uno detrás de otro, y
+     * mientras tanto el botón de Jugar de esos juegos no hacía nada, porque
+     * Steam los creía ya en marcha.
+     *
+     * Un resumen menos preciso no vale eso. Sin clave, la biblioteca se rellena
+     * con lo que sabe el catálogo público y el progreso real aparece al abrir
+     * la ficha del juego —donde una sesión sí se espera, porque la has pedido
+     * tú—. Con clave, que es una petición HTTP y no molesta a nadie, sale
+     * completo desde el arranque.
+     */
+    calcular: async (gameId) => { await report(gameId, false, true); },
 
     // Se avisa juego a juego: la biblioteca se va rellenando a la vista en vez
     // de dar un salto al final.

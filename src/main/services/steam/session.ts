@@ -333,6 +333,19 @@ export function close(appId: string): void {
   sessions.delete(appId);
 }
 
+/**
+ * ¿Hay una sesión viva para este juego?
+ *
+ * Existe porque una sesión abierta **no es gratis y se nota fuera**: mientras
+ * dura, Steam le dice a tus amigos que estás jugando a ese juego, y —lo que de
+ * verdad rompe cosas— cree que ya está en marcha, así que ignora la petición
+ * de lanzarlo. Quien abre una sesión de paso tiene que poder saber si era suya
+ * antes de cerrarla, para no cerrarle la de otro.
+ */
+export function abierta(appId: string): boolean {
+  return sessions.has(appId);
+}
+
 export function closeAll(): void {
   for (const [, worker] of sessions) worker.stop();
   sessions.clear();
