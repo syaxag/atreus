@@ -251,7 +251,7 @@ abiertos. Para el backend real:
 npm run dev
 ```
 
-Comprobar que todo sigue en pie —linter, tipos y 355 tests—:
+Comprobar que todo sigue en pie —linter, tipos y algo más de cuatrocientos tests—:
 
 ```bash
 npm test

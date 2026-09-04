@@ -130,10 +130,21 @@ El informe se calculaba solo al abrir la ficha de un juego, así que la Bibliote
 arrancaba sin barras y con el orden "más cerca del platino" ordenando por nada. El
 calentamiento la recorre solo, despacio, y avisa juego a juego por `platinum:summaries`.
 
-Con clave de la Web API cada juego es una petición y basta un respiro de segundo y medio;
-sin ella hay que preguntarle al cliente, que es un proceso hijo por juego, y el hueco
-sube a veinte segundos. Nunca corre mientras hay una partida abierta: el informe puede
-esperar, la partida no.
+**Nunca abre el cliente de Steam.** Lo hizo, y el precio no se había medido: cada
+juego es un proceso hijo con su AppID, y arrancar la aplicación anunciaba en Steam que
+estabas jugando a los quince juegos de la biblioteca, uno detrás de otro. Peor: con esa
+sesión abierta Steam cree que el juego ya está en marcha e ignora `steam://rungameid`,
+así que el botón de Jugar no hacía nada.
+
+Un resumen más preciso no vale eso. Con clave de la Web API cada juego es una petición
+HTTP y sale completo; sin ella la biblioteca se rellena con lo que sabe el catálogo
+público y el progreso real aparece al abrir la ficha, donde una sesión sí se espera
+porque la ha pedido el usuario. Nunca corre mientras hay una partida abierta: el informe
+puede esperar, la partida no.
+
+Y quien abre una sesión de paso la cierra. `platinum.build()` suelta la que abrió —solo
+la suya: si Trofeos la tenía puesta, es porque la necesita para escribir— y `launch()`
+cierra la del juego antes de pedirle a Steam que arranque.
 
 Y no guarda lo que no sabe: en un juego de Steam, un progreso `manual` significa que no
 se pudo leer el estado, no que sea cero. Ese resumen se descarta en vez de pintar un 0/31
@@ -211,9 +222,13 @@ procesos ajenos ni lee su memoria.
 - Argumentos de lanzamiento por perfil.
 
 ### `services/updater`
-- App: `electron-updater`.
-- **Catálogo**: `data/games/*.json` se sincroniza aparte desde un repo Git o carpeta
-  local. Añadir un juego = añadir un JSON, sin release nueva.
+- **App**: `electron-updater`, apuntando por defecto a las releases del repositorio.
+  El ajuste viene vacío porque vacío ya significa "las oficiales".
+- **Catálogo**: `data/games/*.json` se sincroniza aparte, y también por defecto.
+  Añadir un juego = añadir un JSON y `npm run catalog`, sin release nueva.
+
+Son dos caminos distintos a propósito: el contenido se mueve todos los días y el
+programa no. Ver `docs/UPDATING.md`.
 
 ---
 
@@ -276,15 +291,44 @@ se nota al momento: se recarga, se revalida y la biblioteca lo recoge. Sin reini
 2. Dejar ahí `steam.<appid>.json` siguiendo `data/games/_schema.json`.
 3. Listo. Si el JSON está mal, el registro dice la línea y la columna exactas.
 
-### Sincronizar desde fuera
+### Sincronizar desde fuera — el catálogo compartido
 
-`settings.catalogSource` admite:
+`settings.catalogSource` **viene vacío, y vacío significa el catálogo oficial**:
+
+```
+https://raw.githubusercontent.com/syaxag/atreus/master/data/catalog.json
+```
+
+Es lo que convierte "añadir un juego" en algo que le llega a todo el mundo sin que
+nadie reinstale nada. El mecanismo existía desde hacía meses y no tenía dirección:
+estaba hecho y cada usuario tenía que pegar una URL que no le había dado nadie. La
+misma historia que el actualizador.
+
+El catálogo es un manifiesto `atreus.catalog/v1` con la URL y el **SHA-256** de cada
+ficha, generado por `npm run catalog` desde `data/games/`. Atreus se baja solo las que
+cambiaron y comprueba el hash antes de adoptar ninguna, así que una definición no puede
+cambiar por el camino sin que se note. Y va contra `master` a propósito: el catálogo
+tiene que poder adelantarse a las versiones de la aplicación.
+
+Dos cosas que solo se vieron arrancando la aplicación con la carpeta vacía, y que
+ningún test unitario podía ver:
+
+- **El nombre viaja aparte del contenido.** Antes lo descargado pasaba por un archivo
+  temporal y se adoptaba desde ahí, así que se guardaba como
+  `atreus-definition-<azar>-steam.1234.json`. Como el azar cambia en cada pasada, cada
+  seis horas se creaba una copia nueva de cada ficha en lugar de actualizar la que ya
+  estaba.
+- **El hash se saca de lo que se va a servir, no del archivo del disco.**
+  `.gitattributes` guarda con LF y Windows saca CRLF al descargar: son bytes distintos
+  y hashes distintos.
+
+Sigue admitiendo, para quien quiera otro origen:
 
 - una **carpeta local**;
 - una **URL a un `.zip`** — vale el de un repositorio de GitHub
   (`.../archive/refs/heads/main.zip`), y se recogen los `*.json` a cualquier
   profundidad;
-- una **URL a un `.json`** suelto.
+- una **URL a un `.json`** suelto o a otro manifiesto.
 
 ### Descubrimiento automático de mods
 
