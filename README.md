@@ -93,6 +93,12 @@ src/renderer/         React + Tailwind
 Electron 33 · TypeScript · React 18 · Tailwind 3.4 · Zustand · koffi (FFI a
 `steamclient.dll` y a la enumeración de procesos) · electron-vite · electron-builder.
 
+## El autor
+
+Atreus lo escribe **Syax**. Por dónde anda:
+
+- TikTok — [@hv_syax](https://www.tiktok.com/@hv_syax)
+
 ## Créditos
 
 El enfoque técnico del módulo de logros está inspirado en
