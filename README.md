@@ -93,11 +93,14 @@ src/renderer/         React + Tailwind
 Electron 33 · TypeScript · React 18 · Tailwind 3.4 · Zustand · koffi (FFI a
 `steamclient.dll` y a la enumeración de procesos) · electron-vite · electron-builder.
 
-## El autor
+## Apóyame con este proyecto
 
-Atreus lo escribe **Syax**. Por dónde anda:
+Atreus lo hago yo solo, por gusto y en mis ratos. No pide dinero, no lleva
+anuncios y no recoge nada tuyo. Si te sirve, el apoyo que vale es un seguimiento:
 
-- TikTok — [@hv_syax](https://www.tiktok.com/@hv_syax)
+**→ TikTok: [@hv_syax](https://www.tiktok.com/@hv_syax)**
+
+Ahí voy contando cómo se construye y qué cae después.
 
 ## Créditos
 
