@@ -10,12 +10,16 @@ import { getGame } from '../catalog';
 import { getDefinition } from '../catalog/definitions';
 import { extract, flattenSingleRoot, listFiles, treeSize, RAR, SUPPORTED } from './archive';
 import { detectMeta, detectPackagedMeta, looksValid } from './detect';
-import { deploy as deployFiles, purge as purgeFiles, findConflicts, resolveRoot, isDeployed } from './deploy';
+import {
+  deploy as deployFiles, purge as purgeFiles, findConflicts, resolverRaiz, isDeployed,
+} from './deploy';
 import {
   listMods, saveMods, removeModFiles, modDir,
   listProfiles, saveProfiles,
 } from './store';
-import { discover as discoverRemote, download, hasProvider, resolve } from './providers';
+import {
+  discover as discoverRemote, download, hasProvider, nombreSeguro, resolve,
+} from './providers';
 
 const logger = log('mods');
 
@@ -42,15 +46,18 @@ function targetRoot(gameId: GameId): { root: string } | { error: string } {
   if (!game) return { error: `Juego no encontrado: ${gameId}` };
 
   const def = getDefinition(gameId);
-  const root = resolveRoot(game.installDir, def?.mods?.root);
-  if (!root) {
+  const raiz = resolverRaiz(game.installDir, def?.mods?.root);
+  if (!raiz.ok) {
+    // El motivo concreto va delante: "se sale del directorio del juego" dice
+    // qué corregir, y la instrucción genérica no.
+    logger.warn(`${gameId}: raíz de despliegue rechazada — ${raiz.error}`);
     return {
       error:
-        `No se sabe dónde desplegar los mods de "${game.name}". ` +
-        `Añade "mods": { "root": "..." } en data/games/${gameId.replace(':', '.')}.json.`,
+        `${raiz.error}. No se pueden desplegar los mods de "${game.name}". ` +
+        `Revisa "mods": { "root": "..." } en data/games/${gameId.replace(':', '.')}.json.`,
     };
   }
-  return { root };
+  return { root: raiz.root };
 }
 
 /** Marca conflictos en la lista antes de devolverla a la interfaz. */
@@ -339,7 +346,20 @@ export async function installRemote(gameId: GameId, mod: RemoteMod): Promise<Mod
 
   const staging = join(tmpdir(), `atreus-dl-${Date.now().toString(36)}`);
   mkdirSync(staging, { recursive: true });
-  const file = join(staging, ready.fileName);
+
+  /*
+   * El nombre lo pone el catálogo, así que no se usa tal cual.
+   *
+   * `join(staging, ready.fileName)` con un `fileName` de `..\..\algo.exe`
+   * escribe donde le apetezca al catálogo. Si no queda nada aprovechable se
+   * inventa uno: lo que importa del nombre es la extensión —decide si el mod
+   * se extrae o se despliega tal cual— y esa se comprueba después igual.
+   */
+  const seguro = nombreSeguro(ready.fileName);
+  if (seguro !== ready.fileName) {
+    logger.warn(`"${ready.name}": el catálogo pedía guardarse como "${ready.fileName}"`);
+  }
+  const file = join(staging, seguro ?? `${ready.id.replace(/[^\w.-]/g, '_')}.zip`);
 
   try {
     await download(ready, file);

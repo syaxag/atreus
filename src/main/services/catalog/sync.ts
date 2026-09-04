@@ -204,6 +204,39 @@ function syncFromFolder(folder: string): number {
   return updated;
 }
 
+/**
+ * ¿Es una dirección de red, y de las que se admiten?
+ *
+ * Devuelve `null` para una carpeta local —que es la otra forma válida de
+ * origen— y lanza si es una URL pero no es HTTPS.
+ *
+ * Aceptaba `http://` y era el hueco por el que entraba todo lo demás: una
+ * definición decide qué ejecutable se lanza, con qué argumentos y a qué
+ * carpeta se despliegan mods. Por HTTP plano eso lo escribe cualquiera que
+ * esté en medio de la conexión. El actualizador ya exigía HTTPS y el
+ * manifiesto del catálogo también; faltaba el origen del propio catálogo, que
+ * es justo el que trae las definiciones.
+ */
+export function origenRemoto(source: string): URL | null {
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(source)) return null; // una carpeta
+
+  let url: URL;
+  try {
+    url = new URL(source);
+  } catch {
+    throw new Error(`El origen no es una dirección válida: ${source}`);
+  }
+
+  if (url.protocol !== 'https:') {
+    throw new Error(
+      `El catálogo solo se sincroniza por HTTPS, y este origen es ${url.protocol.replace(':', '')}. ` +
+      'Las definiciones deciden qué se ejecuta y dónde se escriben los mods: ' +
+      'por HTTP plano las puede cambiar cualquiera que esté en medio.',
+    );
+  }
+  return url;
+}
+
 export async function sync(source: string): Promise<SyncResult> {
   const trimmed = source.trim();
   if (!trimmed) {
@@ -215,7 +248,7 @@ export async function sync(source: string): Promise<SyncResult> {
   mkdirSync(paths.userGameDefs, { recursive: true });
   logger.info(`sincronizando desde ${trimmed}`);
 
-  const remote = /^https?:\/\//i.test(trimmed) ? await syncFromUrl(trimmed) : null;
+  const remote = origenRemoto(trimmed) ? await syncFromUrl(trimmed) : null;
   const updated = remote ? remote.updated : syncFromFolder(trimmed);
 
   const total = countUserDefs();

@@ -66,7 +66,24 @@ function conExtension(ruta) {
   return null;
 }
 
+/**
+ * `electron`, que en un runner de Node no existe.
+ *
+ * Media aplicación vive detrás de `import { app } from 'electron'`, y sin esto
+ * lo único comprobable del proceso principal eran las funciones que no
+ * importan nada —que son justo las que menos pueden romper—. `deploy.ts`
+ * escribe con enlaces duros dentro de la carpeta de un juego y `purge()` borra
+ * y restaura ahí: eso no tenía ni un test porque no se podía cargar.
+ *
+ * El doble está en `test/dobles/electron.ts` y solo lleva lo que se usa.
+ */
+const ELECTRON = join(raiz, 'test', 'dobles', 'electron.ts');
+
 export async function resolve(especificador, contexto, siguiente) {
+  if (especificador === 'electron') {
+    return { url: pathToFileURL(ELECTRON).href, shortCircuit: true };
+  }
+
   const desdeAlias = porAlias(especificador);
   if (desdeAlias) {
     const encontrado = conExtension(desdeAlias);

@@ -5,7 +5,7 @@ import { getDefinition } from '../catalog/definitions';
 import { findSteamPath, readLibraryFolders } from '../catalog/steam';
 import { getSettings } from '../settings';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { classify } from './classify';
 import { detectMinecraftRuntime } from './minecraft';
 
@@ -562,7 +562,53 @@ export async function resolve(mod: RemoteMod): Promise<RemoteMod> {
 }
 
 /** Descarga un mod a un archivo temporal y devuelve su ruta. */
+/**
+ * El nombre con el que se guarda una descarga, reducido a un nombre.
+ *
+ * `fileName` viene del catálogo —`_sFile` en GameBanana, `filename` en
+ * Modrinth— y el objeto entero llega además del renderer por IPC. Se usaba tal
+ * cual en `join(staging, fileName)`, así que un `..\..\algo.exe` escribía
+ * fuera del temporal. `basename` corta eso; el resto es para que lo que quede
+ * siga siendo un nombre de archivo válido en Windows.
+ *
+ * Devuelve `null` si no queda nada utilizable, y quien llama decide el nombre.
+ */
+export function nombreSeguro(fileName: string): string | null {
+  // `basename` no entiende las barras de Windows en Linux ni al revés: se
+  // parte por las dos antes de preguntarle nada.
+  const ultimo = fileName.split(/[\\/]/).pop() ?? '';
+  const limpio = basename(ultimo)
+    // Lo que Windows no admite en un nombre, más los de control.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[<>:"|?*\x00-\x1f]/g, '_')
+    .replace(/^\.+/, '')
+    .trim();
+
+  if (!limpio || limpio === '.' || limpio === '..') return null;
+  // Un nombre larguísimo revienta la ruta completa en Windows (260 caracteres).
+  return limpio.slice(0, 120);
+}
+
+/**
+ * ¿Se puede descargar de aquí?
+ *
+ * Solo HTTPS. Era lo único que faltaba por igualar con el actualizador, que ya
+ * lo exigía: una descarga por HTTP plano la puede cambiar cualquiera que esté
+ * en medio, y lo que se descarga aquí acaba dentro de la carpeta de un juego.
+ */
+export function descargaPermitida(url: string): boolean {
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export async function download(mod: RemoteMod, destination: string): Promise<void> {
+  if (!descargaPermitida(mod.downloadUrl)) {
+    throw new Error(`La descarga de "${mod.name}" no es https y no se va a hacer`);
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 180_000);
   try {

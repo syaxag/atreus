@@ -1,5 +1,5 @@
 import { createWriteStream, mkdirSync, existsSync, readdirSync, statSync, renameSync, rmSync } from 'node:fs';
-import { dirname, join, normalize, sep } from 'node:path';
+import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pipeline } from 'node:stream/promises';
 import yauzl from 'yauzl';
@@ -87,7 +87,59 @@ function extractWith7za(archivePath: string, destination: string): number {
     timeout: 180_000,
     maxBuffer: 16 * 1024 * 1024,
   });
+
+  const fuera = sanearArbol(destination);
+  if (fuera > 0) logger.warn(`${fuera} entradas descartadas tras extraer ${archivePath}`);
   return countFiles(destination);
+}
+
+/**
+ * Repasa lo extraído y quita lo que no debería estar ahí.
+ *
+ * El camino del `.zip` tiene `safeJoin()` y está explicado. El del `.7z`
+ * delegaba **todo** en `7za x`: 7-Zip suele rechazar las rutas con `..`, pero
+ * eso era una confianza que no estaba escrita en ninguna parte, y no cubre los
+ * enlaces simbólicos, que un `.7z` sí puede traer y que apuntan donde quieran.
+ *
+ * Se recorre con `lstat` —no `stat`, que sigue el enlace y no lo vería— y se
+ * borra lo que sea un enlace o lo que caiga fuera del destino. Devuelve
+ * cuántas entradas se descartaron.
+ */
+export function sanearArbol(destination: string): number {
+  const raiz = resolve(destination);
+  let descartadas = 0;
+
+  const recorrer = (dir: string): void => {
+    let entradas;
+    try {
+      entradas = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entrada of entradas) {
+      const completo = join(dir, entrada.name);
+
+      // Un enlace no se sigue: se borra. Un mod que necesite enlaces
+      // simbólicos para funcionar no es algo que Atreus vaya a desplegar.
+      if (entrada.isSymbolicLink()) {
+        try { rmSync(completo, { force: true }); descartadas++; } catch { /* ya no está */ }
+        continue;
+      }
+
+      // Cinturón sobre tirantes: la ruta resuelta tiene que seguir dentro.
+      const real = resolve(completo);
+      if (real !== raiz && !real.startsWith(raiz + sep)) {
+        try { rmSync(completo, { recursive: true, force: true }); descartadas++; } catch { /* ya no está */ }
+        continue;
+      }
+
+      if (entrada.isDirectory()) recorrer(completo);
+    }
+  };
+
+  recorrer(raiz);
+  return descartadas;
 }
 
 function countFiles(dir: string): number {

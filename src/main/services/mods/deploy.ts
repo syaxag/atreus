@@ -25,19 +25,14 @@ const logger = log('mods:deploy');
  */
 
 /**
- * Resuelve la raíz de despliegue de la definición.
+ * Resuelve la raíz de despliegue de la definición, y la comprueba.
  *
  * Admite variables de entorno porque no todos los mods van al directorio del
- * juego: los de Balatro, por ejemplo, van a `%APPDATA%\Balatro\Mods`.
+ * juego: los de Balatro, por ejemplo, van a `%APPDATA%\Balatro\Mods`. Lo que
+ * ya no admite es cualquier destino: la comprobación vive en `raiz.ts` y el
+ * porqué está escrito allí.
  */
-export function resolveRoot(installDir: string | null, root: string | undefined): string | null {
-  if (!root) return installDir;
-
-  const expanded = root.replace(/%([^%]+)%/g, (_m, name: string) => process.env[name] ?? '');
-  if (/^[a-zA-Z]:[\\/]/.test(expanded) || expanded.startsWith('\\\\')) return expanded;
-  if (!installDir) return null;
-  return join(installDir, expanded);
-}
+export { resolverRaiz } from './raiz';
 
 export interface Conflict {
   path: string;

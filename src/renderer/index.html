@@ -8,10 +8,24 @@
       las guías de la comunidad, imágenes de las wikis y de los catálogos de
       mods. Todo lo demás se bloquea, y `script-src 'self'` impide que una guía
       traiga código: el texto que se lee aquí viene de webs de terceros.
+
+      Las tres primeras directivas cierran lo que `default-src` no cubre:
+
+        object-src 'none'   — nada de <object>/<embed>. `default-src` sí lo
+                              cubre, pero se pone explícito porque es la que
+                              más versiones de navegador han tratado aparte.
+        base-uri 'self'     — que una inyección no pueda mover la base de las
+                              rutas relativas y con ella de dónde se carga todo.
+        form-action 'none'  — Atreus no envía formularios a ninguna parte. Un
+                              <form> que apunte fuera solo puede ser un intento
+                              de sacar datos de aquí.
+
+      `default-src` no cubre ni `base-uri` ni `form-action`: son de las que hay
+      que escribir o no existen.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data: atreus: https://cdn.cloudflare.steamstatic.com https://shared.steamstatic.com https://shared.cloudflare.steamstatic.com https://shared.akamai.steamstatic.com https://media.steampowered.com https://steamcdn-a.akamaihd.net https://images.steamusercontent.com https://steamuserimages-a.akamaihd.net https://community.fastly.steamstatic.com https://community.akamai.steamstatic.com https://community.cloudflare.steamstatic.com https://images-eds-ssl.xboxlive.com https://images-eds.xboxlive.com https://store-images.s-microsoft.com https://static.wikia.nocookie.net https://commons.wiki.gg https://gamebanana.com https://images.gamebanana.com https://gcdn.thunderstore.io https://cdn.modrinth.com; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; img-src 'self' data: atreus: https://cdn.cloudflare.steamstatic.com https://shared.steamstatic.com https://shared.cloudflare.steamstatic.com https://shared.akamai.steamstatic.com https://media.steampowered.com https://steamcdn-a.akamaihd.net https://images.steamusercontent.com https://steamuserimages-a.akamaihd.net https://community.fastly.steamstatic.com https://community.akamai.steamstatic.com https://community.cloudflare.steamstatic.com https://images-eds-ssl.xboxlive.com https://images-eds.xboxlive.com https://store-images.s-microsoft.com https://static.wikia.nocookie.net https://commons.wiki.gg https://gamebanana.com https://images.gamebanana.com https://gcdn.thunderstore.io https://cdn.modrinth.com; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
     <title>Atreus</title>
   </head>
