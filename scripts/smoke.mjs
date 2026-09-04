@@ -167,6 +167,20 @@ for (const [seccion, estado] of Object.entries(uno.secciones)) {
 comprobar(uno.idioma.cambia, 'cambiar a English traduce la barra lateral');
 comprobar(uno.idioma.vuelve, 'volver a Español la deja como estaba');
 
+/*
+ * La prueba no debe dejar los ajustes tocados.
+ *
+ * Aprendido a base de romperlo: una sonda dejó el idioma guardado en inglés y
+ * la ejecución siguiente falló entera —nueve secciones en rojo— con la
+ * aplicación perfectamente sana. El recorrido ya no depende del idioma, pero
+ * el ida y vuelta lo cambia por narices, así que tiene que devolverlo.
+ */
+comprobar(
+  uno.idioma.restaurado === uno.idioma.deInicio,
+  'la prueba deja el idioma como lo encontró',
+  `empezó en ${uno.idioma.deInicio} y acabó en ${uno.idioma.restaurado}`,
+);
+
 // ── Lo que solo se ve arrancando dos veces ──
 
 comprobar(existsSync(resumenes), 'el primer arranque deja resúmenes guardados');

@@ -19,13 +19,29 @@ require('./out/main/index.js');
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Las nueve secciones, por su nombre en castellano.
+ * Las nueve secciones, por su nombre **interno**.
  *
- * Se recorren en un solo idioma a propósito: recorrerlas en los tres triplica
- * lo que tarda y no comprueba nada nuevo, porque que la traducción llega a la
- * pantalla ya lo dice el cambio de idioma de más abajo.
+ * Antes iban por su texto en castellano —'Portada', 'Colección'…— y eso hacía
+ * que la prueba dependiera de un ajuste del usuario: con el idioma guardado en
+ * inglés no encontraba ni un botón y las nueve salían en rojo, con la
+ * aplicación perfectamente sana. Pasó de verdad.
+ *
+ * Ahora se conduce por `data-seccion`, que es el identificador que la barra
+ * lateral ya manejaba por dentro y no cambia con la traducción. De paso, la
+ * prueba dice lo que quiere decir: no comprueba que exista un botón llamado
+ * "Colección", comprueba que se llega a la colección.
  */
-const SECCIONES = ['Portada', 'Colección', 'Perfil', 'Actividad', 'Trofeos', 'Rutas', 'Atlas', 'Taller', 'Ajustes'];
+const SECCIONES = [
+  ['home', 'Portada'],
+  ['library', 'Colección'],
+  ['profile', 'Perfil'],
+  ['activity', 'Actividad'],
+  ['achievements', 'Trofeos'],
+  ['guides', 'Rutas'],
+  ['maps', 'Atlas'],
+  ['mods', 'Taller'],
+  ['settings', 'Ajustes'],
+];
 
 /**
  * Cuánto se espera al calentamiento.
@@ -41,7 +57,7 @@ app.whenReady().then(async () => {
     ventana: false,
     erroresDeConsola: [],
     secciones: {},
-    idioma: { cambia: false, vuelve: false },
+    idioma: { cambia: false, vuelve: false, deInicio: null, restaurado: null },
     excepcion: null,
   };
 
@@ -64,14 +80,32 @@ app.whenReady().then(async () => {
     win.focus();
     wc.setBackgroundThrottling(false);
 
-    const irA = (nombre) => js(`
+    const irA = (id) => js(`
       (() => {
-        const b = [...document.querySelectorAll('nav button')]
-          .find((x) => x.textContent.trim().startsWith(${JSON.stringify(nombre)}));
+        const b = document.querySelector('nav [data-seccion=' + ${JSON.stringify(JSON.stringify(id))} + ']');
         if (b) b.click();
         return !!b;
       })()
     `);
+
+    /** Pulsa un idioma del selector de Ajustes por su identificador. */
+    const ponerIdioma = (id) => js(`
+      (() => {
+        const b = document.querySelector('[data-idioma=' + ${JSON.stringify(JSON.stringify(id))} + ']');
+        if (b) b.click();
+        return !!b;
+      })()
+    `);
+
+    /**
+     * Qué idioma hay puesto, leído del puente y no de la pantalla.
+     *
+     * Es una lectura, así que no cambia nada, y dice la verdad sin tener que
+     * adivinar qué botón se ve como activo.
+     */
+    const idiomaActual = () => js(
+      'window.atreus.settings.get().then((r) => (r.ok ? r.data.language : null))',
+    );
 
     const contenido = () => js(`
       (() => {
@@ -84,34 +118,58 @@ app.whenReady().then(async () => {
       })()
     `);
 
-    // ── Las nueve secciones, en castellano ──
-    for (const seccion of SECCIONES) {
-      const llega = await irA(seccion);
+    /*
+     * Con qué idioma se encontró la aplicación.
+     *
+     * Se apunta para devolverlo al final: la prueba de humo no debe dejar los
+     * ajustes de quien la ejecuta distintos de como estaban. Antes los dejaba
+     * en castellano pasara lo que pasara, y una sonda que había puesto inglés
+     * a mano hizo fallar la ejecución siguiente entera.
+     */
+    resultado.idioma.deInicio = await idiomaActual();
+
+    // ── Las nueve secciones ──
+    for (const [id, nombre] of SECCIONES) {
+      const llega = await irA(id);
       await espera(1800);
-      resultado.secciones[seccion] = { llega, ...(await contenido()) };
+      resultado.secciones[nombre] = { llega, ...(await contenido()) };
     }
 
-    // ── El idioma cambia la interfaz, y vuelve ──
-    await irA('Ajustes');
+    /*
+     * ── El idioma cambia la interfaz, y vuelve ──
+     *
+     * Se comprueba mirando **la propia barra lateral**, no el ajuste guardado:
+     * lo que importa no es que el valor cambie en el disco sino que la pantalla
+     * se repinte traducida sin reiniciar. Por eso sigue habiendo un texto en
+     * esta comprobación, y solo aquí.
+     */
+    await irA('settings');
     await espera(1200);
-    const pulsar = (etiqueta) => js(`
-      (() => {
-        const b = [...document.querySelectorAll('button')]
-          .find((x) => x.textContent.trim() === ${JSON.stringify(etiqueta)});
-        if (b) b.click();
-        return !!b;
-      })()
-    `);
-    await pulsar('English');
+
+    // Se parte de un idioma conocido, valga el que valga el guardado.
+    await ponerIdioma('es');
+    await espera(1200);
+
+    await ponerIdioma('en');
     await espera(1500);
     resultado.idioma.cambia = await js(`
       [...document.querySelectorAll('nav button')].some((b) => b.textContent.trim().startsWith('Collection'))
     `);
-    await pulsar('Español');
+
+    await ponerIdioma('es');
     await espera(1500);
     resultado.idioma.vuelve = await js(`
       [...document.querySelectorAll('nav button')].some((b) => b.textContent.trim().startsWith('Colección'))
     `);
+
+    // Y se deja como estaba. Se pulsa el botón, no se escribe el ajuste: por
+    // el IPC el store del renderer no se entera y la pantalla se quedaría
+    // diciendo otra cosa que el disco.
+    if (resultado.idioma.deInicio && resultado.idioma.deInicio !== 'es') {
+      await ponerIdioma(resultado.idioma.deInicio);
+      await espera(1200);
+    }
+    resultado.idioma.restaurado = await idiomaActual();
 
     // Se le da tiempo al cálculo en segundo plano para que guarde algo: el
     // segundo arranque comprobará que sigue ahí.

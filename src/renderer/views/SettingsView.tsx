@@ -253,6 +253,8 @@ export function SettingsView() {
                   <Button
                     key={idioma.id}
                     size="sm"
+                    /* Ver la nota de `data-seccion` en Sidebar.tsx. */
+                    data-idioma={idioma.id}
                     variant={settings.language === idioma.id ? 'primary' : 'ghost'}
                     onClick={() => void patch({ language: idioma.id })}
                   >

@@ -213,6 +213,7 @@ export function Sidebar() {
       <div className="flex shrink-0 items-center gap-1 border-t border-line px-2 py-1.5">
         <button
           onClick={() => go('settings')}
+          data-seccion="settings"
           aria-current={section === 'settings' ? 'page' : undefined}
           title={t('lateral.ajustesPista')}
           className={cn(
@@ -248,7 +249,7 @@ function Grupo({ titulo }: { titulo: string }) {
 }
 
 function Item({
-  label, hint, icon: Icon, active, sangrado, onClick,
+  id, label, hint, icon: Icon, active, sangrado, onClick,
 }: Destino & {
   active: boolean;
   sangrado?: boolean;
@@ -258,6 +259,15 @@ function Item({
   return (
     <button
       onClick={onClick}
+      /*
+       * El nombre interno de la sección, que no cambia con el idioma.
+       *
+       * Es para la prueba de humo: conducía la aplicación buscando los botones
+       * por su texto en castellano, así que si los ajustes guardados tenían
+       * otro idioma no encontraba ninguno y las nueve secciones salían en rojo.
+       * La aplicación estaba bien; la prueba dependía de un dato del usuario.
+       */
+      data-seccion={id}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'group/item relative flex items-center gap-2.5 rounded-sm px-3 text-left text-[13px] font-medium',
