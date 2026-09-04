@@ -9,7 +9,7 @@ ninguna parte. Ver [docs/SCOPE.md](docs/SCOPE.md).
 
 ## Descargar
 
-**[→ Descarga la última versión](../../releases/latest)** · Windows 10 u 11, 64 bits.
+**[→ Descarga la última versión](https://github.com/syaxag/atreus/releases/latest)** · Windows 10 u 11, 64 bits.
 
 Bájate el `Atreus-<versión>-setup.exe` de la sección *Assets* y ábrelo. No hace falta
 tener nada más instalado.
@@ -19,7 +19,8 @@ tener nada más instalado.
 > *Más información* → *Ejecutar de todas formas*. Si prefieres no fiarte de eso
 > —haces bien—, el código está entero aquí y puedes compilarlo tú: mira *Arrancar*.
 
-Atreus se actualiza solo cuando hay versión nueva, si lo dejas activado en Ajustes.
+A partir de ahí Atreus se actualiza solo cuando hay versión nueva, sin configurar
+nada: viene apuntando a estas mismas releases.
 
 Es gratis y puedes usarlo en los equipos que quieras, pero **no se puede
 redistribuir**: si quieres pasárselo a alguien, pásale este enlace. Los términos
