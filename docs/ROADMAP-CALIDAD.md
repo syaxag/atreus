@@ -10,13 +10,16 @@ linter, compilador más estricto—, porque cada arreglo posterior se comprueba 
 encima. Lo último son las vistas, que es donde más código se mueve y donde más
 falta hace tener todo lo demás en verde.
 
+Estado: **los quince, hechos.** Y el arnés encontró por su cuenta cuatro
+defectos más que esta lista no traía: están al final, en su propia sección.
+
 ---
 
 ## Fase 0 · El arnés
 
 Nada de esto cambia lo que hace Atreus. Cambia lo que Atreus deja pasar.
 
-### 11. `engines` en package.json
+### 11. `engines` en package.json · ✅
 
 `npm test` usa `--experimental-strip-types`, que exige Node ≥ 22.6. Sin
 declararlo, en otro equipo la suite falla con un error de sintaxis que no
@@ -24,7 +27,7 @@ menciona la versión de Node por ninguna parte.
 
 **Comprobación:** `npm ci` avisa si la versión no cumple.
 
-### 14. El compilador, más estricto
+### 14. El compilador, más estricto · ✅
 
 Ya iba con `strict` y `noUncheckedIndexedAccess`. Se añaden cuatro que en un
 código de este nivel salen gratis y cazan lo que la revisión encuentra a mano:
@@ -40,7 +43,7 @@ defecto real. Se anota aquí para no volver a plantearlo cada seis meses.
 
 **Comprobación:** `npm run typecheck`.
 
-### 9. CI y linter
+### 9. CI y linter · ✅
 
 Había 266 tests, una prueba de humo y un typecheck, y **nada los ejecutaba salvo
 la memoria de quien programa**. Ahora:
@@ -62,7 +65,7 @@ publicar.
 
 Lo único de la lista que un usuario nota sin saber que existe.
 
-### 1. El calentamiento se saltaba juegos al jugar
+### 1. El calentamiento se saltaba juegos al jugar · ✅
 
 `warmup.ts` recorría la cola y, al encontrar una partida abierta, dormía un
 minuto y hacía `continue`. Pero `continue` **avanza el iterador**: ese juego no
@@ -75,22 +78,26 @@ Ahora el bucle va por índice y **no avanza** mientras hay una partida: reintent
 el mismo juego. Con un tope de esperas por juego, para que una sesión de ocho
 horas no deje el calentamiento girando para siempre.
 
-**Comprobación:** `test/warmup.test.ts` — la cola con una partida abierta no
-pierde ningún juego.
+**Comprobación:** `test/cola.test.ts` — nueve tests, y el que importa reproduce
+jugar mientras calienta: la cola no pierde ningún juego.
 
-### 2. Carreras al cambiar de juego rápido
+### 2. Carreras al cambiar de juego rápido · ✅
 
 Cinco vistas cargaban con `async` sin comprobar si la respuesta seguía siendo
 vigente. Abrir el juego A y saltar a B antes de que Steam contestara pintaba los
 logros de A sobre B. El patrón bueno ya existía en `HomeView` —un `let vigente`
 en el efecto—, pero solo ahí.
 
-Se extrae a `lib/vigencia.ts`: `useCarga()`, un hook que envuelve la carga y
-**descarta lo que llega tarde**. Una sola implementación, y la fase 4 la reutiliza
-al partir las vistas.
+Al mirarlo de cerca eran cuatro y no cinco: `GuidesView` sí lo tenía, escrito a
+mano con un `useRef(0)`. Es decir, el patrón bueno estaba escrito **dos veces y
+de dos formas distintas**, y faltaba en las otras cuatro.
+
+Se extrae a `lib/vigencia.ts`: `useTurno()` para las cargas escritas a mano y
+`useCarga()` para las que son una carga y ya. Las seis vistas usan lo mismo.
 
 **Comprobación:** `test/vigencia.test.ts` — una respuesta lenta de la petición
-anterior no pisa a la nueva.
+anterior no pisa a la nueva. Se comprobó al revés: sin el guardia, ese test
+falla con el síntoma exacto, la vista de B enseñando los datos de A.
 
 ---
 
@@ -98,7 +105,7 @@ anterior no pisa a la nueva.
 
 Ordenadas por lo que puede pasar de verdad, no por su nombre.
 
-### 3. `fileName` de un catálogo remoto entraba sin sanear en una ruta
+### 3. `fileName` de un catálogo remoto entraba sin sanear en una ruta · ✅
 
 `join(staging, ready.fileName)`, con `fileName` viniendo de GameBanana o
 Modrinth —y con el objeto entero llegando además del renderer por IPC sin
@@ -107,17 +114,17 @@ validar—. Un `..\..\algo.exe` escribía fuera del temporal.
 Se sanea con `basename()` y se exige `https:` en la URL de descarga, que es lo
 que ya hacía el actualizador y aquí faltaba.
 
-**Comprobación:** `test/mods-remoto.test.ts`.
+**Comprobación:** `test/filo.test.ts`.
 
-### 4. El catálogo se sincronizaba por HTTP plano
+### 4. El catálogo se sincronizaba por HTTP plano · ✅
 
 Las definiciones deciden qué ejecutable se lanza, con qué argumentos y a qué
 carpeta se despliegan mods. El actualizador exigía HTTPS y el manifiesto
 también; el origen del catálogo era el hueco por el que entraba todo.
 
-**Comprobación:** `test/sync-origen.test.ts`.
+**Comprobación:** `test/filo.test.ts`.
 
-### 5. `mods.root` no se validaba
+### 5. `mods.root` no se validaba · ✅
 
 `validate()` comprobaba `id`, `name` y que los mapas fueran https, pero
 `mods.root` pasaba entero a `resolveRoot()`, que expande `%VAR%` y aceptaba
@@ -128,18 +135,18 @@ Ahora la raíz resuelta tiene que caer bajo el directorio del juego o bajo una d
 las carpetas del usuario (`%APPDATA%`, `%LOCALAPPDATA%`, `%USERPROFILE%`).
 Lo que no cae, se rechaza con el motivo escrito.
 
-**Comprobación:** `test/deploy-raiz.test.ts`.
+**Comprobación:** `test/filo.test.ts`.
 
-### 8. Los ajustes aceptaban cualquier parche
+### 8. Los ajustes aceptaban cualquier parche · ✅
 
 `setSettings(patch)` tomaba un parcial arbitrario del renderer sin comprobar
 nada: un valor mal tipado se persistía y sobrevivía al reinicio. Ahora cada
 clave tiene su validador; lo que no encaja se descarta con un aviso en el
 registro y el resto del parche se aplica igual.
 
-**Comprobación:** `test/settings-validar.test.ts`.
+**Comprobación:** `test/ajustes.test.ts`.
 
-### 6. Las claves de API se guardaban en claro
+### 6. Las claves de API se guardaban en claro · ✅
 
 `steamWebApiKey` y `xboxApiKey` iban tal cual en `settings.json`. Ahora se
 cifran con `safeStorage` (DPAPI en Windows) al persistir y se descifran al leer.
@@ -152,18 +159,20 @@ Con tres cuidados que importan más que el cifrado en sí:
   guardado, así que nadie tiene que volver a pegarla;
 - la forma de `Settings` no cambia: el cifrado vive en el borde del disco.
 
-**Comprobación:** `test/settings-secretos.test.ts`.
+**Comprobación:** `test/ajustes.test.ts`.
 
-### 7. El `.7z` se extraía a ciegas
+### 7. El `.7z` se extraía a ciegas · ✅
 
 El camino del `.zip` tenía `safeJoin()` contra zip slip, bien explicado. El
 `.7z` delegaba todo en `7za x` sin comprobar nada después. 7-Zip suele rechazar
 `..`, pero eso era una confianza sin escribir. Ahora, tras extraer, se recorre
 el destino y se descarta lo que sea enlace o quede fuera.
 
-**Comprobación:** `test/archive-7z.test.ts`.
+**Comprobación:** `test/extraccion.test.ts`. Los casos de enlaces simbólicos se
+saltan solos en un Windows sin permisos para crearlos, y lo dicen: un test que
+finge haber comprobado algo es peor que uno que no está.
 
-### 15. CSP: tres directivas que faltaban
+### 15. CSP: tres directivas que faltaban · ✅
 
 `object-src 'none'`, `base-uri 'self'` y `form-action 'none'`. `default-src` no
 cubre las dos últimas.
@@ -174,7 +183,7 @@ cubre las dos últimas.
 
 ## Fase 3 · La red bajo lo destructivo
 
-### 10. Tests de lo que puede estropear una instalación
+### 10. Tests de lo que puede estropear una instalación · ✅
 
 Los 266 tests que había cubrían funciones puras: parsers, formato, i18n,
 estimación. `deploy.ts` y `purge()` —enlaces duros, `.atreus-backup`, borrado de
@@ -194,29 +203,77 @@ Lo que se prueba es el comportamiento, no la implementación:
   purgar no queda rastro de ninguno;
 - las carpetas que creamos se retiran; las que ya estaban, no.
 
-**Comprobación:** `test/deploy.test.ts`.
+**Comprobación:** `test/deploy.test.ts`, 16 tests.
 
 ---
 
 ## Fase 4 · La casa ordenada
 
-### 12. Vistas de ochocientas líneas
+### 12. Vistas de ochocientas líneas · ✅
 
 `ModsView` tenía 843 líneas y 19 `useState`; `AchievementsView`, 797 y 18. Las
 dos mezclaban carga de datos, estado de borrador y presentación.
 
-La carga se saca a hooks —`useLogros`, `useMods`, `useGuias`, `useMapas`— sobre
-el `useCarga()` de la fase 1. No es mudar código de sitio: es que el guardia de
-vigencia viva en un solo lugar en vez de en cinco, que era el defecto 2.
+La carga se saca a hooks —`useLogros` y `useMods`— sobre el `useTurno()` de la
+fase 1, y los subcomponentes que no comparten nada con su vista salen a su
+propio archivo (`views/taller/piezas.tsx`, `views/trofeos/piezas.tsx`).
+
+ModsView: 843 → 551 líneas. AchievementsView: 797 → 633.
+
+Pero lo que se buscaba no era el recuento: era que el guardia de vigencia
+viviera en un sitio en vez de en cinco, que es el defecto 2.
 
 **Comprobación:** `npm test` (las vistas siguen pintando en jsdom) y `npm run smoke`.
 
-### 13. El `Modal` dejaba escapar el foco
+### 13. El `Modal` dejaba escapar el foco · ✅
 
 Tenía `role="dialog"`, `aria-modal` y Escape —lo difícil ya estaba—, pero el
 tabulador se iba al fondo y al cerrar el foco no volvía al botón que lo abrió.
 
 **Comprobación:** `test/modal.test.ts`.
+
+---
+
+---
+
+## Lo que encontró el arnés, y no la revisión
+
+Cuatro defectos que **no estaban en esta lista**. Los tres primeros salieron en
+la fase 0, antes de arreglar nada: son la respuesta a por qué el arnés va
+primero.
+
+### Las copias de seguridad de Steam no se creaban nunca
+
+`noUnusedLocals` avisó de que `saveSnapshot` estaba importada en
+`steam/session.ts` y no la llamaba nadie. Es decir: la pestaña de Historial de
+Trofeos ofrecía restaurar de una carpeta que siempre estaba vacía, y el botón de
+"Restaurar" no podía funcionar. La red de seguridad de lo único que escribe en
+Steam no existía.
+
+Ahora la copia se toma **antes** de escribir —en `commit`, en `resetAll` y
+también en `restore`, que restaurar también escribe— y un fallo al guardarla
+detiene la escritura: escribir logros sin poder deshacerlo es exactamente lo que
+la copia existe para evitar.
+
+### Un `useMemo` por debajo de un retorno temprano
+
+`react-hooks/rules-of-hooks` lo encontró en `ModsView`: el hook estaba después
+del `if (!game) return <Empty/>`, así que al **deseleccionar** el juego React
+encontraba menos hooks de los que tenía apuntados y tiraba la vista. Nunca dio
+la cara porque hace falta pasar de un juego a ninguno con el Taller abierto.
+
+### El campo de la clave de Xbox no se refrescaba
+
+`react-hooks/exhaustive-deps`: el efecto copiaba las dos claves al formulario
+pero solo tenía la de Steam en sus dependencias.
+
+### Purgar dejaba carpetas vacías en el juego
+
+Este lo encontraron los tests de la fase 3, y solo porque comparan **el árbol
+entero** antes y después en vez de mirar archivo a archivo. `removeEmptyDirs`
+recogía la carpeta madre de cada archivo, no la cadena entera: un mod con
+`nueva/hondo/x.txt` dejaba `nueva/` vacía dentro del directorio del juego.
+Purgar prometía no dejar rastro y dejaba una carpeta por cada mod anidado.
 
 ---
 
