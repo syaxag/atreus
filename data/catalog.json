@@ -1,7 +1,7 @@
 {
   "schema": "atreus.catalog/v1",
   "version": "2026.09.04",
-  "publishedAt": 1788534558,
+  "publishedAt": 1788534921,
   "definitions": [
     {
       "file": "epic.Fortnite.json",
@@ -16,17 +16,17 @@
     {
       "file": "steam.2050650.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.2050650.json",
-      "sha256": "40579a5f6c9d003f7b95d228efbe2e352dfdff8b9b01bb57a088aa78b7d0249b"
+      "sha256": "7c67cd87e3e1c036331881a64732a5dc5e632210f95cbfb838b133afb77a8ba3"
     },
     {
       "file": "steam.2379780.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.2379780.json",
-      "sha256": "acf7d8970dac57d29137b5b1e170d204acff902ea85b53c03ce2aa953ba58b5d"
+      "sha256": "5212ab9bf8ae7cebcd28f662bf63f7ac1feaa8baf2f6f5b4ec78d8e5dc263a4f"
     },
     {
       "file": "steam.252950.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.252950.json",
-      "sha256": "7b3ab6127673ae50b0ced9474b6e3f0492b8e3c45d01a4153194afff571f38bc"
+      "sha256": "8f78a598c11fcbdc1e37f476b8d28d24d54c35dede1889aa29c662ffcf6e8ea1"
     },
     {
       "file": "steam.2806050.json",
@@ -41,17 +41,17 @@
     {
       "file": "steam.322170.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.322170.json",
-      "sha256": "e6c2cd71e2e31a9924a278f4b755dd8856a133ef01bac32bbbff72c1435ac5cf"
+      "sha256": "02765ff3cc3d7003c807a9b989e43a75a987aa03fd2ed3c83c1e9405ad8002e6"
     },
     {
       "file": "steam.3527290.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.3527290.json",
-      "sha256": "0a7bfcc68843671f9cbd4b264fd16d38edf08e1b7288b0819caa70e2cfcd5a2a"
+      "sha256": "475a0c53b56baa74d503ea6c5bec4b2acc9f6d806775b589fc6f9e6a8321c83c"
     },
     {
       "file": "steam.431960.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.431960.json",
-      "sha256": "00f807030e8601fecd02d4aafc8d9c1b19096f3f214c248c9ceb32973cb5fb89"
+      "sha256": "1f05fd6bf9fb8224e5fdbd8948feb4ba4e70a01fa108b7744729ffb270aaabe1"
     },
     {
       "file": "steam.588650.json",
@@ -61,7 +61,7 @@
     {
       "file": "steam.824270.json",
       "url": "https://raw.githubusercontent.com/syaxag/atreus/master/data/games/steam.824270.json",
-      "sha256": "3feec6c0fab377ef89ea8d7cf78e9a877743a88434b1e476a098a30a792de605"
+      "sha256": "a17f3d7cf51d8af16de690f508b773950e7d4dcc6000e406239d525603579fdf"
     },
     {
       "file": "xbox.Microsoft.MinecraftJavaEdition_8wekyb3d8bbwe.json",

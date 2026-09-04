@@ -46,9 +46,25 @@ if (archivos.length === 0) {
   process.exit(1);
 }
 
+/**
+ * El contenido tal como lo va a servir GitHub, no tal como está en el disco.
+ *
+ * `.gitattributes` guarda todo con finales de línea LF y Windows los saca a
+ * CRLF al descargar el repositorio. Así que el archivo que tengo delante y el
+ * que `raw.githubusercontent.com` entrega **no son el mismo byte a byte**, y un
+ * hash sacado del primero no cuadra nunca con el segundo.
+ *
+ * No es teoría: la primera versión del catálogo se publicó así y la
+ * sincronización lo rechazó con "SHA-256 no coincide" en la primera ficha que
+ * tenía CRLF. Lo encontró arrancar la aplicación, no un test.
+ */
+function comoLoSirveGitHub(ruta) {
+  return Buffer.from(readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n'), 'utf8');
+}
+
 const definiciones = [];
 for (const file of archivos) {
-  const contenido = readFileSync(join(carpeta, file));
+  const contenido = comoLoSirveGitHub(join(carpeta, file));
 
   // Se valida antes de publicarla. Un JSON roto en el catálogo lo descarga
   // todo el mundo y lo descarta todo el mundo: mejor no llegar a colgarlo.

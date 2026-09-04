@@ -80,13 +80,27 @@ function countUserDefs(): number {
  * Copia un JSON a la capa del usuario si su contenido cambió.
  * Devuelve true si escribió.
  */
-function adoptFile(sourcePath: string): boolean {
-  const name = basename(sourcePath);
+/**
+ * Guarda una definición en la capa del usuario, **con el nombre que le toca**.
+ *
+ * El nombre se pasa aparte del contenido a propósito. Antes no: lo que llegaba
+ * por el catálogo se escribía en un temporal llamado
+ * `atreus-definition-<azar>-steam.1234.json` y se adoptaba **desde ahí**, así
+ * que se guardaba con ese nombre. Dos consecuencias, y la segunda es la mala:
+ *
+ *  1. La carpeta del usuario se llenaba de nombres ilegibles.
+ *  2. Como el azar cambia en cada sincronización, **cada seis horas se creaba
+ *     una copia nueva de cada ficha** en vez de actualizar la que ya estaba.
+ *     Al cabo de un día, doce copias de cada juego.
+ *
+ * Lo encontró arrancar la aplicación con la carpeta vacía y mirar qué aparecía;
+ * ningún test de los que había podía verlo.
+ */
+function adoptar(name: string, incoming: string): boolean {
   if (!name.endsWith('.json') || name.startsWith('_')) return false;
 
   const target = join(paths.userGameDefs, name);
   try {
-    const incoming = readFileSync(sourcePath, 'utf8');
     // Se valida antes de adoptarlo: un JSON roto en la carpeta del usuario
     // ensucia el arranque con avisos en cada carga.
     JSON.parse(incoming);
@@ -95,6 +109,21 @@ function adoptFile(sourcePath: string): boolean {
     mkdirSync(paths.userGameDefs, { recursive: true });
     writeFileSync(target, incoming, 'utf8');
     return true;
+  } catch (e) {
+    logger.warn(`${name} descartado: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  }
+}
+
+/**
+ * Copia un JSON a la capa del usuario si su contenido cambió.
+ * Devuelve true si escribió.
+ */
+function adoptFile(sourcePath: string): boolean {
+  const name = basename(sourcePath);
+  if (!name.endsWith('.json') || name.startsWith('_')) return false;
+  try {
+    return adoptar(name, readFileSync(sourcePath, 'utf8'));
   } catch (e) {
     logger.warn(`${name} descartado: ${e instanceof Error ? e.message : String(e)}`);
     return false;
@@ -139,8 +168,9 @@ function adoptBuffer(file: string, content: Buffer, expectedHash?: string): bool
     const actual = createHash('sha256').update(content).digest('hex');
     if (actual.toLowerCase() !== expectedHash.toLowerCase()) throw new Error(`${name}: SHA-256 no coincide`);
   }
-  const temp = join(tmpdir(), `atreus-definition-${Date.now().toString(36)}-${name}`);
-  try { writeFileSync(temp, content); return adoptFile(temp); } finally { rmSync(temp, { force: true }); }
+  // Directo, sin pasar por un temporal: el rodeo era lo que le cambiaba el
+  // nombre. Ver la nota de `adoptar`.
+  return adoptar(name, content.toString('utf8'));
 }
 
 async function syncManifest(source: string, value: CatalogManifest): Promise<{ updated: number; meta: CatalogMeta }> {

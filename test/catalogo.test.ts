@@ -82,7 +82,11 @@ describe('lo que promete cada entrada', () => {
     for (const d of manifiesto.definitions) {
       const ruta = join(raiz, 'data', 'games', d.file);
       assert.ok(existsSync(ruta), `${d.file} está en el manifiesto y no en data/games`);
-      const real = createHash('sha256').update(readFileSync(ruta)).digest('hex');
+      // Igual que el generador: lo que sirve GitHub lleva LF, y en Windows el
+      // archivo de disco lleva CRLF. Hashear el de disco daba un valor que no
+      // cuadraba con nada, y así se publicó el primer catálogo.
+      const servido = readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n');
+      const real = createHash('sha256').update(Buffer.from(servido, 'utf8')).digest('hex');
       assert.equal(real, d.sha256, `${d.file}: hay que volver a ejecutar "npm run catalog"`);
     }
   });
