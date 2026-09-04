@@ -670,6 +670,9 @@ export const es = {
   'ajustes.disponibleVersion': 'Disponible la versión {version}',
   'ajustes.yaAlDia': 'Ya estás en la última versión',
   'ajustes.descargandoAviso': 'Descargando actualización; Atreus se reiniciará al terminar.',
+  'ajustes.apoyo': 'Apóyame con este proyecto',
+  'ajustes.apoyoCuerpo': 'Atreus lo hago yo solo, por gusto y en mis ratos. No pide dinero, no lleva anuncios y no recoge nada tuyo. Si te sirve, el apoyo que vale es un seguimiento: ahí cuento cómo se construye y qué cae después.',
+  'ajustes.apoyoBoton': 'Seguir en TikTok',
   'ajustes.alcance': 'Alcance',
   'ajustes.alcanceCuerpo': 'Atreus no modifica ni la memoria ni los archivos de tus juegos. Lee tu biblioteca, habla con el cliente de Steam para los logros, y todo lo demás —guías, mapas, rareza— son consultas a fuentes públicas. Los mods sí escriben en la carpeta del juego, y siempre avisan antes de hacerlo.',
 

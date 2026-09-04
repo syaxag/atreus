@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package } from 'lucide-react';
+import {
+  ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package, Heart,
+} from 'lucide-react';
 import type { SteamKeyStatus, XboxKeyStatus } from '@shared/types';
 import { api, usingMock } from '@/lib/api';
 import { useStore } from '@/store';
@@ -404,6 +406,49 @@ export function SettingsView() {
               </div>
             </Row>
           </Section>
+
+          {/*
+            Apoyo al proyecto.
+            Va al final y sin plegar, después de todo lo que se configura: es lo
+            último que se lee al bajar por Ajustes y no compite con nada. Se
+            distingue del resto con el color de acento —el mismo que marca lo
+            activo en toda la aplicación— y no con un bloque de otro color, que
+            aquí sonaría a anuncio.
+          */}
+          <Card className="overflow-hidden border-[var(--accent-line)]">
+            <div className="flex flex-wrap items-center gap-4 bg-[var(--accent-soft)] px-4 py-4">
+              <div
+                aria-hidden="true"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[var(--accent-line)] bg-surface text-accent"
+              >
+                <Heart size={18} fill="currentColor" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-[14px] font-semibold">{t('ajustes.apoyo')}</h2>
+                  {/*
+                    El identificador, a la vista y no solo detrás del botón: así
+                    se puede buscar a mano desde el móvil, que es donde se ve
+                    TikTok. No se traduce —es un nombre, no una frase— y va en
+                    monoespaciada como el resto de los identificadores de Atreus.
+                  */}
+                  <Badge tone="accent" mono>@hv_syax</Badge>
+                </div>
+                <p className="mt-1 text-[12px] leading-relaxed text-muted">
+                  {t('ajustes.apoyoCuerpo')}
+                </p>
+              </div>
+
+              <Button
+                variant="primary"
+                onClick={() => void api.settings.openPath('https://www.tiktok.com/@hv_syax')}
+              >
+                {/* El identificador no se traduce: es un nombre, no una frase. */}
+                <ExternalLink size={14} /> {t('ajustes.apoyoBoton')}
+              </Button>
+            </div>
+          </Card>
 
           <Card className="px-4 py-3">
             <div className="flex items-start gap-3">
