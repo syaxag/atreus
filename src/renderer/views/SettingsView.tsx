@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   ChevronDown, FolderOpen, ScrollText, RefreshCw, ExternalLink, FolderCode, Package, Heart,
+  Trophy,
 } from 'lucide-react';
 import type { SteamKeyStatus, XboxKeyStatus } from '@shared/types';
 import { api, usingMock } from '@/lib/api';
@@ -465,7 +466,9 @@ export function SettingsView() {
                 */}
                 {donar && (
                   <Button variant="primary" onClick={() => void api.settings.openPath(donar.url)}>
-                    <Heart size={14} fill="currentColor" /> {t('ajustes.apoyoDonar')}
+                    {/* El trofeo y no un corazón: el lema habla de un platino,
+                        y el trofeo es el símbolo de la casa. */}
+                    <Trophy size={14} /> {t('ajustes.apoyoDonar')}
                   </Button>
                 )}
                 <Button

@@ -131,7 +131,7 @@ Si te sirve y te apetece echar una mano:
 
 - **Sígueme en TikTok** — [@hv_syax](https://www.tiktok.com/@hv_syax). Ahí voy
   contando cómo se construye y qué cae después. Es gratis y es lo que más ayuda.
-- **Invítame a un café** — [paypal.me/yaelarellano](https://paypal.me/yaelarellano).
+- **Apóyame con un platino** — [paypal.me/yaelarellano](https://paypal.me/yaelarellano).
 
 Las dos ayudan y ninguna hace falta. **Ninguna desbloquea nada**: no hay versión
 de pago ni funciones guardadas detrás de una donación. Lo que ves es todo lo que

@@ -677,10 +677,10 @@ export const pt: Record<Clave, string> = {
   'ajustes.disponibleVersion': 'A versão {version} está disponível',
   'ajustes.yaAlDia': 'Você já está na versão mais recente',
   'ajustes.descargandoAviso': 'Baixando a atualização; o Atreus vai reiniciar ao terminar.',
-  'ajustes.apoyo': 'Apoie este projeto',
-  'ajustes.apoyoCuerpo': 'O Atreus faço sozinho, por gosto e nas horas vagas. É grátis e vai continuar sendo: sem anúncios, sem contas e sem recolher nada seu. Se lhe for útil, você pode me pagar um café ou me seguir no TikTok. As duas ajudam, nenhuma é necessária, e nenhuma desbloqueia nada: não existe versão paga.',
+  'ajustes.apoyo': 'O Atreus é grátis',
+  'ajustes.apoyoCuerpo': 'O Atreus faço sozinho, por gosto e nas horas vagas. É grátis e vai continuar sendo: sem anúncios, sem contas e sem recolher nada seu. Se lhe for útil, você pode me apoiar com uma platina ou me seguir no TikTok. As duas ajudam, nenhuma é necessária, e nenhuma desbloqueia nada: não existe versão paga.',
   'ajustes.apoyoBoton': 'Seguir no TikTok',
-  'ajustes.apoyoDonar': 'Me pague um café',
+  'ajustes.apoyoDonar': 'Me apoie com uma PLATINA',
   'ajustes.alcance': 'Alcance',
   'ajustes.alcanceCuerpo': 'O Atreus não modifica nem a memória nem os arquivos dos seus jogos. Ele lê a sua biblioteca, fala com o cliente da Steam para as conquistas, e todo o resto —guias, mapas, raridade— são consultas a fontes públicas. Os mods, esses sim, escrevem na pasta do jogo, e sempre avisam antes.',
 
